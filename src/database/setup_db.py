@@ -78,9 +78,16 @@ def create_tables(cursor):
 
     CREATE TABLE users (
         user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cinema_id INTEGER,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
-        role TEXT NOT NULL
+        full_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        role TEXT NOT NULL,
+        theme_pref TEXT NOT NULL DEFAULT 'dark',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        last_login TEXT,
+        FOREIGN KEY(cinema_id) REFERENCES cinemas(cinema_id)
     );
 
     CREATE TABLE bookings (
@@ -210,16 +217,20 @@ def seed_data(cursor):
         VALUES (?, ?, ?, ?, ?, ?)
     """, showings_data)
 
-    # 7. Users
+    # 7. Users (cinema_id, username, password_hash, full_name, email, role, theme_pref, is_active)
     users_data = [
-        ('manager1', hash_password('password123'), 'Manager'),
-        ('admin1', hash_password('password123'), 'Admin'),
-        ('admin2', hash_password('password123'), 'Admin'),
-        ('staff1', hash_password('password123'), 'Staff'),
-        ('staff2', hash_password('password123'), 'Staff'),
-        ('staff3', hash_password('password123'), 'Staff')
+        (None, 'manager1', hash_password('password123'), 'Alice Manager',   'alice@hcbs.com',   'manager', 'dark', 1),
+        (1,    'admin1',   hash_password('password123'), 'Bob Admin',        'bob@hcbs.com',     'admin',   'dark', 1),
+        (5,    'admin2',   hash_password('password123'), 'Carol Admin',      'carol@hcbs.com',   'admin',   'light',1),
+        (2,    'staff1',   hash_password('password123'), 'Dave Staff',       'dave@hcbs.com',    'staff',   'dark', 1),
+        (3,    'staff2',   hash_password('password123'), 'Eve Staff',        'eve@hcbs.com',     'staff',   'dark', 1),
+        (7,    'staff3',   hash_password('password123'), 'Frank Staff',      'frank@hcbs.com',   'staff',   'light',1),
     ]
-    cursor.executemany("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)", users_data)
+    cursor.executemany("""
+        INSERT INTO users (cinema_id, username, password_hash, full_name, email, role, theme_pref, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, users_data)
+
 
     # Add a dummy booking and ticket to ensure tables are working
     cursor.execute("""
