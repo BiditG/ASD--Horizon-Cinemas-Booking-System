@@ -1,18 +1,27 @@
-import tkinter as tk
-from tkinter import messagebox
+"""
+main.py
+=======
+Entry point for the Horizon Cinemas Booking System (HCBS).
 
-def main():
+Run with:
+    python main.py
+"""
+
+import sys
+import os
+
+# Ensure the project root is on the path so 'src.*' imports resolve correctly.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import tkinter as tk
+from src.gui.login_window import LoginWindow
+
+
+def main() -> None:
     root = tk.Tk()
-    root.title("Horizon Cinemas Booking System")
-    root.geometry("400x300")
-    
-    label = tk.Label(root, text="Welcome to HCBS", font=("Arial", 16))
-    label.pack(pady=50)
-    
-    btn = tk.Button(root, text="Launch System", command=lambda: messagebox.showinfo("Info", "System Launching..."))
-    btn.pack()
-    
+    LoginWindow(root)
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
