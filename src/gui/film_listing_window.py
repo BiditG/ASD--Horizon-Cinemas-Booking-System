@@ -85,6 +85,15 @@ class FilmListingWindow:
         self._photo_refs: list      = []   # keep references so GC doesn't collect them
         self._selected_cinema_id: int | None = None
 
+        # Filter state — populated by _refresh_films(), filtered by _apply_filters()
+        self._all_films: list[tuple]    = []   # list of (Film, list[Showing])
+        self._displayed_films: list[tuple] = []
+
+        # StringVar traces for real-time filtering
+        self._search_var    = tk.StringVar()
+        self._genre_var     = tk.StringVar(value="All")
+        self._rating_var    = tk.StringVar(value="All")
+
         self._configure_root()
         self._build_ui()
         self._load_cinemas()
@@ -104,6 +113,7 @@ class FilmListingWindow:
     def _build_ui(self) -> None:
         self._build_topbar()
         self._build_controls()
+        self._build_search_bar()
         self._build_film_area()
         self._build_statusbar()
 
@@ -181,13 +191,88 @@ class FilmListingWindow:
         self._cinema_cb.grid(row=0, column=4, padx=(8, 0))
         self._cinema_cb.bind("<<ComboboxSelected>>", self._on_cinema_change)
 
+    def _build_search_bar(self) -> None:
+        """
+        Search + filter bar — inserted between date controls and film canvas.
+
+        Controls
+        --------
+        - Search Entry  : real-time title / actor keyword filter (StringVar trace).
+        - Genre combo   : filters by exact genre match (or 'All').
+        - Age Rating    : filters by exact BBFC rating (or 'All').
+        - Clear button  : resets all three controls and re-renders all films.
+        """
+        GENRES  = ["All", "Action", "Animation", "Comedy", "Documentary",
+                   "Drama", "Horror", "Romance", "Sci-Fi", "Thriller"]
+        RATINGS = ["All", "U", "PG", "12", "12A", "15", "18"]
+
+        bar = tk.Frame(self.root, bg=BG2, pady=10)
+        bar.grid(row=2, column=0, sticky="ew", padx=0)
+        bar.columnconfigure(1, weight=1)   # search field expands
+
+        # ── Search label + entry ──────────────────────────────────────────────
+        tk.Label(bar, text="🔍  Search by title or actor:",
+                 font=FONT_LABEL, bg=BG2, fg=TEXT2
+                 ).grid(row=0, column=0, padx=(16, 6))
+
+        search_entry = tk.Entry(
+            bar, textvariable=self._search_var,
+            font=FONT_BODY, bg=BG, fg=TEXT,
+            insertbackground=TEXT, relief="flat",
+            highlightbackground=BORDER, highlightthickness=1,
+            highlightcolor=ACCENT
+        )
+        search_entry.grid(row=0, column=1, sticky="ew", padx=(0, 16), ipady=6)
+        search_entry.bind("<FocusIn>",
+                          lambda e: search_entry.config(highlightbackground=ACCENT))
+        search_entry.bind("<FocusOut>",
+                          lambda e: search_entry.config(highlightbackground=BORDER))
+
+        # ── Genre combo ───────────────────────────────────────────────────────
+        tk.Label(bar, text="Genre:", font=FONT_LABEL,
+                 bg=BG2, fg=TEXT2).grid(row=0, column=2, padx=(0, 6))
+
+        self._genre_cb = ttk.Combobox(
+            bar, textvariable=self._genre_var,
+            values=GENRES, state="readonly",
+            font=FONT_BODY, width=14, style="HCBS.TCombobox"
+        )
+        self._genre_cb.grid(row=0, column=3, padx=(0, 16))
+
+        # ── Age rating combo ──────────────────────────────────────────────────
+        tk.Label(bar, text="Rating:", font=FONT_LABEL,
+                 bg=BG2, fg=TEXT2).grid(row=0, column=4, padx=(0, 6))
+
+        self._rating_cb = ttk.Combobox(
+            bar, textvariable=self._rating_var,
+            values=RATINGS, state="readonly",
+            font=FONT_BODY, width=8, style="HCBS.TCombobox"
+        )
+        self._rating_cb.grid(row=0, column=5, padx=(0, 16))
+
+        # ── Clear Filters button ──────────────────────────────────────────────
+        clear_btn = tk.Button(
+            bar, text="✕  Clear Filters", font=FONT_BTN,
+            bg=SOLD_OUT, fg=TEXT, activebackground=BG,
+            relief="flat", cursor="hand2", padx=12, pady=6,
+            command=self._clear_filters
+        )
+        clear_btn.grid(row=0, column=6, padx=(0, 16))
+        clear_btn.bind("<Enter>", lambda e: clear_btn.config(bg=BG))
+        clear_btn.bind("<Leave>", lambda e: clear_btn.config(bg=SOLD_OUT))
+
+        # ── Attach traces (fire on every change) ─────────────────────────────
+        self._search_var.trace_add("write", lambda *_: self._apply_filters())
+        self._genre_var .trace_add("write", lambda *_: self._apply_filters())
+        self._rating_var.trace_add("write", lambda *_: self._apply_filters())
+
     def _build_film_area(self) -> None:
         """Scrollable canvas that holds all film cards."""
         wrapper = tk.Frame(self.root, bg=BG)
-        wrapper.grid(row=2, column=0, sticky="nsew", padx=20, pady=(8, 0))
+        wrapper.grid(row=3, column=0, sticky="nsew", padx=20, pady=(8, 0))
         wrapper.columnconfigure(0, weight=1)
         wrapper.rowconfigure(0, weight=1)
-        self.root.rowconfigure(2, weight=1)
+        self.root.rowconfigure(3, weight=1)
 
         self._canvas = tk.Canvas(wrapper, bg=BG, highlightthickness=0)
         self._canvas.grid(row=0, column=0, sticky="nsew")
@@ -213,7 +298,7 @@ class FilmListingWindow:
     def _build_statusbar(self) -> None:
         """Bottom status bar."""
         bar = tk.Frame(self.root, bg=BG2, pady=6)
-        bar.grid(row=3, column=0, sticky="ew")
+        bar.grid(row=4, column=0, sticky="ew")
         bar.columnconfigure(0, weight=1)
 
         self._status_lbl = tk.Label(
@@ -250,11 +335,13 @@ class FilmListingWindow:
             messagebox.showerror("Database Error", str(exc), parent=self.root)
 
     def _refresh_films(self) -> None:
-        """Clear and reload the film card list for the current cinema + date."""
-        # Clear previous cards
-        for widget in self._inner.winfo_children():
-            widget.destroy()
-        self._photo_refs.clear()
+        """
+        Query the database for showings, build self._all_films, then apply filters.
+
+        This is the only method that hits the database. All subsequent filtering
+        is done client-side via _apply_filters() without a DB round-trip.
+        """
+        self._all_films.clear()
 
         if self._selected_cinema_id is None:
             return
@@ -268,7 +355,67 @@ class FilmListingWindow:
             messagebox.showerror("Error", str(exc), parent=self.root)
             return
 
-        if not showings:
+        # Group showings by film_id, fetch Film objects
+        film_showings: dict[int, list[Showing]] = {}
+        for sh in showings:
+            film_showings.setdefault(sh.film_id, []).append(sh)
+
+        for film_id, film_shows in film_showings.items():
+            try:
+                film = Film.get_by_id(film_id)
+                self._all_films.append((film, film_shows))
+            except Exception:
+                continue
+
+        # Reset filter widgets to 'All' without triggering another refresh
+        # (we only reset on date/cinema change, not on filter change)
+        self._apply_filters()
+
+    def _apply_filters(self) -> None:
+        """
+        Filter self._all_films client-side and re-render the visible cards.
+
+        Reads the current values of search_var, genre_var, and rating_var.
+        No database calls are made here — operates purely on the cached list.
+        """
+        query  = self._search_var.get().strip().lower()
+        genre  = self._genre_var.get()
+        rating = self._rating_var.get()
+
+        self._displayed_films = []
+        for film, film_shows in self._all_films:
+            # ── Title / actor search ──────────────────────────────────────────
+            if query:
+                haystack = (
+                    film.title.lower() + " " +
+                    film.cast_members.lower() + " " +
+                    film.description.lower()
+                )
+                if query not in haystack:
+                    continue
+            # ── Genre filter ──────────────────────────────────────────────────
+            if genre != "All" and film.genre != genre:
+                continue
+            # ── Age rating filter ─────────────────────────────────────────────
+            if rating != "All" and film.age_rating != rating:
+                continue
+
+            self._displayed_films.append((film, film_shows))
+
+        self._render_cards()
+
+    def _render_cards(self) -> None:
+        """
+        Rebuild the scrollable card list from self._displayed_films.
+
+        Called by _apply_filters() every time a filter control changes.
+        """
+        # Wipe existing cards
+        for widget in self._inner.winfo_children():
+            widget.destroy()
+        self._photo_refs.clear()
+
+        if not self._all_films and self._selected_cinema_id is not None:
             tk.Label(
                 self._inner,
                 text=f"No showings scheduled for {self._fmt_date()}.",
@@ -277,22 +424,35 @@ class FilmListingWindow:
             self._set_status(f"0 showings on {self._fmt_date()}.")
             return
 
-        # Group showings by film_id
-        film_showings: dict[int, list[Showing]] = {}
-        for sh in showings:
-            film_showings.setdefault(sh.film_id, []).append(sh)
+        if not self._displayed_films:
+            # Films exist but filters excluded them all
+            msg_frame = tk.Frame(self._inner, bg=BG)
+            msg_frame.pack(fill="x", pady=60)
+            tk.Label(
+                msg_frame, text="🔍  No films match your search.",
+                font=FONT_H2, bg=BG, fg=TEXT2
+            ).pack()
+            tk.Label(
+                msg_frame,
+                text="Try adjusting the search term, genre, or age rating filter.",
+                font=FONT_SMALL, bg=BG, fg=TEXT2
+            ).pack(pady=(4, 0))
+            self._set_status(
+                f"0 of {len(self._all_films)} film(s) match current filters."
+            )
+            return
 
-        for i, (film_id, film_shows) in enumerate(film_showings.items()):
-            try:
-                film = Film.get_by_id(film_id)
-            except Exception:
-                continue
+        for i, (film, film_shows) in enumerate(self._displayed_films):
             self._build_film_card(self._inner, film, film_shows, i)
 
-        count = len(showings)
+        total_shows = sum(len(s) for _, s in self._displayed_films)
+        filtered    = len(self._displayed_films) != len(self._all_films)
+        filter_note = (f" (filtered from {len(self._all_films)})"
+                       if filtered else "")
         self._set_status(
-            f"{len(film_showings)} film(s)  ·  {count} showing(s) on "
-            f"{self._fmt_date()}  ·  {self._get_cinema_name()}"
+            f"{len(self._displayed_films)} film(s){filter_note}  ·  "
+            f"{total_shows} showing(s) on {self._fmt_date()}  ·  "
+            f"{self._get_cinema_name()}"
         )
 
     def _build_film_card(self, parent, film: Film,
@@ -401,6 +561,17 @@ class FilmListingWindow:
                 btn.bind("<Leave>", lambda e, b=btn, c=btn_bg: b.config(bg=c))
 
     # ── Event handlers ────────────────────────────────────────────────────────
+
+    def _clear_filters(self) -> None:
+        """
+        Reset all three filter controls to their default 'All' / empty state
+        and re-render all films. Traces will fire automatically after set().
+        """
+        self._search_var.set("")
+        self._genre_var .set("All")
+        self._rating_var.set("All")
+        # Traces have already called _apply_filters; scroll back to top
+        self._canvas.yview_moveto(0)
 
     def _on_cinema_change(self, _event=None) -> None:
         idx = self._cinema_cb.current()
