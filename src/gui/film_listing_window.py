@@ -15,12 +15,8 @@ from tkinter import ttk, messagebox
 import datetime
 import os
 
-# Pillow — graceful fallback if not installed
-try:
-    from PIL import Image, ImageTk
-    PIL_AVAILABLE = True
-except ImportError:
-    PIL_AVAILABLE = False
+# Poster loading utility
+from src.utils.image_loader import load_poster
 
 # ── Project imports ──────────────────────────────────────────────────────────
 import sys
@@ -82,7 +78,7 @@ class FilmListingWindow:
 
         self._current_date = datetime.date.today()
         self._cinemas: list[Cinema] = []
-        self._photo_refs: list      = []   # keep references so GC doesn't collect them
+        self.poster_images: list    = []   # keep references so GC doesn't collect them
         self._selected_cinema_id: int | None = None
 
         # Filter state — populated by _refresh_films(), filtered by _apply_filters()
@@ -413,7 +409,7 @@ class FilmListingWindow:
         # Wipe existing cards
         for widget in self._inner.winfo_children():
             widget.destroy()
-        self._photo_refs.clear()
+        self.poster_images.clear()
 
         if not self._all_films and self._selected_cinema_id is not None:
             tk.Label(
@@ -472,22 +468,12 @@ class FilmListingWindow:
                           sticky="n", pady=4)
         poster_frame.grid_propagate(False)
 
-        poster_lbl = tk.Label(poster_frame, bg=BG, text="🎬",
-                              font=(FF, 28), fg=ACCENT,
-                              width=THUMB_SIZE[0], height=THUMB_SIZE[1])
+        poster_lbl = tk.Label(poster_frame, bg=BG)
         poster_lbl.place(x=0, y=0, width=THUMB_SIZE[0], height=THUMB_SIZE[1])
 
-        if PIL_AVAILABLE and film.poster_path:
-            img_path = os.path.join(_ROOT, film.poster_path)
-            if os.path.isfile(img_path):
-                try:
-                    img = Image.open(img_path).convert("RGB")
-                    img.thumbnail(THUMB_SIZE, Image.LANCZOS)
-                    photo = ImageTk.PhotoImage(img)
-                    self._photo_refs.append(photo)
-                    poster_lbl.config(image=photo, text="")
-                except Exception:
-                    pass   # keep emoji fallback
+        photo = load_poster(film.poster_path, size=THUMB_SIZE)
+        self.poster_images.append(photo)
+        poster_lbl.config(image=photo)
 
         # ── Title row ─────────────────────────────────────────────────────────
         title_row = tk.Frame(card, bg=bg)
