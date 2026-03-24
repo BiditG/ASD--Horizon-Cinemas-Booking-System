@@ -1,0 +1,188 @@
+"""
+src/models/booking.py
+=====================
+Booking model and management layer for HCBS.
+"""
+
+import sqlite3
+import datetime
+from typing import Dict, Any, Optional
+
+from src.models.showing import Showing
+
+class BookingManager:
+    """
+    Manages bookings, generating references, and atomicity for ticket creation.
+    """
+
+    @staticmethod
+    def generate_booking_ref(db_connection: sqlite3.Connection) -> str:
+        """
+        Queries the bookings table to find today's highest sequence number,
+        increments it, and returns a new ref in format HCBS-YYYYMMDD-XXXX.
+        
+        Args:
+            db_connection: Active database connection.
+            
+        Returns:
+            str: Generated booking reference.
+        """
+        today_str = datetime.datetime.now().strftime("%Y%m%d")
+        prefix = f"HCBS-{today_str}"
+        
+        cursor = db_connection.execute(
+            """
+            SELECT booking_ref 
+            FROM bookings 
+            WHERE booking_ref LIKE ? 
+            ORDER BY booking_id DESC 
+            LIMIT 1
+            """,
+            (f"{prefix}-%",)
+        )
+        row = cursor.fetchone()
+        
+        if row:
+            # e.g., 'HCBS-20250501-0004' -> last part is '0004'
+            last_seq = int(row["booking_ref"].split("-")[-1])
+            seq = last_seq + 1
+        else:
+            seq = 1
+            
+        return f"{prefix}-{seq:04d}"
+
+    @staticmethod
+    def create_booking(showing_id: int, staff_user_id: int, ticket_type: str, 
+                       quantity: int, customer_name: str, customer_email: str, 
+                       customer_phone: str, unit_price: float, 
+                       db_connection: sqlite3.Connection, 
+                       booked_by_agent: bool = False) -> Dict[str, Any]:
+        """
+        Creates a booking and its tickets atomically.
+        
+        Args:
+            showing_id: FK to showing.
+            staff_user_id: ID of the staff creating the booking (currently unused in SQLite schema but kept for interface).
+            ticket_type: 'lower_hall', 'upper_gallery', or 'vip'.
+            quantity: Number of tickets.
+            customer_name: Customer's name.
+            customer_email: Customer's email.
+            customer_phone: Customer's phone.
+            unit_price: Unit price for the ticket.
+            db_connection: Active database connection.
+            booked_by_agent: True if booked by LLM agent, False otherwise.
+            
+        Returns:
+            dict: Summary of the created booking.
+        """
+        if not Showing.is_available(showing_id, quantity):
+            raise ValueError(f"Showing {showing_id} does not have {quantity} seats available.")
+            
+        try:
+            db_connection.execute('BEGIN')
+            
+            booking_ref = BookingManager.generate_booking_ref(db_connection)
+            total_cost = unit_price * quantity
+            
+            # 1. Insert into bookings
+            cursor = db_connection.execute(
+                """
+                INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent)
+                VALUES (?, ?, ?, ?, 'Active', ?)
+                """,
+                (showing_id, booking_ref, customer_name, total_cost, booked_by_agent)
+            )
+            booking_id = cursor.lastrowid
+            
+            # 2. Find existing tickets count to auto-assign sequential seat numbers
+            cursor = db_connection.execute(
+                """
+                SELECT COUNT(*) as c
+                FROM tickets t
+                JOIN bookings b ON t.booking_id = b.booking_id
+                WHERE b.showing_id = ? AND t.ticket_type = ?
+                """,
+                (showing_id, ticket_type)
+            )
+            existing_count = cursor.fetchone()["c"]
+            
+            # Auto-assign seat letters
+            if ticket_type == "lower_hall":
+                prefix = "A"
+            elif ticket_type == "upper_gallery":
+                prefix = "B"
+            elif ticket_type == "vip":
+                prefix = "V"
+            else:
+                prefix = "T"
+                
+            seat_numbers = []
+            for i in range(quantity):
+                seat_num = f"{prefix}{existing_count + i + 1}"
+                seat_numbers.append(seat_num)
+                
+                # 3. Insert into tickets
+                db_connection.execute(
+                    """
+                    INSERT INTO tickets (booking_id, seat_number, ticket_type, unit_price)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (booking_id, seat_num, ticket_type, unit_price)
+                )
+                
+            # 4. Decrement seats
+            Showing.decrement_seats(showing_id, quantity)
+            
+            db_connection.commit()
+            
+            showing = Showing.get_by_id(showing_id)
+            
+            return {
+                "booking_ref": booking_ref,
+                "customer_name": customer_name,
+                "total_cost": total_cost,
+                "seat_numbers": seat_numbers,
+                "showing": showing
+            }
+            
+        except Exception as e:
+            db_connection.rollback()
+            raise e
+
+    @staticmethod
+    def get_by_ref(booking_ref: str, db_connection: sqlite3.Connection) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a full booking and its tickets by reference.
+        
+        Args:
+            booking_ref: The string reference (e.g., HCBS-YYYYMMDD-XXXX).
+            db_connection: Active database connection.
+            
+        Returns:
+            dict: Full booking and ticket details, or None if not found.
+        """
+        cursor = db_connection.execute(
+            "SELECT * FROM bookings WHERE booking_ref = ?", 
+            (booking_ref,)
+        )
+        b_row = cursor.fetchone()
+        
+        if not b_row:
+            return None
+            
+        cursor = db_connection.execute(
+            "SELECT * FROM tickets WHERE booking_id = ?", 
+            (b_row["booking_id"],)
+        )
+        t_rows = cursor.fetchall()
+        
+        return {
+            "booking_id": b_row["booking_id"],
+            "showing_id": b_row["showing_id"],
+            "booking_ref": b_row["booking_ref"],
+            "customer_name": b_row["customer_name"],
+            "total_cost": b_row["total_cost"],
+            "booking_status": b_row["booking_status"],
+            "booked_by_agent": bool(b_row["booked_by_agent"]),
+            "tickets": [dict(t) for t in t_rows]
+        }
