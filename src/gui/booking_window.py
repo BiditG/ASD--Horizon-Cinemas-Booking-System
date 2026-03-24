@@ -61,7 +61,7 @@ class BookingWindow:
         self._all_films = []
         self._available_showings = []
         self._selected_showing: Showing = None
-        self._price_data = None
+        self.confirmed_price = None
         
         self._configure_styles()
         self._build_ui()
@@ -144,7 +144,7 @@ class BookingWindow:
         
         tk.Button(chk_frame, text="🔍 Check Availability & Price", font=FONT_BTN, bg=BG2, fg=TEXT, 
                   activebackground=BG, relief="flat", padx=15, pady=6, cursor="hand2", 
-                  command=self._check_availability).pack(side="left")
+                  command=self.check_availability_and_price).pack(side="left")
                   
         self.avail_lbl = tk.Label(chk_frame, text="", font=FONT_LABEL, bg=BG_CARD, fg=WARNING)
         self.avail_lbl.pack(side="left", padx=20)
@@ -299,35 +299,50 @@ class BookingWindow:
         """Disable Book button and clear price text if params change."""
         self.avail_lbl.config(text="", fg=WARNING)
         self.book_btn.config(state="disabled")
-        self._price_data = None
+        self.confirmed_price = None
 
-    def _check_availability(self) -> None:
-        """Call PricingEngine and Showing.is_available()."""
+    def check_availability_and_price(self) -> None:
+        """Calculate price, verify seat availability, and validate show date."""
+        self.avail_lbl.config(text="", fg=WARNING)
+        self.book_btn.config(state="disabled")
+        self.confirmed_price = None
+
+        # 1. Validate inputs
         if not self._selected_showing:
-            messagebox.showwarning("Incomplete", "Please select a valid showing.")
+            self.avail_lbl.config(text="❌ Error: Please select a film and showing.", fg=ERROR)
+            return
+            
+        t_type = self.ticket_type_var.get()
+        if not t_type:
+            self.avail_lbl.config(text="❌ Error: Please select a ticket type.", fg=ERROR)
             return
             
         try:
             qty = self.qty_var.get()
             if qty < 1 or qty > 10:
-                raise ValueError("Quantity must be between 1 and 10.")
-        except tk.TclError:
-            messagebox.showerror("Error", "Invalid quantity.")
+                raise ValueError
+        except (tk.TclError, ValueError):
+            self.avail_lbl.config(text="❌ Error: Quantity must be between 1 and 10.", fg=ERROR)
             return
 
-        t_type = self.ticket_type_var.get()
         sh = self._selected_showing
-        
-        # 1. Check Availability
-        if not Showing.is_available(sh.showing_id, qty):
-            self.avail_lbl.config(text=f"❌ Only {sh.seats_remaining} seats left.", fg=ERROR)
+
+        # 2. Check if showing is in the past
+        today = datetime.date.today().isoformat()
+        if sh.show_date < today:
+            self.avail_lbl.config(text="❌ This showing has already passed.", fg=ERROR)
             self.book_btn.config(state="disabled")
             return
-            
-        # 2. Calculate Price
+
+        # 3. Check seat availability
+        if not Showing.is_available(sh.showing_id, qty):
+            self.avail_lbl.config(text=f"❌ Not enough seats — only {sh.seats_remaining} remaining.", fg=ERROR)
+            return
+
+        # 4. Calculate total cost using PricingEngine
         try:
             conn = get_connection()
-            self._price_data = PricingEngine.calculate_price(
+            self.confirmed_price = PricingEngine.calculate_price(
                 city_id=sh.cinema_id, 
                 show_type=sh.show_type, 
                 ticket_type=t_type, 
@@ -335,13 +350,16 @@ class BookingWindow:
                 db_connection=conn
             )
             
-            # Display success
-            msg = f"✅ {sh.seats_remaining} seats available. Total price: £{self._price_data['total_price']:.2f}"
+            # 5. Display success result
+            total_str = f"£{self.confirmed_price['total_price']:.2f}"
+            msg = f"✅ {sh.seats_remaining} seats available — Total: {total_str}"
             self.avail_lbl.config(text=msg, fg=SUCCESS)
+            
+            # 7. Enable Book Now button
             self.book_btn.config(state="normal")
             
         except Exception as e:
-            messagebox.showerror("Pricing Error", str(e))
+            self.avail_lbl.config(text=f"❌ Pricing Error: {str(e)}", fg=ERROR)
 
     # ── Booking Processing ───────────────────────────────────────────────────
 
@@ -351,10 +369,10 @@ class BookingWindow:
             messagebox.showwarning("Missing Info", "Customer Name is required.")
             return
             
-        if not self._selected_showing or not self._price_data:
+        if not self._selected_showing or not self.confirmed_price:
             return
             
-        qty = self._price_data["quantity"]
+        qty = self.confirmed_price["quantity"]
         sh = self._selected_showing
         
         # Generate booking ref
@@ -373,13 +391,13 @@ class BookingWindow:
                 INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent)
                 VALUES (?, ?, ?, ?, 'Active', 0)
                 """,
-                (sh.showing_id, ref, name, self._price_data["total_price"])
+                (sh.showing_id, ref, name, self.confirmed_price["total_price"])
             )
             booking_id = cursor.lastrowid
             
             # 3. Generate and Insert Tickets
-            ttype = self._price_data["ticket_type"]
-            uprice = self._price_data["unit_price"]
+            ttype = self.confirmed_price["ticket_type"]
+            uprice = self.confirmed_price["unit_price"]
             prefix = {"lower_hall": "LH", "upper_gallery": "UG", "vip": "VP"}.get(ttype, "T")
             
             seat_numbers = []
@@ -399,7 +417,7 @@ class BookingWindow:
             # Refresh local showing data
             sh.seats_remaining -= qty
             
-            self._print_receipt(ref, sh, name, qty, seat_numbers, self._price_data["total_price"], now)
+            self._print_receipt(ref, sh, name, qty, seat_numbers, self.confirmed_price["total_price"], now)
             
             messagebox.showinfo("Success", f"Booking Confirmed!\nReference: {ref}")
             self._reset_form()
@@ -432,7 +450,7 @@ Screen Number     : {screen_id}
 
 TICKET DETAILS
 Number of Tickets : {qty}
-Ticket Type       : {self._price_data['ticket_type'].replace('_', ' ').title()}
+Ticket Type       : {self.confirmed_price['ticket_type'].replace('_', ' ').title()}
 Seat Numbers      : {', '.join(seats)}
 
 ----------------------------------------
