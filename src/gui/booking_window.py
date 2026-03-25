@@ -21,9 +21,50 @@ from src.database.db_connection import get_connection
 from src.models.showing import Showing
 from src.models.film import Film
 from src.models.screen import Screen
+from src.models.cinema import Cinema
 from src.models.user import User
 from src.utils.pricing_engine import PricingEngine
 from src.gui.login_window import SessionManager
+
+class PDFService:
+    """Stub for Sprint 4 PDF Generator."""
+    @staticmethod
+    def generate_ticket(booking_data: dict) -> None:
+        messagebox.showinfo("PDF Generator", "Ticket PDF generated successfully! (S4-05 stub)")
+
+def format_receipt_text(booking_data: dict) -> str:
+    """Helper function to format the receipt as plain text."""
+    cinema_name = booking_data.get('cinema_name', 'N/A')
+    ticket_type_fmt = booking_data['ticket_type'].replace('_', ' ').title()
+    seat_nums = ', '.join(booking_data['seat_numbers'])
+    return f"""========================================
+    HORIZON CINEMAS BOOKING SYSTEM
+========================================
+
+BOOKING CONFIRMED
+
+BOOKING REFERENCE : {booking_data['booking_ref']}
+DATE ISSUED       : {booking_data['booking_date']}
+
+----------------------------------------
+CUSTOMER DETAILS
+Name              : {booking_data['customer_name']}
+
+FILM DETAILS
+Film Name         : {booking_data['film_name']}
+Date              : {booking_data['show_date']}
+Show Time         : {booking_data['show_time']}
+Screen Number     : {booking_data['screen_id']}
+Cinema Name       : {cinema_name}
+
+TICKET DETAILS
+Number of Tickets : {booking_data['quantity']}
+Ticket Type       : {ticket_type_fmt}
+Seat Numbers      : {seat_nums}
+
+----------------------------------------
+TOTAL COST        : £{booking_data['total_cost']:.2f}
+========================================""".strip()
 
 # ── Style Constants ──────────────────────────────────────────────────────────
 BG          = "#0f172a"
@@ -189,6 +230,29 @@ class BookingWindow:
         self.receipt_text = tk.Text(rec_frame, font=FONT_MONO, bg=BG, fg=TEXT2, relief="flat", 
                                     padx=15, pady=15, state="disabled")
         self.receipt_text.pack(fill="both", expand=True)
+
+        # Tags for display_receipt formatting
+        self.receipt_text.tag_config("header", foreground=SUCCESS, font=FONT_H2, justify="center")
+        self.receipt_text.tag_config("bold_large", foreground=TEXT, font=FONT_H1)
+        self.receipt_text.tag_config("bold_green", foreground=SUCCESS, font=FONT_H2)
+        self.receipt_text.tag_config("normal", foreground=TEXT, font=FONT_BODY)
+        self.receipt_text.tag_config("label", foreground=TEXT2, font=FONT_BODY)
+
+        # Action Buttons below receipt
+        self.rec_act_frame = tk.Frame(rec_frame, bg=BG2)
+        
+        self.pdf_btn = tk.Button(self.rec_act_frame, text="🖨️ Print / Save PDF", font=FONT_BTN, bg=BG_CARD, fg=TEXT, 
+                                  activebackground=BG, relief="flat", padx=15, pady=10, 
+                                  cursor="hand2", command=self._generate_pdf)
+        self.pdf_btn.pack(side="left")
+
+        self.new_booking_btn = tk.Button(self.rec_act_frame, text="🔄 New Booking", font=FONT_BTN, bg=BG_CARD, fg=TEXT, 
+                                  activebackground=BG, relief="flat", padx=15, pady=10, 
+                                  cursor="hand2", command=self._reset_form)
+        self.new_booking_btn.pack(side="right")
+        
+        # Hide buttons initially
+        self.rec_act_frame.pack_forget()
 
     # ── Initialisation & Data Flow ───────────────────────────────────────────
 
@@ -417,51 +481,69 @@ class BookingWindow:
             # Refresh local showing data
             sh.seats_remaining -= qty
             
-            self._print_receipt(ref, sh, name, qty, seat_numbers, self.confirmed_price["total_price"], now)
+            try:
+                cinema = Cinema.get_by_id(sh.cinema_id)
+                cinema_name = cinema.cinema_name
+            except Exception:
+                cinema_name = "Horizon Cinemas"
+                
+            self.current_booking_data = {
+                "booking_ref": ref,
+                "customer_name": name,
+                "film_name": self.film_var.get(),
+                "show_date": sh.show_date,
+                "show_time": f"{sh.show_time} ({sh.show_type.title()})",
+                "screen_id": sh.screen_id,
+                "cinema_name": cinema_name,
+                "quantity": qty,
+                "seat_numbers": seat_numbers,
+                "ticket_type": self.confirmed_price["ticket_type"],
+                "total_cost": self.confirmed_price["total_price"],
+                "booking_date": now.strftime('%d %b %Y %H:%M')
+            }
             
+            self.display_receipt(self.current_booking_data)
+            self.book_btn.config(state="disabled")
             messagebox.showinfo("Success", f"Booking Confirmed!\nReference: {ref}")
-            self._reset_form()
             
         except Exception as e:
             messagebox.showerror("Booking Failed", str(e))
 
-    def _print_receipt(self, ref: str, sh: Showing, customer: str, qty: int, seats: list, total: float, dt: datetime.datetime) -> None:
-        """Render receipt to the text widget."""
-        film_title = self.film_var.get()
-        screen_id = sh.screen_id # In a real app we'd fetch the actual Screen object
-        
-        receipt = f"""
-========================================
-    HORIZON CINEMAS BOOKING SYSTEM
-========================================
-
-BOOKING REFERENCE : {ref}
-DATE ISSUED       : {dt.strftime('%d %b %Y %H:%M')}
-
-----------------------------------------
-CUSTOMER DETAILS
-Name              : {customer}
-
-FILM DETAILS
-Film Name         : {film_title}
-Date              : {sh.show_date}
-Show Time         : {sh.show_time} ({sh.show_type.title()})
-Screen Number     : {screen_id}
-
-TICKET DETAILS
-Number of Tickets : {qty}
-Ticket Type       : {self.confirmed_price['ticket_type'].replace('_', ' ').title()}
-Seat Numbers      : {', '.join(seats)}
-
-----------------------------------------
-TOTAL COST        : £{total:.2f}
-========================================
-        """
-        
+    def display_receipt(self, booking_data: dict) -> None:
+        """Render the receipt into the text widget with rich formatting."""
         self.receipt_text.config(state="normal")
         self.receipt_text.delete(1.0, tk.END)
-        self.receipt_text.insert(tk.END, receipt.strip())
+        
+        self.receipt_text.insert(tk.END, "BOOKING CONFIRMED\n\n", "header")
+        
+        self.receipt_text.insert(tk.END, "Booking Reference:\n", "label")
+        self.receipt_text.insert(tk.END, f"{booking_data['booking_ref']}\n\n", "bold_large")
+        
+        fields = [
+            ("Film Name", booking_data['film_name']),
+            ("Show Date", booking_data['show_date']),
+            ("Show Time", booking_data['show_time']),
+            ("Screen Number", str(booking_data['screen_id'])),
+            ("Cinema Name", booking_data.get('cinema_name', 'N/A')),
+            ("Number of Tickets", str(booking_data['quantity'])),
+            ("Seat Numbers", ', '.join(booking_data['seat_numbers'])),
+            ("Ticket Type", booking_data['ticket_type'].replace('_', ' ').title()),
+            ("Booking Date", booking_data['booking_date'])
+        ]
+        
+        for label, val in fields:
+            self.receipt_text.insert(tk.END, f"{label:<20}: ", "label")
+            self.receipt_text.insert(tk.END, f"{val}\n", "normal")
+            
+        self.receipt_text.insert(tk.END, "\nTotal Cost:\n", "label")
+        self.receipt_text.insert(tk.END, f"£{booking_data['total_cost']:.2f}\n", "bold_green")
+        
         self.receipt_text.config(state="disabled")
+        self.rec_act_frame.pack(fill="x", pady=(20, 0))
+
+    def _generate_pdf(self) -> None:
+        if hasattr(self, 'current_booking_data'):
+            PDFService.generate_ticket(self.current_booking_data)
 
     def _reset_form(self) -> None:
         """Clear customer fields and reset checks after booking."""
@@ -470,6 +552,11 @@ TOTAL COST        : £{total:.2f}
         self.cust_email_ent.delete(0, tk.END)
         self.qty_var.set(1)
         self._reset_check()
+        
+        self.receipt_text.config(state="normal")
+        self.receipt_text.delete(1.0, tk.END)
+        self.receipt_text.config(state="disabled")
+        self.rec_act_frame.pack_forget()
 
 
 # ── Standalone launch (for isolated testing) ─────────────────────────────────
