@@ -140,25 +140,35 @@ class BookingWindow:
         sel_card = tk.Frame(form_frame, bg=BG_CARD, padx=20, pady=20, highlightbackground=BORDER, highlightthickness=1)
         sel_card.pack(fill="x", pady=(0, 20))
         
+        self.cinema_var = tk.StringVar()
+        if self.user and self.user.is_admin:
+            tk.Label(sel_card, text="Select Cinema:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=0, column=0, sticky="w", pady=5)
+            self.cinema_cb = ttk.Combobox(sel_card, textvariable=self.cinema_var, state="readonly", width=40, style="HCBS.TCombobox")
+            self.cinema_cb.grid(row=0, column=1, padx=10, pady=5)
+            self.cinema_cb.bind("<<ComboboxSelected>>", self._on_cinema_change)
+            row_offset = 1
+        else:
+            row_offset = 0
+            
         # Date
-        tk.Label(sel_card, text="Select Date:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=0, column=0, sticky="w", pady=5)
+        tk.Label(sel_card, text="Select Date:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset, column=0, sticky="w", pady=5)
         self.date_var = tk.StringVar()
         self.date_cb = ttk.Combobox(sel_card, textvariable=self.date_var, state="readonly", width=25, style="HCBS.TCombobox")
-        self.date_cb.grid(row=0, column=1, padx=10, pady=5)
+        self.date_cb.grid(row=row_offset, column=1, padx=10, pady=5)
         self.date_cb.bind("<<ComboboxSelected>>", self._on_date_or_film_change)
         
         # Film
-        tk.Label(sel_card, text="Select Film:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=1, column=0, sticky="w", pady=5)
+        tk.Label(sel_card, text="Select Film:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset+1, column=0, sticky="w", pady=5)
         self.film_var = tk.StringVar()
         self.film_cb = ttk.Combobox(sel_card, textvariable=self.film_var, state="readonly", width=40, style="HCBS.TCombobox")
-        self.film_cb.grid(row=1, column=1, padx=10, pady=5)
+        self.film_cb.grid(row=row_offset+1, column=1, padx=10, pady=5)
         self.film_cb.bind("<<ComboboxSelected>>", self._on_date_or_film_change)
         
         # Showing
-        tk.Label(sel_card, text="Select Showing:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=2, column=0, sticky="w", pady=5)
+        tk.Label(sel_card, text="Select Showing:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset+2, column=0, sticky="w", pady=5)
         self.showing_var = tk.StringVar()
         self.showing_cb = ttk.Combobox(sel_card, textvariable=self.showing_var, state="readonly", width=40, style="HCBS.TCombobox")
-        self.showing_cb.grid(row=2, column=1, padx=10, pady=5)
+        self.showing_cb.grid(row=row_offset+2, column=1, padx=10, pady=5)
         self.showing_cb.bind("<<ComboboxSelected>>", self._on_showing_change)
 
         # 2. Ticket Details Card
@@ -258,6 +268,23 @@ class BookingWindow:
 
     def _initialise_data(self) -> None:
         """Load dates, films, and handle optional showing_id parameter."""
+        # 0. Populate Cinemas
+        try:
+            self._all_cinemas = Cinema.get_all()
+            if self.user and self.user.is_admin and hasattr(self, 'cinema_cb'):
+                self.cinema_cb['values'] = [c.cinema_name for c in self._all_cinemas]
+            
+            # Default to user's home cinema
+            if self.user and self.user.cinema_id:
+                home_c = next((c for c in self._all_cinemas if c.cinema_id == self.user.cinema_id), None)
+                if home_c:
+                    self.cinema_var.set(home_c.cinema_name)
+                    
+            if not self.cinema_var.get() and self._all_cinemas and hasattr(self, 'cinema_cb'):
+                self.cinema_cb.current(0)
+        except Exception as e:
+            messagebox.showerror("DB Error", f"Failed to load cinemas:\n{e}")
+
         # 1. Populate Dates (Today + 7 days)
         today = datetime.date.today()
         dates = [(today + datetime.timedelta(days=i)).isoformat() for i in range(8)]
@@ -307,6 +334,11 @@ class BookingWindow:
 
     # ── Event Handlers ───────────────────────────────────────────────────────
 
+    def _on_cinema_change(self, event=None) -> None:
+        self.showing_var.set('')
+        self.showing_cb['values'] = []
+        self._on_date_or_film_change()
+
     def _on_date_or_film_change(self, event=None) -> None:
         """Fetch showings for the selected date and film."""
         self._reset_check()
@@ -322,18 +354,23 @@ class BookingWindow:
             
         try:
             conn = get_connection()
-            # Fetch showings for this film on this date across ALL cinemas
-            # Note: A real system might force cinema selection first. For now, 
-            # we fetch all showings for the film+date and display cinema ID too.
+            # Filter by cinema
+            if self.cinema_var.get() and hasattr(self, '_all_cinemas'):
+                sel_cin_name = self.cinema_var.get()
+                cin = next((c for c in self._all_cinemas if c.cinema_name == sel_cin_name), None)
+                cinema_id_filter = cin.cinema_id if cin else (self.user.cinema_id if self.user else 1)
+            else:
+                cinema_id_filter = self.user.cinema_id if self.user else 1
+
             cursor = conn.execute(
                 """
                 SELECT s.*, sc.cinema_id 
                 FROM showings s
                 JOIN screens sc ON s.screen_id = sc.screen_id
-                WHERE s.film_id = ? AND s.show_date = ? AND s.is_cancelled = 0
+                WHERE s.film_id = ? AND s.show_date = ? AND sc.cinema_id = ? AND s.is_cancelled = 0
                 ORDER BY s.show_time
                 """, 
-                (film.film_id, date_str)
+                (film.film_id, date_str, cinema_id_filter)
             )
             rows = cursor.fetchall()
             self._available_showings = [Showing._from_row(row) for row in rows]
@@ -439,44 +476,29 @@ class BookingWindow:
         qty = self.confirmed_price["quantity"]
         sh = self._selected_showing
         
-        # Generate booking ref
+        email = self.cust_email_ent.get().strip()
+        phone = self.cust_phone_ent.get().strip()
         now = datetime.datetime.now()
-        ref = f"HCBS-{now.strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
         
         try:
             conn = get_connection()
+            from src.models.booking import BookingManager
             
-            # 1. Decrement seats atomically
-            Showing.decrement_seats(sh.showing_id, qty)
-            
-            # 2. Insert Booking
-            cursor = conn.execute(
-                """
-                INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent)
-                VALUES (?, ?, ?, ?, 'Active', 0)
-                """,
-                (sh.showing_id, ref, name, self.confirmed_price["total_price"])
+            result = BookingManager.create_booking(
+                showing_id=sh.showing_id,
+                staff_user_id=self.user.user_id if self.user else 1,
+                ticket_type=self.confirmed_price["ticket_type"],
+                quantity=qty,
+                customer_name=name,
+                customer_email=email,
+                customer_phone=phone,
+                unit_price=self.confirmed_price["unit_price"],
+                db_connection=conn,
+                booked_by_agent=False
             )
-            booking_id = cursor.lastrowid
             
-            # 3. Generate and Insert Tickets
-            ttype = self.confirmed_price["ticket_type"]
-            uprice = self.confirmed_price["unit_price"]
-            prefix = {"lower_hall": "LH", "upper_gallery": "UG", "vip": "VP"}.get(ttype, "T")
-            
-            seat_numbers = []
-            for i in range(qty):
-                seat = f"{prefix}-{random.randint(1, 100)}"
-                seat_numbers.append(seat)
-                conn.execute(
-                    """
-                    INSERT INTO tickets (booking_id, seat_number, ticket_type, unit_price)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (booking_id, seat, ttype, uprice)
-                )
-            
-            conn.commit()
+            ref = result["booking_ref"]
+            seat_numbers = result["seat_numbers"]
             
             # Refresh local showing data
             sh.seats_remaining -= qty

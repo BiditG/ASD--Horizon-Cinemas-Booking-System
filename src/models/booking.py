@@ -75,7 +75,21 @@ class BookingManager:
         Returns:
             dict: Summary of the created booking.
         """
-        if not Showing.is_available(showing_id, quantity):
+        # Fetch user role and home cinema
+        cursor = db_connection.execute("SELECT role, cinema_id FROM users WHERE user_id = ?", (staff_user_id,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            raise ValueError("Invalid staff_user_id")
+            
+        is_admin = user_row["role"] in ("admin", "manager")
+        user_cinema_id = user_row["cinema_id"]
+        
+        # Permission check
+        showing = Showing.get_by_id(showing_id)
+        if showing.cinema_id != user_cinema_id and not is_admin:
+            raise PermissionError("Staff can only book at their home cinema")
+
+        if not showing.is_available(showing_id, quantity):
             raise ValueError(f"Showing {showing_id} does not have {quantity} seats available.")
             
         try:
