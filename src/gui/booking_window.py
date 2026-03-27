@@ -428,10 +428,12 @@ class BookingWindow:
 
         sh = self._selected_showing
 
-        # 2. Check if showing is in the past
-        today = datetime.date.today().isoformat()
-        if sh.show_date < today:
-            self.avail_lbl.config(text="❌ This showing has already passed.", fg=ERROR)
+        # 2. Check booking date validation
+        from src.models.booking import BookingManager, BookingError
+        try:
+            BookingManager.validate_booking_date(sh.show_date)
+        except BookingError as e:
+            self.avail_lbl.config(text=f"❌ Error: {str(e)}", fg=ERROR)
             self.book_btn.config(state="disabled")
             return
 

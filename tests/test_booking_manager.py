@@ -84,9 +84,11 @@ def memory_db(monkeypatch):
     conn.execute("INSERT INTO screens (cinema_id, total_capacity) VALUES (1, 100)")
     conn.execute("INSERT INTO screens (cinema_id, total_capacity) VALUES (2, 100)")
     
+    import datetime
+    today_str = datetime.date.today().isoformat()
     # Insert showings (showing 1 in cinema 1, showing 2 in cinema 2)
-    conn.execute("INSERT INTO showings (screen_id, seats_remaining, is_cancelled) VALUES (1, 100, 0)")
-    conn.execute("INSERT INTO showings (screen_id, seats_remaining, is_cancelled) VALUES (2, 100, 0)")
+    conn.execute(f"INSERT INTO showings (screen_id, show_date, seats_remaining, is_cancelled) VALUES (1, '{today_str}', 100, 0)")
+    conn.execute(f"INSERT INTO showings (screen_id, show_date, seats_remaining, is_cancelled) VALUES (2, '{today_str}', 100, 0)")
     
     yield conn
     conn.close()
@@ -119,3 +121,32 @@ def test_admin_booking_other_cinema(memory_db):
     )
     assert res["booking_ref"].startswith("HCBS-")
     assert memory_db.execute("SELECT seats_remaining FROM showings WHERE showing_id=2").fetchone()[0] == 99
+
+def test_validate_booking_date_past():
+    """Test date validation for past date."""
+    from src.models.booking import BookingManager, BookingError
+    import datetime
+    past_date = datetime.date.today() - datetime.timedelta(days=1)
+    with pytest.raises(BookingError, match='Cannot book for a past showing'):
+        BookingManager.validate_booking_date(past_date)
+
+def test_validate_booking_date_valid():
+    """Test date validation for valid date."""
+    from src.models.booking import BookingManager
+    import datetime
+    
+    # Today should be valid
+    today = datetime.date.today()
+    assert BookingManager.validate_booking_date(today) is None
+    
+    # 7 days from today should be valid
+    future_7_days = today + datetime.timedelta(days=7)
+    assert BookingManager.validate_booking_date(future_7_days) is None
+
+def test_validate_booking_date_future():
+    """Test date validation for date more than 7 days ahead."""
+    from src.models.booking import BookingManager, BookingError
+    import datetime
+    future_8_days = datetime.date.today() + datetime.timedelta(days=8)
+    with pytest.raises(BookingError, match='Advance booking limit is 7 days'):
+        BookingManager.validate_booking_date(future_8_days)

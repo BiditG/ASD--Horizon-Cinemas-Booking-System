@@ -6,14 +6,36 @@ Booking model and management layer for HCBS.
 
 import sqlite3
 import datetime
+from datetime import date
 from typing import Dict, Any, Optional
 
 from src.models.showing import Showing
+
+class BookingError(Exception):
+    """Custom exception for booking validation errors."""
+    pass
 
 class BookingManager:
     """
     Manages bookings, generating references, and atomicity for ticket creation.
     """
+
+    @staticmethod
+    def validate_booking_date(show_date: date) -> None:
+        """
+        Validates that the show_date is within the allowed booking window.
+        """
+        if isinstance(show_date, str):
+            show_date = datetime.date.fromisoformat(show_date)
+        elif isinstance(show_date, datetime.datetime):
+            show_date = show_date.date()
+            
+        difference = (show_date - datetime.date.today()).days
+        if difference < 0:
+            raise BookingError('Cannot book for a past showing')
+        if difference > 7:
+            raise BookingError('Advance booking limit is 7 days')
+        return None
 
     @staticmethod
     def generate_booking_ref(db_connection: sqlite3.Connection) -> str:
@@ -75,6 +97,12 @@ class BookingManager:
         Returns:
             dict: Summary of the created booking.
         """
+        showing = Showing.get_by_id(showing_id)
+        if not showing:
+            raise ValueError(f"Showing {showing_id} not found")
+            
+        BookingManager.validate_booking_date(showing.show_date)
+
         # Fetch user role and home cinema
         cursor = db_connection.execute("SELECT role, cinema_id FROM users WHERE user_id = ?", (staff_user_id,))
         user_row = cursor.fetchone()
@@ -85,7 +113,6 @@ class BookingManager:
         user_cinema_id = user_row["cinema_id"]
         
         # Permission check
-        showing = Showing.get_by_id(showing_id)
         if showing.cinema_id != user_cinema_id and not is_admin:
             raise PermissionError("Staff can only book at their home cinema")
 
