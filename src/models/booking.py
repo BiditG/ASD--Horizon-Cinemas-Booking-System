@@ -7,7 +7,7 @@ Booking model and management layer for HCBS.
 import sqlite3
 import datetime
 from datetime import date
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from src.models.showing import Showing
 
@@ -78,7 +78,8 @@ class BookingManager:
                        quantity: int, customer_name: str, customer_email: str, 
                        customer_phone: str, unit_price: float, 
                        db_connection: sqlite3.Connection, 
-                       booked_by_agent: bool = False) -> Dict[str, Any]:
+                       booked_by_agent: bool = False,
+                       selected_seats: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Creates a booking and its tickets atomically.
         
@@ -147,21 +148,25 @@ class BookingManager:
             )
             existing_count = cursor.fetchone()["c"]
             
-            # Auto-assign seat letters
-            if ticket_type == "lower_hall":
-                prefix = "A"
-            elif ticket_type == "upper_gallery":
-                prefix = "B"
-            elif ticket_type == "vip":
-                prefix = "V"
+            # Use provided seats or auto-assign seat letters
+            if selected_seats and len(selected_seats) == quantity:
+                seat_numbers = selected_seats
             else:
-                prefix = "T"
+                if ticket_type == "lower_hall":
+                    prefix = "A"
+                elif ticket_type == "upper_gallery":
+                    prefix = "B"
+                elif ticket_type == "vip":
+                    prefix = "V"
+                else:
+                    prefix = "T"
+                    
+                seat_numbers = []
+                for i in range(quantity):
+                    seat_num = f"{prefix}{existing_count + i + 1}"
+                    seat_numbers.append(seat_num)
                 
-            seat_numbers = []
-            for i in range(quantity):
-                seat_num = f"{prefix}{existing_count + i + 1}"
-                seat_numbers.append(seat_num)
-                
+            for seat_num in seat_numbers:
                 # 3. Insert into tickets
                 db_connection.execute(
                     """

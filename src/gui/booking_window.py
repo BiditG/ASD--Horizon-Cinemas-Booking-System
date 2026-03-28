@@ -222,7 +222,7 @@ class BookingWindow:
         act_frame = tk.Frame(form_frame, bg=BG)
         act_frame.pack(fill="x", pady=(10, 0))
         
-        self.book_btn = tk.Button(act_frame, text="✅ Book Now", font=FONT_BTN, bg=SUCCESS, fg=TEXT, 
+        self.book_btn = tk.Button(act_frame, text="✅ Select Seats & Book", font=FONT_BTN, bg=SUCCESS, fg=TEXT, 
                                   activebackground="#15803d", relief="flat", padx=20, pady=10, 
                                   cursor="hand2", state="disabled", command=self._process_booking)
         self.book_btn.pack(side="right")
@@ -478,8 +478,17 @@ class BookingWindow:
         qty = self.confirmed_price["quantity"]
         sh = self._selected_showing
         
-        email = self.cust_email_ent.get().strip()
-        phone = self.cust_phone_ent.get().strip()
+        # Open Seat Map to select seats
+        from src.gui.seat_map_window import SeatMapWindow
+        
+        def on_seats_selected(selected_seats):
+            self._finalize_booking(name, self.cust_email_ent.get().strip(), self.cust_phone_ent.get().strip(), selected_seats)
+            
+        SeatMapWindow(self.root, sh.showing_id, qty, on_seats_selected)
+
+    def _finalize_booking(self, name: str, email: str, phone: str, selected_seats: list) -> None:
+        qty = self.confirmed_price["quantity"]
+        sh = self._selected_showing
         now = datetime.datetime.now()
         
         try:
@@ -496,7 +505,8 @@ class BookingWindow:
                 customer_phone=phone,
                 unit_price=self.confirmed_price["unit_price"],
                 db_connection=conn,
-                booked_by_agent=False
+                booked_by_agent=False,
+                selected_seats=selected_seats
             )
             
             ref = result["booking_ref"]
