@@ -20,9 +20,17 @@ class ManagerWindow:
         tk.Label(self.root, text="Full management interface coming soon.",
                  font=("Helvetica", 12), bg=BG, fg="#94a3b8").pack()
 
+        tk.Button(self.root, text="Cancel Booking", font=("Helvetica", 11, "bold"),
+                  bg="#dc2626", fg=FG, relief="flat", padx=20, pady=8,
+                  cursor="hand2", command=self._open_cancellation).pack(pady=20)
+
         tk.Button(self.root, text="Logout", font=("Helvetica", 11, "bold"),
                   bg=ACCENT, fg=FG, relief="flat", padx=20, pady=8,
-                  cursor="hand2", command=self._logout).pack(pady=40)
+                  cursor="hand2", command=self._logout).pack(pady=20)
+
+    def _open_cancellation(self):
+        from src.gui.cancellation_window import CancellationWindow
+        CancellationWindow(self.root)
 
     def _logout(self):
         from src.gui.login_window import _logout_and_return

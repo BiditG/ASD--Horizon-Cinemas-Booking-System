@@ -130,6 +130,15 @@ class FilmListingWindow:
         tk.Label(bar, text=user_text, font=FONT_SMALL, bg=BG2, fg=TEXT2
                  ).grid(row=0, column=2, padx=12)
 
+        # Cancel Booking
+        cancel_btn = tk.Button(
+            bar, text="Cancel Booking", font=FONT_BTN,
+            bg="#dc2626", fg=TEXT, activebackground="#b91c1c",
+            relief="flat", cursor="hand2", padx=14, pady=4,
+            command=self._open_cancellation
+        )
+        cancel_btn.grid(row=0, column=3, padx=(0, 16))
+
         # Logout
         logout_btn = tk.Button(
             bar, text="Logout", font=FONT_BTN,
@@ -137,7 +146,11 @@ class FilmListingWindow:
             relief="flat", cursor="hand2", padx=14, pady=4,
             command=self._logout
         )
-        logout_btn.grid(row=0, column=3, padx=(0, 16))
+        logout_btn.grid(row=0, column=4, padx=(0, 16))
+
+    def _open_cancellation(self) -> None:
+        from src.gui.cancellation_window import CancellationWindow
+        CancellationWindow(self.root)
 
     def _build_controls(self) -> None:
         """Date navigator + cinema selector row."""

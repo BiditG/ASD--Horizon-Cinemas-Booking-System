@@ -98,6 +98,8 @@ def create_tables(cursor):
         total_cost REAL NOT NULL,
         booking_status TEXT NOT NULL,
         booked_by_agent BOOLEAN NOT NULL,
+        cancellation_fee REAL DEFAULT 0.00,
+        cancelled_at TEXT,
         FOREIGN KEY(showing_id) REFERENCES showings(showing_id)
     );
 
