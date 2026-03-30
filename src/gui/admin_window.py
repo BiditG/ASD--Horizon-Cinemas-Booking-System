@@ -1,36 +1,532 @@
-"""
-src/gui/admin_window.py
-=======================
-Admin dashboard stub for HCBS.
-Replace this placeholder with the full implementation.
-"""
 import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+import csv
+import datetime
+from src.database.db_connection import get_connection
+from src.gui.login_window import SessionManager
+from src.models.film import Film
+from src.models.showing import Showing
 
-BG = "#0f172a"; FG = "#f8fafc"; ACCENT = "#1e40af"
+BG = "#0f172a"
+BG2 = "#1e293b"
+ACCENT = "#1e40af"
+FG = "#f8fafc"
+TEXT2 = "#94a3b8"
+SUCCESS = "#16a34a"
+DANGER = "#dc2626"
+WARNING = "#ca8a04"
 
 class AdminWindow:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
+        
+        # Access control
+        session = SessionManager.get_instance()
+        self.user = session.get_current_user()
+        if not self.user or self.user.role not in ("admin", "manager"):
+            messagebox.showerror("Access Denied", "You do not have permission to access the admin dashboard.")
+            self._logout()
+            return
+            
         self.root.title("HCBS — Admin Dashboard")
         self.root.configure(bg=BG)
-        self.root.geometry("1024x768")
+        self.root.geometry("1100x750")
+        
+        self._build_topbar()
+        self._build_notebook()
+        
+    def _build_topbar(self):
+        bar = tk.Frame(self.root, bg=BG2, pady=10, padx=20)
+        bar.pack(fill="x", side="top")
+        
+        tk.Label(bar, text=f"🎬 Admin Dashboard — {self.user.full_name}", font=("Helvetica", 16, "bold"), bg=BG2, fg=FG).pack(side="left")
+        
+        tk.Button(bar, text="Logout", bg=DANGER, fg=FG, relief="flat", padx=10, command=self._logout).pack(side="right", padx=5)
+        tk.Button(bar, text="Cancel Booking", bg="#b91c1c", fg=FG, relief="flat", padx=10, command=self._open_cancellation).pack(side="right", padx=5)
 
-        tk.Label(self.root, text="🎬  Admin Dashboard",
-                 font=("Helvetica", 22, "bold"), bg=BG, fg=FG).pack(pady=60)
-        tk.Label(self.root, text="Full admin interface coming soon.",
-                 font=("Helvetica", 12), bg=BG, fg="#94a3b8").pack()
+    def _build_notebook(self):
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("TNotebook", background=BG, borderwidth=0)
+        style.configure("TNotebook.Tab", background=BG2, foreground=FG, padding=[15, 8], font=("Helvetica", 11))
+        style.map("TNotebook.Tab", background=[("selected", ACCENT)])
+        
+        # Customize treeview style
+        style.configure("Treeview", background=BG, foreground=FG, fieldbackground=BG, rowheight=25)
+        style.map("Treeview", background=[("selected", ACCENT)])
+        style.configure("Treeview.Heading", background=BG2, foreground=FG, font=("Helvetica", 10, "bold"))
+        
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        self.tab_films = tk.Frame(self.notebook, bg=BG)
+        self.tab_showings = tk.Frame(self.notebook, bg=BG)
+        self.tab_reports = tk.Frame(self.notebook, bg=BG)
+        
+        self.notebook.add(self.tab_films, text="Films")
+        self.notebook.add(self.tab_showings, text="Showings")
+        self.notebook.add(self.tab_reports, text="Reports")
+        
+        self._build_films_tab()
+        self._build_showings_tab()
+        self._build_reports_tab()
+        
+    # --- FILMS TAB ---
+    def _build_films_tab(self):
+        top = tk.Frame(self.tab_films, bg=BG, pady=10)
+        top.pack(fill="x")
+        
+        tk.Button(top, text="+ Add Film", bg=SUCCESS, fg=FG, command=self._open_add_film).pack(side="left", padx=5)
+        tk.Button(top, text="✎ Edit Film", bg=ACCENT, fg=FG, command=self._open_edit_film).pack(side="left", padx=5)
+        tk.Button(top, text="✕ Remove Film", bg=WARNING, fg="#000", command=self._remove_film).pack(side="left", padx=5)
+        tk.Button(top, text="↻ Refresh", bg=BG2, fg=FG, command=self._refresh_films).pack(side="right", padx=5)
+        
+        cols = ("ID", "Title", "Genre", "Age Rating", "Duration", "Active")
+        self.films_tree = ttk.Treeview(self.tab_films, columns=cols, show="headings", height=15)
+        
+        for c in cols:
+            self.films_tree.heading(c, text=c)
+            self.films_tree.column(c, anchor="center")
+        self.films_tree.column("ID", width=50)
+        self.films_tree.column("Title", width=250, anchor="w")
+        self.films_tree.column("Active", width=80)
+        
+        # Scrollbar
+        sb = ttk.Scrollbar(self.tab_films, orient="vertical", command=self.films_tree.yview)
+        self.films_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.films_tree.pack(fill="both", expand=True, pady=10)
+        
+        self._refresh_films()
+        
+    def _refresh_films(self):
+        for row in self.films_tree.get_children():
+            self.films_tree.delete(row)
+        try:
+            conn = get_connection()
+            cursor = conn.execute("SELECT film_id, title, genre, age_rating, duration_mins, is_active FROM films ORDER BY title")
+            for row in cursor.fetchall():
+                active_str = "Yes" if row["is_active"] else "No"
+                self.films_tree.insert("", "end", values=(row["film_id"], row["title"], row["genre"], row["age_rating"], f"{row['duration_mins']}m", active_str))
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
-        tk.Button(self.root, text="Cancel Booking", font=("Helvetica", 11, "bold"),
-                  bg="#dc2626", fg=FG, relief="flat", padx=20, pady=8,
-                  cursor="hand2", command=self._open_cancellation).pack(pady=20)
+    def _open_add_film(self):
+        self._open_film_form("Add Film")
 
-        tk.Button(self.root, text="Logout", font=("Helvetica", 11, "bold"),
-                  bg=ACCENT, fg=FG, relief="flat", padx=20, pady=8,
-                  cursor="hand2", command=self._logout).pack(pady=20)
+    def _open_edit_film(self):
+        sel = self.films_tree.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Select a film to edit.")
+            return
+        film_id = self.films_tree.item(sel[0])["values"][0]
+        self._open_film_form("Edit Film", film_id)
+
+    def _open_film_form(self, mode, film_id=None):
+        win = tk.Toplevel(self.root)
+        win.title(mode)
+        win.geometry("500x550")
+        win.configure(bg=BG)
+        win.grab_set()
+        
+        fields = [
+            ("Title", "entry"),
+            ("Genre", "combo", ["Action", "Animation", "Comedy", "Documentary", "Drama", "Horror", "Romance", "Sci-Fi", "Thriller"]),
+            ("Age Rating", "combo", ["U", "PG", "12", "12A", "15", "18", "R"]),
+            ("Duration (mins)", "entry"),
+            ("Description", "text"),
+            ("Cast Members", "entry"),
+            ("Poster Path", "entry")
+        ]
+        
+        inputs = {}
+        for idx, field in enumerate(fields):
+            name, ftype = field[0], field[1]
+            tk.Label(win, text=name + ":", bg=BG, fg=TEXT2, font=("Helvetica", 10)).grid(row=idx, column=0, pady=10, padx=15, sticky="e")
+            
+            if ftype == "entry":
+                w = tk.Entry(win, width=40, font=("Helvetica", 10))
+                w.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
+                inputs[name] = w
+            elif ftype == "combo":
+                w = ttk.Combobox(win, values=field[2], state="readonly", width=37)
+                w.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
+                if field[2]: w.current(0)
+                inputs[name] = w
+            elif ftype == "text":
+                w = tk.Text(win, width=40, height=4, font=("Helvetica", 10))
+                w.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
+                inputs[name] = w
+                
+        if film_id:
+            try:
+                conn = get_connection()
+                row = conn.execute("SELECT * FROM films WHERE film_id=?", (film_id,)).fetchone()
+                inputs["Title"].insert(0, row["title"])
+                inputs["Genre"].set(row["genre"])
+                inputs["Age Rating"].set(row["age_rating"])
+                inputs["Duration (mins)"].insert(0, str(row["duration_mins"]))
+                inputs["Description"].insert("1.0", row["description"] or "")
+                inputs["Cast Members"].insert(0, row["cast_members"] or "")
+                inputs["Poster Path"].insert(0, row["poster_path"] or "")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+                win.destroy()
+                return
+
+        def save():
+            try:
+                t = inputs["Title"].get().strip()
+                g = inputs["Genre"].get()
+                a = inputs["Age Rating"].get()
+                d_str = inputs["Duration (mins)"].get().strip()
+                d = int(d_str) if d_str.isdigit() else 0
+                desc = inputs["Description"].get("1.0", "end-1c").strip()
+                c = inputs["Cast Members"].get().strip()
+                p = inputs["Poster Path"].get().strip()
+                
+                if not t or d <= 0:
+                    messagebox.showwarning("Validation Error", "Valid title and duration (>0) are required.")
+                    return
+                
+                if mode == "Add Film":
+                    Film.create(title=t, genre=g, age_rating=a, duration_mins=d, description=desc, cast_members=c, poster_path=p)
+                else:
+                    Film.update(film_id, title=t, genre=g, age_rating=a, duration_mins=d, description=desc, cast_members=c, poster_path=p)
+                win.destroy()
+                self._refresh_films()
+                messagebox.showinfo("Success", f"Film '{t}' saved.")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+                
+        tk.Button(win, text="Save Film", bg=SUCCESS, fg=FG, font=("Helvetica", 11, "bold"), command=save).grid(row=len(fields), column=1, pady=20, sticky="e", padx=10)
+
+    def _remove_film(self):
+        sel = self.films_tree.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Select a film to remove.")
+            return
+            
+        film_id = self.films_tree.item(sel[0])["values"][0]
+        title = self.films_tree.item(sel[0])["values"][1]
+        active = self.films_tree.item(sel[0])["values"][5]
+        
+        if active == "No":
+            messagebox.showinfo("Info", "Film is already inactive.")
+            return
+        
+        if messagebox.askyesno("Confirm Remove", f"Are you sure you want to deactivate '{title}'?\nThis will hide it from future listings."):
+            try:
+                Film.deactivate(film_id)
+                self._refresh_films()
+                messagebox.showinfo("Success", "Film deactivated.")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+    # --- SHOWINGS TAB ---
+    def _build_showings_tab(self):
+        top = tk.Frame(self.tab_showings, bg=BG, pady=10)
+        top.pack(fill="x")
+        
+        tk.Button(top, text="+ Add Showing", bg=SUCCESS, fg=FG, command=self._open_add_showing).pack(side="left", padx=5)
+        tk.Button(top, text="✎ Edit Showing", bg=ACCENT, fg=FG, command=self._open_edit_showing).pack(side="left", padx=5)
+        tk.Button(top, text="✕ Cancel Showing", bg=DANGER, fg=FG, command=self._cancel_showing).pack(side="left", padx=5)
+        tk.Button(top, text="↻ Refresh", bg=BG2, fg=FG, command=self._refresh_showings).pack(side="right", padx=5)
+        
+        cols = ("ID", "Film", "Cinema", "Screen", "Date", "Time", "Type", "Seats", "Status")
+        self.shows_tree = ttk.Treeview(self.tab_showings, columns=cols, show="headings", height=15)
+        
+        for c in cols:
+            self.shows_tree.heading(c, text=c)
+            self.shows_tree.column(c, width=100, anchor="center")
+        self.shows_tree.column("Film", width=220, anchor="w")
+        self.shows_tree.column("Cinema", width=150, anchor="w")
+        self.shows_tree.column("Screen", width=70)
+        self.shows_tree.column("ID", width=50)
+        
+        sb = ttk.Scrollbar(self.tab_showings, orient="vertical", command=self.shows_tree.yview)
+        self.shows_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.shows_tree.pack(fill="both", expand=True, pady=10)
+        
+        self._refresh_showings()
+        
+    def _refresh_showings(self):
+        for row in self.shows_tree.get_children():
+            self.shows_tree.delete(row)
+        try:
+            conn = get_connection()
+            q = '''SELECT s.showing_id, f.title, c.cinema_name, s.screen_id, s.show_date, s.show_time, s.show_type, s.seats_remaining, s.is_cancelled
+                   FROM showings s
+                   JOIN films f ON s.film_id = f.film_id
+                   JOIN screens sc ON s.screen_id = sc.screen_id
+                   JOIN cinemas c ON sc.cinema_id = c.cinema_id
+                   ORDER BY s.show_date DESC, s.show_time DESC
+                   LIMIT 200''' # limit to avoid hanging
+            for row in conn.execute(q).fetchall():
+                status = "Cancelled" if row["is_cancelled"] else "Active"
+                self.shows_tree.insert("", "end", values=(
+                    row["showing_id"], row["title"], row["cinema_name"], 
+                    row["screen_id"], row["show_date"], row["show_time"], 
+                    row["show_type"].capitalize(), row["seats_remaining"], status
+                ))
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def _open_add_showing(self):
+        win = tk.Toplevel(self.root)
+        win.title("Add Showing")
+        win.geometry("450x450")
+        win.configure(bg=BG)
+        win.grab_set()
+        
+        conn = get_connection()
+        films = conn.execute("SELECT film_id, title FROM films WHERE is_active=1 ORDER BY title").fetchall()
+        cinemas = conn.execute("SELECT cinema_id, cinema_name FROM cinemas ORDER BY cinema_name").fetchall()
+        
+        if not films or not cinemas:
+            messagebox.showerror("Error", "Need active films and cinemas to create showings.")
+            win.destroy()
+            return
+            
+        tk.Label(win, text="Film:", bg=BG, fg=TEXT2).grid(row=0, column=0, pady=15, padx=15, sticky="e")
+        f_cb = ttk.Combobox(win, values=[f"{f['film_id']} - {f['title']}" for f in films], state="readonly", width=35)
+        f_cb.grid(row=0, column=1)
+        f_cb.current(0)
+        
+        tk.Label(win, text="Cinema:", bg=BG, fg=TEXT2).grid(row=1, column=0, pady=15, padx=15, sticky="e")
+        c_cb = ttk.Combobox(win, values=[f"{c['cinema_id']} - {c['cinema_name']}" for c in cinemas], state="readonly", width=35)
+        c_cb.grid(row=1, column=1)
+        c_cb.current(0)
+        
+        tk.Label(win, text="Screen ID:", bg=BG, fg=TEXT2).grid(row=2, column=0, pady=15, padx=15, sticky="e")
+        s_cb = ttk.Combobox(win, state="readonly", width=35)
+        s_cb.grid(row=2, column=1)
+        
+        def update_screens(*args):
+            c_val = c_cb.get()
+            if not c_val: return
+            c_id = int(c_val.split(" - ")[0])
+            screens = conn.execute("SELECT screen_id, total_capacity FROM screens WHERE cinema_id=?", (c_id,)).fetchall()
+            s_cb['values'] = [f"{s['screen_id']} (Cap: {s['total_capacity']})" for s in screens]
+            if screens: s_cb.current(0)
+            
+        c_cb.bind("<<ComboboxSelected>>", update_screens)
+        update_screens()
+        
+        tk.Label(win, text="Date (YYYY-MM-DD):", bg=BG, fg=TEXT2).grid(row=3, column=0, pady=15, padx=15, sticky="e")
+        d_ent = tk.Entry(win, width=37)
+        d_ent.insert(0, datetime.date.today().isoformat())
+        d_ent.grid(row=3, column=1)
+        
+        tk.Label(win, text="Time:", bg=BG, fg=TEXT2).grid(row=4, column=0, pady=15, padx=15, sticky="e")
+        t_cb = ttk.Combobox(win, values=["10:00", "14:30", "19:00"], state="readonly", width=35)
+        t_cb.grid(row=4, column=1)
+        t_cb.current(0)
+        
+        def save():
+            try:
+                f_id = int(f_cb.get().split(" - ")[0])
+                c_id = int(c_cb.get().split(" - ")[0])
+                sc_id = int(s_cb.get().split(" ")[0])
+                d = d_ent.get().strip()
+                t = t_cb.get()
+                
+                type_map = {"10:00": "morning", "14:30": "afternoon", "19:00": "evening"}
+                stype = type_map.get(t, "evening")
+                
+                # Check valid date
+                datetime.date.fromisoformat(d)
+                
+                Showing.create(cinema_id=c_id, screen_id=sc_id, film_id=f_id, date=d, show_type=stype)
+                win.destroy()
+                self._refresh_showings()
+                messagebox.showinfo("Success", "Showing created.")
+            except ValueError as ve:
+                messagebox.showerror("Validation Error", str(ve))
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+                
+        tk.Button(win, text="Create Showing", bg=SUCCESS, fg=FG, font=("Helvetica", 10, "bold"), command=save).grid(row=5, column=1, pady=20, sticky="e")
+
+    def _open_edit_showing(self):
+        sel = self.shows_tree.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Select a showing to edit.")
+            return
+            
+        sid = self.shows_tree.item(sel[0])["values"][0]
+        
+        win = tk.Toplevel(self.root)
+        win.title("Edit Showing")
+        win.geometry("400x300")
+        win.configure(bg=BG)
+        win.grab_set()
+        
+        try:
+            conn = get_connection()
+            showing = conn.execute("SELECT screen_id, show_time, show_date FROM showings WHERE showing_id=?", (sid,)).fetchone()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            win.destroy()
+            return
+            
+        tk.Label(win, text="New Screen ID:", bg=BG, fg=TEXT2).grid(row=0, column=0, pady=15, padx=15, sticky="e")
+        s_ent = tk.Entry(win)
+        s_ent.insert(0, str(showing["screen_id"]))
+        s_ent.grid(row=0, column=1)
+        
+        tk.Label(win, text="New Time:", bg=BG, fg=TEXT2).grid(row=1, column=0, pady=15, padx=15, sticky="e")
+        t_cb = ttk.Combobox(win, values=["10:00", "14:30", "19:00"], state="readonly")
+        t_cb.set(showing["show_time"])
+        t_cb.grid(row=1, column=1)
+        
+        def save():
+            try:
+                new_s = int(s_ent.get().strip())
+                new_t = t_cb.get()
+                
+                type_map = {"10:00": "morning", "14:30": "afternoon", "19:00": "evening"}
+                new_stype = type_map.get(new_t, "evening")
+                
+                conn.execute("UPDATE showings SET screen_id=?, show_time=?, show_type=? WHERE showing_id=?", (new_s, new_t, new_stype, sid))
+                conn.commit()
+                win.destroy()
+                self._refresh_showings()
+                messagebox.showinfo("Success", "Showing updated.")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+                
+        tk.Button(win, text="Save Changes", bg=SUCCESS, fg=FG, command=save).grid(row=2, column=1, pady=20, sticky="e")
+
+    def _cancel_showing(self):
+        sel = self.shows_tree.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Select a showing to cancel.")
+            return
+            
+        sid = self.shows_tree.item(sel[0])["values"][0]
+        status = self.shows_tree.item(sel[0])["values"][8]
+        
+        if status == "Cancelled":
+            messagebox.showinfo("Info", "Showing is already cancelled.")
+            return
+            
+        if messagebox.askyesno("Confirm Cancel", f"Are you sure you want to cancel showing ID {sid}?\nActive bookings may need refunds."):
+            try:
+                conn = get_connection()
+                conn.execute("UPDATE showings SET is_cancelled=1 WHERE showing_id=?", (sid,))
+                conn.commit()
+                self._refresh_showings()
+                messagebox.showinfo("Success", "Showing cancelled.")
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+    # --- REPORTS TAB ---
+    def _build_reports_tab(self):
+        top = tk.Frame(self.tab_reports, bg=BG, pady=15)
+        top.pack(fill="x")
+        
+        tk.Label(top, text="Select Report:", bg=BG, fg=TEXT2, font=("Helvetica", 11)).pack(side="left", padx=10)
+        
+        self.report_var = tk.StringVar(value="Bookings per Listing")
+        rep_cb = ttk.Combobox(top, textvariable=self.report_var, values=[
+            "Bookings per Listing", 
+            "Monthly Revenue", 
+            "Top Revenue Film", 
+            "Staff Leaderboard"
+        ], state="readonly", width=30, font=("Helvetica", 11))
+        rep_cb.pack(side="left", padx=5)
+        
+        tk.Button(top, text="📊 Generate", bg=ACCENT, fg=FG, font=("Helvetica", 10, "bold"), command=self._generate_report).pack(side="left", padx=15)
+        tk.Button(top, text="📥 CSV Export", bg=SUCCESS, fg=FG, font=("Helvetica", 10, "bold"), command=self._export_csv).pack(side="right", padx=15)
+        
+        self.rep_tree = ttk.Treeview(self.tab_reports, show="headings", height=20)
+        
+        sb = ttk.Scrollbar(self.tab_reports, orient="vertical", command=self.rep_tree.yview)
+        self.rep_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.rep_tree.pack(fill="both", expand=True, pady=10)
+        
+    def _generate_report(self):
+        rtype = self.report_var.get()
+        conn = get_connection()
+        for row in self.rep_tree.get_children():
+            self.rep_tree.delete(row)
+            
+        try:
+            if rtype == "Bookings per Listing":
+                q = '''SELECT s.showing_id, f.title, s.show_date, s.show_time, COUNT(b.booking_id) as total_bookings
+                       FROM showings s
+                       JOIN films f ON s.film_id = f.film_id
+                       LEFT JOIN bookings b ON s.showing_id = b.showing_id AND b.booking_status = 'Active'
+                       GROUP BY s.showing_id
+                       ORDER BY total_bookings DESC'''
+                cols = ("Showing ID", "Film Title", "Date", "Time", "Active Bookings")
+            elif rtype == "Monthly Revenue":
+                q = '''SELECT strftime('%Y-%m', s.show_date) as month, SUM(b.total_cost) as revenue
+                       FROM bookings b
+                       JOIN showings s ON b.showing_id = s.showing_id
+                       WHERE b.booking_status = 'Active'
+                       GROUP BY month
+                       ORDER BY month DESC'''
+                cols = ("Month", "Revenue (£)")
+            elif rtype == "Top Revenue Film":
+                q = '''SELECT f.title, SUM(b.total_cost) as revenue
+                       FROM bookings b
+                       JOIN showings s ON b.showing_id = s.showing_id
+                       JOIN films f ON s.film_id = f.film_id
+                       WHERE b.booking_status = 'Active'
+                       GROUP BY f.film_id
+                       ORDER BY revenue DESC'''
+                cols = ("Film Title", "Revenue (£)")
+            elif rtype == "Staff Leaderboard":
+                # Fallback staff query
+                q = '''SELECT 'Staff User' as staff, COUNT(b.booking_id) as total_bookings
+                       FROM bookings b
+                       WHERE b.booked_by_agent = 0
+                       GROUP BY staff'''
+                cols = ("Staff Name (System)", "Total Bookings Processed")
+                
+            self.rep_tree["columns"] = cols
+            for c in cols:
+                self.rep_tree.heading(c, text=c)
+                self.rep_tree.column(c, width=150, anchor="center")
+                
+            for row in conn.execute(q).fetchall():
+                vals = [row[k] for k in row.keys()]
+                if rtype in ("Monthly Revenue", "Top Revenue Film"):
+                    vals[1] = f"£{vals[1] or 0:.2f}"
+                self.rep_tree.insert("", "end", values=vals)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate report: {e}")
+
+    def _export_csv(self):
+        if not self.rep_tree.get_children():
+            messagebox.showwarning("Warning", "No data to export. Generate a report first.")
+            return
+            
+        f = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        if not f: return
+        
+        try:
+            with open(f, "w", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                cols = self.rep_tree["columns"]
+                writer.writerow(cols)
+                for row_id in self.rep_tree.get_children():
+                    writer.writerow(self.rep_tree.item(row_id)["values"])
+            messagebox.showinfo("Success", "Export successful!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export CSV: {e}")
 
     def _open_cancellation(self):
-        from src.gui.cancellation_window import CancellationWindow
-        CancellationWindow(self.root)
+        try:
+            from src.gui.cancellation_window import CancellationWindow
+            CancellationWindow(self.root)
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open cancellation window: {e}")
 
     def _logout(self):
         from src.gui.login_window import _logout_and_return
