@@ -100,7 +100,10 @@ def create_tables(cursor):
         booked_by_agent BOOLEAN NOT NULL,
         cancellation_fee REAL DEFAULT 0.00,
         cancelled_at TEXT,
-        FOREIGN KEY(showing_id) REFERENCES showings(showing_id)
+        staff_id INTEGER DEFAULT 1,
+        booking_time TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(showing_id) REFERENCES showings(showing_id),
+        FOREIGN KEY(staff_id) REFERENCES users(user_id)
     );
 
     CREATE TABLE tickets (

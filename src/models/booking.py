@@ -127,12 +127,13 @@ class BookingManager:
             total_cost = unit_price * quantity
             
             # 1. Insert into bookings
+            now_iso = datetime.datetime.now().isoformat()
             cursor = db_connection.execute(
                 """
-                INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent)
-                VALUES (?, ?, ?, ?, 'Active', ?)
+                INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent, staff_id, booking_time)
+                VALUES (?, ?, ?, ?, 'Active', ?, ?, ?)
                 """,
-                (showing_id, booking_ref, customer_name, total_cost, booked_by_agent)
+                (showing_id, booking_ref, customer_name, total_cost, booked_by_agent, staff_user_id, now_iso)
             )
             booking_id = cursor.lastrowid
             

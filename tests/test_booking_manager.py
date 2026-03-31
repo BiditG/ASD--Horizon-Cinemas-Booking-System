@@ -61,7 +61,11 @@ def memory_db(monkeypatch):
             customer_name TEXT NOT NULL,
             total_cost REAL NOT NULL,
             booking_status TEXT NOT NULL,
-            booked_by_agent BOOLEAN NOT NULL
+            booked_by_agent BOOLEAN NOT NULL,
+            cancellation_fee REAL DEFAULT 0.00,
+            cancelled_at TEXT,
+            staff_id INTEGER DEFAULT 1,
+            booking_time TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE tickets (
             ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,

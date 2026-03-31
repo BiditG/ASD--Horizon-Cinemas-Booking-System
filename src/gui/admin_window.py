@@ -455,69 +455,91 @@ class AdminWindow:
             self.rep_tree.delete(row)
             
         try:
+            from src.models.reports import ReportManager
+            cinema_id = self.user.cinema_id or 1 # Fallback to 1 if admin has no cinema assigned
+            
+            # Using current month/year for those that require it
+            now = datetime.datetime.now()
+            y, m = now.year, now.month
+            
+            data = []
+            
             if rtype == "Bookings per Listing":
-                q = '''SELECT s.showing_id, f.title, s.show_date, s.show_time, COUNT(b.booking_id) as total_bookings
-                       FROM showings s
-                       JOIN films f ON s.film_id = f.film_id
-                       LEFT JOIN bookings b ON s.showing_id = b.showing_id AND b.booking_status = 'Active'
-                       GROUP BY s.showing_id
-                       ORDER BY total_bookings DESC'''
-                cols = ("Showing ID", "Film Title", "Date", "Time", "Active Bookings")
+                cols = ("Film Title", "Date", "Time", "Active Bookings", "Total Revenue (£)")
+                self.rep_tree["columns"] = cols
+                for c in cols:
+                    self.rep_tree.heading(c, text=c)
+                    self.rep_tree.column(c, width=150, anchor="center")
+                
+                raw_data = ReportManager.bookings_per_listing(cinema_id, conn)
+                for r in raw_data:
+                    self.rep_tree.insert("", "end", values=(r["film_title"], r["show_date"], r["show_time"], r["total_bookings"], f"£{r['total_revenue']:.2f}"))
+                data = raw_data
+                    
             elif rtype == "Monthly Revenue":
-                q = '''SELECT strftime('%Y-%m', s.show_date) as month, SUM(b.total_cost) as revenue
-                       FROM bookings b
-                       JOIN showings s ON b.showing_id = s.showing_id
-                       WHERE b.booking_status = 'Active'
-                       GROUP BY month
-                       ORDER BY month DESC'''
-                cols = ("Month", "Revenue (£)")
+                cols = ("Total Bookings", "Total Revenue (£)", "Avg Occupancy (%)", "Morning Revenue (£)", "Afternoon Revenue (£)", "Evening Revenue (£)")
+                self.rep_tree["columns"] = cols
+                for c in cols:
+                    self.rep_tree.heading(c, text=c)
+                    self.rep_tree.column(c, width=150, anchor="center")
+                
+                stats = ReportManager.monthly_revenue(cinema_id, y, m, conn)
+                self.rep_tree.insert("", "end", values=(
+                    stats["total_bookings"], 
+                    f"£{stats['total_revenue']:.2f}", 
+                    f"{stats['average_occupancy_percent']:.1f}%",
+                    f"£{stats['revenue_by_show_type'].get('morning', 0):.2f}",
+                    f"£{stats['revenue_by_show_type'].get('afternoon', 0):.2f}",
+                    f"£{stats['revenue_by_show_type'].get('evening', 0):.2f}"
+                ))
+                data = [stats]
+                
             elif rtype == "Top Revenue Film":
-                q = '''SELECT f.title, SUM(b.total_cost) as revenue
-                       FROM bookings b
-                       JOIN showings s ON b.showing_id = s.showing_id
-                       JOIN films f ON s.film_id = f.film_id
-                       WHERE b.booking_status = 'Active'
-                       GROUP BY f.film_id
-                       ORDER BY revenue DESC'''
-                cols = ("Film Title", "Revenue (£)")
+                cols = ("Film Title", "Active Bookings", "Total Revenue (£)")
+                self.rep_tree["columns"] = cols
+                for c in cols:
+                    self.rep_tree.heading(c, text=c)
+                    self.rep_tree.column(c, width=150, anchor="center")
+                
+                raw_data = ReportManager.top_revenue_films(cinema_id, 10, conn)
+                for r in raw_data:
+                    self.rep_tree.insert("", "end", values=(r["film_title"], r["total_bookings"], f"£{r['total_revenue']:.2f}"))
+                data = raw_data
+                
             elif rtype == "Staff Leaderboard":
-                # Fallback staff query
-                q = '''SELECT 'Staff User' as staff, COUNT(b.booking_id) as total_bookings
-                       FROM bookings b
-                       WHERE b.booked_by_agent = 0
-                       GROUP BY staff'''
-                cols = ("Staff Name (System)", "Total Bookings Processed")
+                cols = ("Rank", "Staff Name", "Active Bookings", "Total Revenue (£)")
+                self.rep_tree["columns"] = cols
+                for c in cols:
+                    self.rep_tree.heading(c, text=c)
+                    self.rep_tree.column(c, width=150, anchor="center")
                 
-            self.rep_tree["columns"] = cols
-            for c in cols:
-                self.rep_tree.heading(c, text=c)
-                self.rep_tree.column(c, width=150, anchor="center")
+                raw_data = ReportManager.staff_booking_leaderboard(cinema_id, y, m, conn)
+                for r in raw_data:
+                    self.rep_tree.insert("", "end", values=(r["rank"], r["staff_full_name"], r["total_bookings"], f"£{r['total_revenue']:.2f}"))
+                data = raw_data
                 
-            for row in conn.execute(q).fetchall():
-                vals = [row[k] for k in row.keys()]
-                if rtype in ("Monthly Revenue", "Top Revenue Film"):
-                    vals[1] = f"£{vals[1] or 0:.2f}"
-                self.rep_tree.insert("", "end", values=vals)
-                
+            self.current_report_data = data
+            
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate report: {e}")
 
     def _export_csv(self):
-        if not self.rep_tree.get_children():
+        if not hasattr(self, 'current_report_data') or not self.current_report_data:
             messagebox.showwarning("Warning", "No data to export. Generate a report first.")
             return
             
-        f = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        f = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")], initialfile=f"report_{datetime.datetime.now().strftime('%Y%m%d')}.csv")
         if not f: return
         
         try:
-            with open(f, "w", newline="", encoding="utf-8") as file:
-                writer = csv.writer(file)
-                cols = self.rep_tree["columns"]
-                writer.writerow(cols)
-                for row_id in self.rep_tree.get_children():
-                    writer.writerow(self.rep_tree.item(row_id)["values"])
-            messagebox.showinfo("Success", "Export successful!")
+            from src.models.reports import ReportManager
+            filepath = ReportManager.export_to_csv(self.current_report_data, os.path.basename(f))
+            # Move the generated file to the user's chosen location if they picked somewhere else, 
+            # since ReportManager forces it into 'exports/' folder.
+            import shutil
+            if os.path.abspath(f) != os.path.abspath(filepath):
+                shutil.copy2(filepath, f)
+            messagebox.showinfo("Success", f"Export successful!\nSaved to {f}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export CSV: {e}")
 
