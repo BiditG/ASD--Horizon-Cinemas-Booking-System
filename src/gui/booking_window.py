@@ -482,9 +482,29 @@ class BookingWindow:
         from src.gui.seat_map_window import SeatMapWindow
         
         def on_seats_selected(selected_seats):
-            self._finalize_booking(name, self.cust_email_ent.get().strip(), self.cust_phone_ent.get().strip(), selected_seats)
+            booking_data = {
+                "name": name,
+                "email": self.cust_email_ent.get().strip(),
+                "phone": self.cust_phone_ent.get().strip(),
+                "selected_seats": selected_seats
+            }
+            from src.gui.payment_window import PaymentWindow
+            PaymentWindow(
+                self.root,
+                total_amount=self.confirmed_price["total_price"],
+                booking_data=booking_data,
+                on_payment_success=self._on_payment_success
+            )
             
         SeatMapWindow(self.root, sh.showing_id, qty, on_seats_selected)
+
+    def _on_payment_success(self, booking_data: dict) -> None:
+        self._finalize_booking(
+            booking_data["name"],
+            booking_data["email"],
+            booking_data["phone"],
+            booking_data["selected_seats"]
+        )
 
     def _finalize_booking(self, name: str, email: str, phone: str, selected_seats: list) -> None:
         qty = self.confirmed_price["quantity"]
