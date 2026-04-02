@@ -1,3 +1,5 @@
 # No external dependencies currently required for standard Tkinter/SQLite.
 # Add any libraries here (e.g., Pillow for images).
-# Pillow
+Pillow
+reportlab
+qrcode

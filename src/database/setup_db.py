@@ -112,6 +112,7 @@ def create_tables(cursor):
         seat_number TEXT NOT NULL,
         ticket_type TEXT NOT NULL,
         unit_price REAL NOT NULL,
+        pdf_path TEXT,
         FOREIGN KEY(booking_id) REFERENCES bookings(booking_id)
     );
 
