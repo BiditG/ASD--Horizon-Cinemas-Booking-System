@@ -592,6 +592,16 @@ class BookingWindow:
         self.receipt_text.insert(tk.END, "\nTotal Cost:\n", "label")
         self.receipt_text.insert(tk.END, f"£{booking_data['total_cost']:.2f}\n", "bold_green")
         
+        # --- Embed QR Code ---
+        try:
+            from src.utils.qr_generator import generate_qr_image
+            self.qr_img = generate_qr_image(booking_data['booking_ref'], size=150)
+            self.receipt_text.insert(tk.END, "\n")
+            self.receipt_text.image_create(tk.END, image=self.qr_img)
+            self.receipt_text.insert(tk.END, "\n")
+        except Exception as e:
+            print(f"Failed to load QR: {e}")
+            
         self.receipt_text.config(state="disabled")
         self.rec_act_frame.pack(fill="x", pady=(20, 0))
 

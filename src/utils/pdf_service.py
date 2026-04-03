@@ -80,13 +80,9 @@ class PDFService:
                 y_pos -= line_height
                 
             # --- QR Code ---
-            qr = qrcode.QRCode(version=1, box_size=10, border=2)
-            qr.add_data(ref)
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white")
-            
+            from src.utils.qr_generator import save_qr_to_file
             temp_qr_path = f"temp_qr_{ref}.png"
-            img.save(temp_qr_path)
+            save_qr_to_file(ref, temp_qr_path)
             
             # Embed in bottom-right
             qr_size = 40*mm
