@@ -215,8 +215,20 @@ class BookingWindow:
         tk.Label(cust_card, text="Email:", font=FONT_BODY, bg=BG_CARD, fg=TEXT).grid(row=2, column=0, sticky="w", pady=5)
         self.cust_email_ent = tk.Entry(cust_card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", highlightbackground=BORDER, highlightthickness=1)
         self.cust_email_ent.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
+        self.cust_email_ent.bind("<FocusOut>", self._check_duplicate_booking)
         
         cust_card.columnconfigure(1, weight=1)
+        
+        # Duplicate Banner
+        self.dup_banner = tk.Frame(form_frame, bg="#ca8a04", padx=10, pady=10)
+        self.dup_lbl = tk.Label(self.dup_banner, text="", bg="#ca8a04", fg="#0f172a", font=FONT_BODY, wraplength=400)
+        self.dup_lbl.pack(side="left", fill="x", expand=True)
+        
+        self.dup_yes_btn = tk.Button(self.dup_banner, text="Yes", bg="#0f172a", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._dismiss_duplicate_banner)
+        self.dup_yes_btn.pack(side="right", padx=5)
+        
+        self.dup_no_btn = tk.Button(self.dup_banner, text="No", bg="#0f172a", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._reset_form)
+        self.dup_no_btn.pack(side="right", padx=5)
         
         # 4. Action Buttons
         act_frame = tk.Frame(form_frame, bg=BG)

@@ -95,6 +95,7 @@ def create_tables(cursor):
         showing_id INTEGER,
         booking_ref TEXT UNIQUE NOT NULL,
         customer_name TEXT NOT NULL,
+        customer_email TEXT DEFAULT '',
         total_cost REAL NOT NULL,
         booking_status TEXT NOT NULL,
         booked_by_agent BOOLEAN NOT NULL,

@@ -74,6 +74,42 @@ class BookingManager:
         return f"{prefix}-{seq:04d}"
 
     @staticmethod
+    def check_duplicate(customer_email: str, film_id: int, show_date: datetime.date, db_connection) -> Optional[Dict[str, Any]]:
+        """
+        Check if the customer already has a confirmed booking for the same film on the same date.
+        """
+        if not customer_email:
+            return None
+            
+        cursor = db_connection.execute(
+            """
+            SELECT b.booking_ref, s.show_time, b.booking_id
+            FROM bookings b
+            JOIN showings s ON b.showing_id = s.showing_id
+            WHERE b.customer_email = ? 
+              AND s.film_id = ? 
+              AND s.show_date = ? 
+              AND b.booking_status = 'Active'
+            LIMIT 1
+            """,
+            (customer_email, film_id, str(show_date))
+        )
+        row = cursor.fetchone()
+        if row:
+            b_id = row["booking_id"]
+            # get seat numbers separately to avoid group_concat issues across sqlite versions if needed, 
+            # or just do group concat. Let's do a fast second query.
+            seat_cursor = db_connection.execute("SELECT seat_number FROM tickets WHERE booking_id = ?", (b_id,))
+            seats = [r["seat_number"] for r in seat_cursor.fetchall()]
+            
+            return {
+                "booking_ref": row["booking_ref"],
+                "show_time": row["show_time"],
+                "seat_numbers": ", ".join(seats)
+            }
+        return None
+
+    @staticmethod
     def create_booking(showing_id: int, staff_user_id: int, ticket_type: str, 
                        quantity: int, customer_name: str, customer_email: str, 
                        customer_phone: str, unit_price: float, 
@@ -130,10 +166,10 @@ class BookingManager:
             now_iso = datetime.datetime.now().isoformat()
             cursor = db_connection.execute(
                 """
-                INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent, staff_id, booking_time)
-                VALUES (?, ?, ?, ?, 'Active', ?, ?, ?)
+                INSERT INTO bookings (showing_id, booking_ref, customer_name, customer_email, total_cost, booking_status, booked_by_agent, staff_id, booking_time)
+                VALUES (?, ?, ?, ?, ?, 'Active', ?, ?, ?)
                 """,
-                (showing_id, booking_ref, customer_name, total_cost, booked_by_agent, staff_user_id, now_iso)
+                (showing_id, booking_ref, customer_name, customer_email, total_cost, booked_by_agent, staff_user_id, now_iso)
             )
             booking_id = cursor.lastrowid
             
