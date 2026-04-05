@@ -16,18 +16,16 @@ SUCCESS = "#16a34a"
 DANGER = "#dc2626"
 WARNING = "#ca8a04"
 
+from src.utils.rbac import require_role
+
+@require_role('admin')
 class AdminWindow:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         
-        # Access control
         session = SessionManager.get_instance()
         self.user = session.get_current_user()
-        if not self.user or self.user.role not in ("admin", "manager"):
-            messagebox.showerror("Access Denied", "You do not have permission to access the admin dashboard.")
-            self._logout()
-            return
-            
+
         self.root.title("HCBS — Admin Dashboard")
         self.root.configure(bg=BG)
         self.root.geometry("1100x750")

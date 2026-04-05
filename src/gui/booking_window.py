@@ -87,6 +87,9 @@ FONT_BTN    = (FF, 11, "bold")
 FONT_MONO   = ("Courier New", 10)
 
 
+from src.utils.rbac import require_role
+
+@require_role('staff')
 class BookingWindow:
     def __init__(self, root: tk.Toplevel, showing_id: int = None) -> None:
         self.root = root

@@ -57,6 +57,9 @@ CARD_PAD    = 14
 CARD_GAP    = 10
 
 
+from src.utils.rbac import require_role
+
+@require_role('staff')
 class FilmListingWindow:
     """
     Film Listing screen — shown after login for all roles.
@@ -130,6 +133,29 @@ class FilmListingWindow:
         tk.Label(bar, text=user_text, font=FONT_SMALL, bg=BG2, fg=TEXT2
                  ).grid(row=0, column=2, padx=12)
 
+        col = 3
+        # Admin Dashboard
+        if self.user and self.user.role in ('admin', 'manager'):
+            admin_btn = tk.Button(
+                bar, text="Admin Dashboard", font=FONT_BTN,
+                bg="#0284c7", fg=TEXT, activebackground="#0369a1",
+                relief="flat", cursor="hand2", padx=14, pady=4,
+                command=self._open_admin
+            )
+            admin_btn.grid(row=0, column=col, padx=(0, 16))
+            col += 1
+            
+        # Manager Dashboard
+        if self.user and self.user.role == 'manager':
+            mgr_btn = tk.Button(
+                bar, text="Manager Dashboard", font=FONT_BTN,
+                bg="#7c3aed", fg=TEXT, activebackground="#6d28d9",
+                relief="flat", cursor="hand2", padx=14, pady=4,
+                command=self._open_manager
+            )
+            mgr_btn.grid(row=0, column=col, padx=(0, 16))
+            col += 1
+
         # Cancel Booking
         cancel_btn = tk.Button(
             bar, text="Cancel Booking", font=FONT_BTN,
@@ -137,7 +163,8 @@ class FilmListingWindow:
             relief="flat", cursor="hand2", padx=14, pady=4,
             command=self._open_cancellation
         )
-        cancel_btn.grid(row=0, column=3, padx=(0, 16))
+        cancel_btn.grid(row=0, column=col, padx=(0, 16))
+        col += 1
 
         # Logout
         logout_btn = tk.Button(
@@ -146,7 +173,15 @@ class FilmListingWindow:
             relief="flat", cursor="hand2", padx=14, pady=4,
             command=self._logout
         )
-        logout_btn.grid(row=0, column=4, padx=(0, 16))
+        logout_btn.grid(row=0, column=col, padx=(0, 16))
+
+    def _open_admin(self) -> None:
+        from src.gui.admin_window import AdminWindow
+        AdminWindow(tk.Toplevel(self.root))
+
+    def _open_manager(self) -> None:
+        from src.gui.manager_window import ManagerWindow
+        ManagerWindow(tk.Toplevel(self.root))
 
     def _open_cancellation(self) -> None:
         from src.gui.cancellation_window import CancellationWindow

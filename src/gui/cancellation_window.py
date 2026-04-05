@@ -6,6 +6,9 @@ from src.models.showing import Showing
 from src.models.cinema import Cinema
 import datetime
 
+from src.utils.rbac import require_role
+
+@require_role('staff')
 class CancellationWindow:
     def __init__(self, parent: tk.Toplevel):
         self.root = tk.Toplevel(parent)

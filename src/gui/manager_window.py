@@ -31,6 +31,9 @@ FONT_H2 = ("Helvetica", 16, "bold")
 FONT_BODY = ("Helvetica", 11)
 FONT_BTN = ("Helvetica", 11, "bold")
 
+from src.utils.rbac import require_role
+
+@require_role('manager')
 class ManagerWindow:
     def __init__(self, root: tk.Toplevel):
         self.root = root
@@ -40,10 +43,7 @@ class ManagerWindow:
         
         session = SessionManager.get_instance()
         self.user = session.get_current_user()
-        if not self.user or self.user.role != "manager":
-            messagebox.showerror("Access Denied", "Only Managers can access this module.")
-            self.root.destroy()
-            return
+
             
         self._build_ui()
         self._load_overview()
