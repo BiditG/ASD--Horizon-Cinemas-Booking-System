@@ -144,7 +144,16 @@ class FilmListingWindow:
             )
             admin_btn.grid(row=0, column=col, padx=(0, 16))
             col += 1
-            
+
+            dash_btn = tk.Button(
+                bar, text="📊 Dashboard", font=FONT_BTN,
+                bg="#0f766e", fg=TEXT, activebackground="#0d9488",
+                relief="flat", cursor="hand2", padx=14, pady=4,
+                command=self._open_dashboard
+            )
+            dash_btn.grid(row=0, column=col, padx=(0, 16))
+            col += 1
+
         # Manager Dashboard
         if self.user and self.user.role == 'manager':
             mgr_btn = tk.Button(
@@ -183,9 +192,14 @@ class FilmListingWindow:
         from src.gui.manager_window import ManagerWindow
         ManagerWindow(tk.Toplevel(self.root))
 
+    def _open_dashboard(self) -> None:
+        from src.gui.dashboard_window import DashboardWindow
+        DashboardWindow(tk.Toplevel(self.root))
+
     def _open_cancellation(self) -> None:
         from src.gui.cancellation_window import CancellationWindow
         CancellationWindow(self.root)
+
 
     def _build_controls(self) -> None:
         """Date navigator + cinema selector row."""

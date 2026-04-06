@@ -41,6 +41,7 @@ class AdminWindow:
         
         tk.Button(bar, text="Logout", bg=DANGER, fg=FG, relief="flat", padx=10, command=self._logout).pack(side="right", padx=5)
         tk.Button(bar, text="Cancel Booking", bg="#b91c1c", fg=FG, relief="flat", padx=10, command=self._open_cancellation).pack(side="right", padx=5)
+        tk.Button(bar, text="📊 Live Dashboard", bg="#0f766e", fg=FG, relief="flat", padx=10, command=self._open_dashboard).pack(side="right", padx=5)
 
     def _build_notebook(self):
         style = ttk.Style()
@@ -547,6 +548,13 @@ class AdminWindow:
             CancellationWindow(self.root)
         except Exception as e:
             messagebox.showerror("Error", f"Could not open cancellation window: {e}")
+
+    def _open_dashboard(self):
+        try:
+            from src.gui.dashboard_window import DashboardWindow
+            DashboardWindow(tk.Toplevel(self.root))
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open dashboard: {e}")
 
     def _logout(self):
         from src.gui.login_window import _logout_and_return
