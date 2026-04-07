@@ -2,10 +2,16 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import csv
 import datetime
+import os
 from src.database.db_connection import get_connection
 from src.gui.login_window import SessionManager
 from src.models.film import Film
 from src.models.showing import Showing
+
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 BG = "#0f172a"
 BG2 = "#1e293b"
@@ -61,14 +67,17 @@ class AdminWindow:
         self.tab_films = tk.Frame(self.notebook, bg=BG)
         self.tab_showings = tk.Frame(self.notebook, bg=BG)
         self.tab_reports = tk.Frame(self.notebook, bg=BG)
+        self.tab_chart = tk.Frame(self.notebook, bg=BG)
         
         self.notebook.add(self.tab_films, text="Films")
         self.notebook.add(self.tab_showings, text="Showings")
         self.notebook.add(self.tab_reports, text="Reports")
+        self.notebook.add(self.tab_chart, text="📊 Revenue Chart")
         
         self._build_films_tab()
         self._build_showings_tab()
         self._build_reports_tab()
+        self._build_chart_tab()
         
     # --- FILMS TAB ---
     def _build_films_tab(self):
@@ -420,6 +429,219 @@ class AdminWindow:
                 messagebox.showinfo("Success", "Showing cancelled.")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
+
+    # --- REVENUE CHART TAB ---
+    def _build_chart_tab(self):
+        """Embedded horizontal bar chart: Top 10 films by revenue."""
+        # ── Controls row ──────────────────────────────────────────────────
+        ctrl = tk.Frame(self.tab_chart, bg=BG2, pady=12, padx=16)
+        ctrl.pack(fill="x")
+
+        tk.Label(ctrl, text="Time Period:", bg=BG2, fg=FG,
+                 font=("Helvetica", 10, "bold")).pack(side="left", padx=(0, 8))
+
+        self._chart_period = tk.StringVar(value="month")
+        for label, val in [("This Week", "week"), ("This Month", "month"), ("All Time", "all")]:
+            tk.Radiobutton(
+                ctrl, text=label, variable=self._chart_period, value=val,
+                bg=BG2, fg=FG, selectcolor=ACCENT, activebackground=BG2,
+                activeforeground=FG, font=("Helvetica", 10),
+                command=self._refresh_revenue_chart
+            ).pack(side="left", padx=4)
+
+        tk.Label(ctrl, text="Cinema:", bg=BG2, fg=FG,
+                 font=("Helvetica", 10, "bold")).pack(side="left", padx=(20, 6))
+        self._chart_cinema_var = tk.StringVar()
+        self._chart_cinema_cb = ttk.Combobox(
+            ctrl, textvariable=self._chart_cinema_var,
+            state="readonly", font=("Helvetica", 10), width=22
+        )
+        self._chart_cinema_cb.pack(side="left")
+        self._chart_cinema_cb.bind("<<ComboboxSelected>>",
+                                   lambda e: self._refresh_revenue_chart())
+
+        tk.Button(
+            ctrl, text="📥 Export CSV", bg=SUCCESS, fg=FG,
+            font=("Helvetica", 10, "bold"), relief="flat", cursor="hand2",
+            padx=12, pady=4, command=self._export_chart_csv
+        ).pack(side="right", padx=8)
+
+        tk.Button(
+            ctrl, text="↻ Refresh", bg=BG, fg=FG,
+            font=("Helvetica", 10, "bold"), relief="flat", cursor="hand2",
+            padx=12, pady=4, command=self._refresh_revenue_chart
+        ).pack(side="right", padx=4)
+
+        # ── Matplotlib canvas ─────────────────────────────────────────────
+        chart_frame = tk.Frame(self.tab_chart, bg=BG)
+        chart_frame.pack(fill="both", expand=True, padx=16, pady=12)
+
+        self._rev_figure = Figure(figsize=(9, 5.5), dpi=100, facecolor=BG)
+        self._rev_ax = self._rev_figure.add_subplot(111)
+        self._rev_ax.set_facecolor(BG2)
+
+        self._rev_canvas = FigureCanvasTkAgg(self._rev_figure, master=chart_frame)
+        self._rev_canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        # ── Status label ──────────────────────────────────────────────────
+        self._chart_status = tk.Label(
+            self.tab_chart, text="", bg=BG, fg="#94a3b8", font=("Helvetica", 9)
+        )
+        self._chart_status.pack(anchor="e", padx=16, pady=(0, 6))
+
+        # Initialise cinema dropdown then draw first chart
+        self._chart_cinemas = {}   # name -> id
+        self._chart_data = []      # list of dicts for CSV export
+        self._load_chart_cinemas()
+
+    def _load_chart_cinemas(self):
+        try:
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT cinema_id, cinema_name FROM cinemas ORDER BY cinema_name"
+            ).fetchall()
+            self._chart_cinemas = {r['cinema_name']: r['cinema_id'] for r in rows}
+            opts = ["All Cinemas"] + list(self._chart_cinemas.keys())
+            self._chart_cinema_cb['values'] = opts
+            self._chart_cinema_cb.current(0)
+        except Exception as e:
+            print("Chart cinema load error:", e)
+        finally:
+            self._refresh_revenue_chart()
+
+    def _refresh_revenue_chart(self):
+        today = datetime.date.today()
+        period = self._chart_period.get()
+
+        if period == "week":
+            since = (today - datetime.timedelta(days=7)).isoformat()
+            until = today.isoformat()
+            period_label = "This Week"
+        elif period == "month":
+            since = today.replace(day=1).isoformat()
+            until = today.isoformat()
+            period_label = "This Month"
+        else:
+            since = "2000-01-01"
+            until = today.isoformat()
+            period_label = "All Time"
+
+        cinema_name = self._chart_cinema_var.get()
+        cinema_id = self._chart_cinemas.get(cinema_name)  # None = all
+
+        try:
+            conn = get_connection()
+
+            cinema_filter = " AND sc.cinema_id = ? " if cinema_id else ""
+            params = [since, until]
+            if cinema_id:
+                params.append(cinema_id)
+
+            query = f"""
+                SELECT f.title AS film_title,
+                       COUNT(b.booking_id) AS booking_count,
+                       IFNULL(SUM(b.total_cost), 0) AS total_revenue
+                FROM bookings b
+                JOIN showings sh  ON b.showing_id  = sh.showing_id
+                JOIN screens  sc  ON sh.screen_id  = sc.screen_id
+                JOIN films    f   ON sh.film_id     = f.film_id
+                WHERE sh.show_date BETWEEN ? AND ?
+                  AND b.booking_status != 'Cancelled'
+                  {cinema_filter}
+                GROUP BY f.film_id
+                ORDER BY total_revenue DESC
+                LIMIT 10
+            """
+            rows = conn.execute(query, params).fetchall()
+            self._chart_data = [
+                {"film_title": r["film_title"],
+                 "total_revenue": r["total_revenue"],
+                 "booking_count": r["booking_count"]}
+                for r in rows
+            ]
+        except Exception as e:
+            messagebox.showerror("Chart Error", f"Failed to load revenue data:\n{e}")
+            return
+
+        # ── Draw chart ────────────────────────────────────────────────────
+        ax = self._rev_ax
+        ax.clear()
+        ax.set_facecolor(BG2)
+        self._rev_figure.set_facecolor(BG)
+
+        for spine in ax.spines.values():
+            spine.set_color("#334155")
+        ax.tick_params(colors="#94a3b8")
+        ax.xaxis.label.set_color("#94a3b8")
+        ax.yaxis.label.set_color("#94a3b8")
+
+        if not self._chart_data:
+            ax.text(0.5, 0.5, "No revenue data for this period.",
+                    ha="center", va="center", color="#94a3b8",
+                    fontsize=12, transform=ax.transAxes)
+        else:
+            titles  = [d["film_title"] for d in self._chart_data]
+            revenues = [d["total_revenue"] for d in self._chart_data]
+
+            # Horizontal bars — longest bar at top
+            titles   = titles[::-1]
+            revenues = revenues[::-1]
+
+            bars = ax.barh(titles, revenues, color=ACCENT, height=0.55)
+
+            # Value labels
+            for bar, val in zip(bars, revenues):
+                ax.text(
+                    bar.get_width() + max(revenues) * 0.01,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"£{val:,.0f}",
+                    va="center", ha="left",
+                    color="#f8fafc", fontsize=9
+                )
+
+            ax.set_xlabel("Revenue (£)", color="#94a3b8")
+            ax.xaxis.set_major_formatter(
+                matplotlib.ticker.FuncFormatter(lambda x, _: f"£{x:,.0f}")
+            )
+            ax.tick_params(axis="y", labelsize=9, colors="#f8fafc")
+            ax.tick_params(axis="x", labelsize=8, colors="#94a3b8")
+
+        cinema_label = cinema_name if cinema_name and cinema_name != "All Cinemas" else "All Cinemas"
+        ax.set_title(
+            f"Top 10 Films by Revenue — {period_label} · {cinema_label}",
+            color="#f8fafc", fontsize=11, pad=10
+        )
+
+        self._rev_figure.tight_layout()
+        self._rev_canvas.draw()
+        self._chart_status.config(
+            text=f"Last updated: {datetime.datetime.now().strftime('%H:%M:%S')}  |  "
+                 f"{len(self._chart_data)} film(s) found"
+        )
+
+    def _export_chart_csv(self):
+        if not self._chart_data:
+            messagebox.showwarning("No Data", "Generate the chart first before exporting.")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")],
+            initialfile=f"revenue_chart_{datetime.date.today().isoformat()}.csv"
+        )
+        if not filepath:
+            return
+
+        try:
+            with open(filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(
+                    f, fieldnames=["film_title", "total_revenue", "booking_count"]
+                )
+                writer.writeheader()
+                writer.writerows(self._chart_data)
+            messagebox.showinfo("Export Successful", f"Saved to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Could not save CSV:\n{e}")
 
     # --- REPORTS TAB ---
     def _build_reports_tab(self):
