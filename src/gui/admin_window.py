@@ -68,16 +68,19 @@ class AdminWindow:
         self.tab_showings = tk.Frame(self.notebook, bg=BG)
         self.tab_reports = tk.Frame(self.notebook, bg=BG)
         self.tab_chart = tk.Frame(self.notebook, bg=BG)
-        
-        self.notebook.add(self.tab_films, text="Films")
+        self.tab_revenue = tk.Frame(self.notebook, bg=BG)
+
+        self.notebook.add(self.tab_films,   text="Films")
         self.notebook.add(self.tab_showings, text="Showings")
-        self.notebook.add(self.tab_reports, text="Reports")
-        self.notebook.add(self.tab_chart, text="📊 Revenue Chart")
-        
+        self.notebook.add(self.tab_reports,  text="Reports")
+        self.notebook.add(self.tab_chart,    text="📊 Revenue Chart")
+        self.notebook.add(self.tab_revenue,  text="📅 Monthly Revenue")
+
         self._build_films_tab()
         self._build_showings_tab()
         self._build_reports_tab()
         self._build_chart_tab()
+        self._build_revenue_tab()
         
     # --- FILMS TAB ---
     def _build_films_tab(self):
@@ -429,6 +432,14 @@ class AdminWindow:
                 messagebox.showinfo("Success", "Showing cancelled.")
             except Exception as e:
                 messagebox.showerror("Error", str(e))
+
+    # --- MONTHLY REVENUE TAB ---
+    def _build_revenue_tab(self):
+        try:
+            from src.gui.revenue_report_window import RevenueReportPanel
+            self.revenue_panel = RevenueReportPanel(self.tab_revenue)
+        except Exception as e:
+            tk.Label(self.tab_revenue, text=f"Error loading Revenue Report Panel:\n{e}", fg="red", bg=BG).pack(pady=20)
 
     # --- REVENUE CHART TAB ---
     def _build_chart_tab(self):
