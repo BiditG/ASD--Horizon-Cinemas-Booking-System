@@ -69,18 +69,21 @@ class AdminWindow:
         self.tab_reports = tk.Frame(self.notebook, bg=BG)
         self.tab_chart = tk.Frame(self.notebook, bg=BG)
         self.tab_revenue = tk.Frame(self.notebook, bg=BG)
+        self.tab_heatmap = tk.Frame(self.notebook, bg=BG)
 
         self.notebook.add(self.tab_films,   text="Films")
         self.notebook.add(self.tab_showings, text="Showings")
         self.notebook.add(self.tab_reports,  text="Reports")
         self.notebook.add(self.tab_chart,    text="📊 Revenue Chart")
         self.notebook.add(self.tab_revenue,  text="📅 Monthly Revenue")
+        self.notebook.add(self.tab_heatmap,  text="🔥 Occupancy Heatmap")
 
         self._build_films_tab()
         self._build_showings_tab()
         self._build_reports_tab()
         self._build_chart_tab()
         self._build_revenue_tab()
+        self._build_heatmap_tab()
         
     # --- FILMS TAB ---
     def _build_films_tab(self):
@@ -440,6 +443,14 @@ class AdminWindow:
             self.revenue_panel = RevenueReportPanel(self.tab_revenue)
         except Exception as e:
             tk.Label(self.tab_revenue, text=f"Error loading Revenue Report Panel:\n{e}", fg="red", bg=BG).pack(pady=20)
+
+    # --- HEATMAP TAB ---
+    def _build_heatmap_tab(self):
+        try:
+            from src.gui.occupancy_heatmap_window import OccupancyHeatmapPanel
+            self.heatmap_panel = OccupancyHeatmapPanel(self.tab_heatmap)
+        except Exception as e:
+            tk.Label(self.tab_heatmap, text=f"Error loading Occupancy Heatmap Panel:\n{e}", fg="red", bg=BG).pack(pady=20)
 
     # --- REVENUE CHART TAB ---
     def _build_chart_tab(self):
