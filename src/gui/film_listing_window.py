@@ -175,6 +175,16 @@ class FilmListingWindow:
         cancel_btn.grid(row=0, column=col, padx=(0, 16))
         col += 1
 
+        # Help Chatbot
+        help_btn = tk.Button(
+            bar, text="❓ Help", font=FONT_BTN,
+            bg="#f59e0b", fg="#000", activebackground="#d97706",
+            relief="flat", cursor="hand2", padx=14, pady=4,
+            command=self._open_chatbot
+        )
+        help_btn.grid(row=0, column=col, padx=(0, 16))
+        col += 1
+
         # Logout
         logout_btn = tk.Button(
             bar, text="Logout", font=FONT_BTN,
@@ -198,7 +208,14 @@ class FilmListingWindow:
 
     def _open_cancellation(self) -> None:
         from src.gui.cancellation_window import CancellationWindow
-        CancellationWindow(self.root)
+        CancellationWindow(tk.Toplevel(self.root))
+
+    def _open_chatbot(self) -> None:
+        if not hasattr(self, "chatbot_window") or not self.chatbot_window.winfo_exists():
+            from src.gui.chatbot_widget import ChatbotWidget
+            self.chatbot_window = ChatbotWidget(self.root)
+        else:
+            self.chatbot_window.show_widget()
 
 
     def _build_controls(self) -> None:
