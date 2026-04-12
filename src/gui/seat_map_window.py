@@ -2,9 +2,10 @@ import tkinter as tk
 from tkinter import messagebox
 from typing import Callable, List
 from src.database.db_connection import get_connection
+from src.utils.seat_recommender import recommend_seats
 
 class SeatMapWindow:
-    def __init__(self, parent: tk.Toplevel, showing_id: int, required_quantity: int, on_confirm: Callable[[List[str]], None]):
+    def __init__(self, parent: tk.Toplevel, showing_id: int, required_quantity: int, ticket_type: str, on_confirm: Callable[[List[str]], None]):
         self.root = tk.Toplevel(parent)
         self.root.title("Select Seats")
         self.root.configure(bg="#0f172a")
@@ -12,6 +13,7 @@ class SeatMapWindow:
         
         self.showing_id = showing_id
         self.required_quantity = required_quantity
+        self.ticket_type = ticket_type
         self.on_confirm = on_confirm
         
         self.selected_seats = []
@@ -21,8 +23,18 @@ class SeatMapWindow:
         if not self._load_data():
             return
             
+        self.recommended = recommend_seats(self.showing_id, self.ticket_type, self.required_quantity)
+        self.is_manual_mode = False
+        
         # Build UI
         self._build_ui()
+        
+        if self.recommended:
+            self.selected_seats = list(self.recommended)
+            self._update_ui_state()
+        else:
+            self.is_manual_mode = True
+            self.status_lbl.config(text="No recommendations available. Please choose manually.")
 
     def _load_data(self) -> bool:
         try:
@@ -69,7 +81,7 @@ class SeatMapWindow:
         self._add_legend_item(legend_frame, "Upper Gallery (Taken)", "#14532d")
         self._add_legend_item(legend_frame, "VIP (Free)", "#ca8a04")
         self._add_legend_item(legend_frame, "VIP (Taken)", "#78350f")
-        self._add_legend_item(legend_frame, "Selected", "yellow", fg="black")
+        self._add_legend_item(legend_frame, "Recommended/Selected", "yellow", fg="black")
         
         # Status Label
         self.status_lbl = tk.Label(self.root, text=f"0 / {self.required_quantity} seats selected", bg="#0f172a", fg="white", font=("Helvetica", 14))
@@ -106,10 +118,12 @@ class SeatMapWindow:
             if is_booked:
                 btn.config(state="disabled")
             else:
+                # We need to capture state correctly
                 btn.config(command=lambda s=seat_num, c=color: self._toggle_seat(s, c))
                 
             btn.grid(row=row_idx, column=col_idx, padx=5, pady=5)
-            self.seat_buttons[seat_num] = btn
+            # Save original color
+            self.seat_buttons[seat_num] = {"btn": btn, "color": color, "zone": zone}
             
             col_idx += 1
             if col_idx >= 10:
@@ -117,36 +131,79 @@ class SeatMapWindow:
                 row_idx += 1
                 
         # Buttons
-        btn_frame = tk.Frame(self.root, bg="#0f172a", pady=20)
-        btn_frame.pack(fill="x")
+        self.btn_frame = tk.Frame(self.root, bg="#0f172a", pady=20)
+        self.btn_frame.pack(fill="x")
         
-        tk.Button(btn_frame, text="Cancel", bg="#334155", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self.root.destroy).pack(side="left", padx=20)
-        tk.Button(btn_frame, text="Confirm Selection", bg="#16a34a", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self._confirm).pack(side="right", padx=20)
+        self.cancel_btn = tk.Button(self.btn_frame, text="Cancel", bg="#334155", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self.root.destroy)
+        self.cancel_btn.pack(side="left", padx=20)
         
+        self.manual_btn = tk.Button(self.btn_frame, text="Choose Manually", bg="#f59e0b", fg="black", font=("Helvetica", 12, "bold"), padx=15, command=self._enable_manual)
+        
+        self.confirm_btn = tk.Button(self.btn_frame, text="Accept Recommendation", bg="#16a34a", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self._confirm)
+        self.confirm_btn.pack(side="right", padx=20)
+
+        if self.recommended:
+            self.manual_btn.pack(side="right", padx=10)
+
     def _add_legend_item(self, parent, text, color, fg="white"):
         frame = tk.Frame(parent, bg="#0f172a")
         frame.pack(side="left", padx=5)
         tk.Label(frame, bg=color, width=2).pack(side="left")
         tk.Label(frame, text=text, bg="#0f172a", fg=fg, font=("Helvetica", 10)).pack(side="left")
+
+    def _update_ui_state(self):
+        # Reset all
+        for seat_num, data in self.seat_buttons.items():
+            btn = data["btn"]
+            color = data["color"]
+            if btn["state"] != "disabled":
+                btn.config(bg=color, fg="white")
+                
+        # Color selected
+        for seat_num in self.selected_seats:
+            if seat_num in self.seat_buttons:
+                self.seat_buttons[seat_num]["btn"].config(bg="yellow", fg="black")
+                
+        self.status_lbl.config(text=f"{len(self.selected_seats)} / {self.required_quantity} seats selected")
+
+    def _enable_manual(self):
+        self.is_manual_mode = True
+        self.selected_seats = []
+        self._update_ui_state()
+        self.confirm_btn.config(text="Confirm Selection")
+        self.manual_btn.pack_forget()
         
     def _toggle_seat(self, seat_num: str, original_color: str):
-        btn = self.seat_buttons[seat_num]
+        if not self.is_manual_mode:
+            # If user clicks a seat while in recommendation mode, switch to manual automatically
+            self._enable_manual()
+            
+        data = self.seat_buttons[seat_num]
         
+        if data["zone"] != self.ticket_type:
+            messagebox.showwarning("Invalid Zone", f"You must select seats in the {self.ticket_type.replace('_', ' ').title()} zone.")
+            return
+
         if seat_num in self.selected_seats:
             self.selected_seats.remove(seat_num)
-            btn.config(bg=original_color, fg="white")
         else:
             if len(self.selected_seats) >= self.required_quantity:
                 messagebox.showwarning("Limit Reached", f"You can only select {self.required_quantity} seats.")
                 return
             self.selected_seats.append(seat_num)
-            btn.config(bg="yellow", fg="black")
             
-        self.status_lbl.config(text=f"{len(self.selected_seats)} / {self.required_quantity} seats selected")
+        self._update_ui_state()
         
     def _confirm(self):
         if len(self.selected_seats) != self.required_quantity:
             messagebox.showwarning("Incomplete", f"Please select exactly {self.required_quantity} seats.")
             return
+            
+        # Verify selected seats are in correct zone
+        for s in self.selected_seats:
+            if self.seat_buttons[s]["zone"] != self.ticket_type:
+                messagebox.showerror("Error", f"Seat {s} is not in the correct zone ({self.ticket_type}).")
+                return
+                
         self.on_confirm(self.selected_seats)
         self.root.destroy()

@@ -511,7 +511,7 @@ class BookingWindow:
                 on_payment_success=self._on_payment_success
             )
             
-        SeatMapWindow(self.root, sh.showing_id, qty, on_seats_selected)
+        SeatMapWindow(self.root, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
 
     def _on_payment_success(self, booking_data: dict) -> None:
         self._finalize_booking(
