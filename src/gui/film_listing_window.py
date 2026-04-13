@@ -625,6 +625,35 @@ class FilmListingWindow:
                 btn.bind("<Enter>", lambda e, b=btn: b.config(bg=SUCCESS_HVR))
                 btn.bind("<Leave>", lambda e, b=btn, c=btn_bg: b.config(bg=c))
 
+        # ── Similar Films Section ─────────────────────────────────────────────
+        from src.utils.film_recommender import recommend_films
+        recs = recommend_films(film.film_id, self._selected_cinema_id)
+        if recs:
+            rec_container = tk.Frame(card, bg=bg, pady=10)
+            rec_container.grid(row=4, column=1, sticky="w", pady=(10, 0))
+            
+            tk.Label(rec_container, text="✨ You might also like...", font=FONT_LABEL, bg=bg, fg=ACCENT).pack(anchor="w", pady=(0, 5))
+            
+            rec_list = tk.Frame(rec_container, bg=bg)
+            rec_list.pack(fill="x")
+            
+            for r in recs:
+                r_frame = tk.Frame(rec_list, bg=BG_CARD if index % 2 != 0 else BG2, highlightbackground=BORDER, highlightthickness=1, padx=10, pady=5)
+                r_frame.pack(side="left", padx=(0, 10))
+                
+                title_lbl = tk.Label(r_frame, text=r["title"][:25] + ("..." if len(r["title"]) > 25 else ""), font=("Helvetica", 10, "bold"), bg=r_frame["bg"], fg=TEXT)
+                title_lbl.pack(anchor="w")
+                
+                meta_lbl = tk.Label(r_frame, text=f"{r['genre']} | {r['age_rating']}", font=FONT_SMALL, bg=r_frame["bg"], fg=TEXT2)
+                meta_lbl.pack(anchor="w")
+                
+                info_lbl = tk.Label(r_frame, text=f"Next: {r['next_show_date']} {r['next_show_time']}", font=FONT_SMALL, bg=r_frame["bg"], fg=TEXT2)
+                info_lbl.pack(anchor="w", pady=(2, 5))
+                
+                btn = tk.Button(r_frame, text="Book Now", font=FONT_BTN, bg=SUCCESS, fg=TEXT, activebackground=SUCCESS_HVR, relief="flat", cursor="hand2", padx=10, pady=2,
+                                command=lambda sh_id=r["next_showing_id"]: self._open_booking_by_id(sh_id))
+                btn.pack(anchor="w")
+
     # ── Event handlers ────────────────────────────────────────────────────────
 
     def _clear_filters(self) -> None:
@@ -670,6 +699,14 @@ class FilmListingWindow:
                 f"BookingWindow coming soon.",
                 parent=self.root
             )
+
+    def _open_booking_by_id(self, showing_id: int) -> None:
+        try:
+            from src.gui.booking_window import BookingWindow
+            top = tk.Toplevel(self.root)
+            BookingWindow(top, showing_id=showing_id)
+        except ImportError:
+            messagebox.showinfo("Error", "BookingWindow not yet implemented.")
 
     def _logout(self) -> None:
         from src.gui.login_window import _logout_and_return
