@@ -76,14 +76,17 @@ class ManagerWindow:
         self.tab_cinema = tk.Frame(self.notebook, bg=BG)
         self.tab_listing = tk.Frame(self.notebook, bg=BG)
         self.tab_overview = tk.Frame(self.notebook, bg=BG)
+        self.tab_forecast = tk.Frame(self.notebook, bg=BG)
         
         self.notebook.add(self.tab_cinema, text="Add New Cinema")
         self.notebook.add(self.tab_listing, text="Add New Listing")
         self.notebook.add(self.tab_overview, text="Cinemas Overview")
+        self.notebook.add(self.tab_forecast, text="Revenue Forecast")
         
         self._build_cinema_tab()
         self._build_listing_tab()
         self._build_overview_tab()
+        self._build_forecast_tab()
 
     # ---- ADMIN VIEW ----
     def _open_admin(self):
@@ -427,6 +430,81 @@ class ManagerWindow:
                 ))
         except Exception as e:
             print(f"Overview loading error: {e}")
+
+    def _build_forecast_tab(self):
+        ctrl_fr = tk.Frame(self.tab_forecast, bg=BG2, pady=15, padx=20)
+        ctrl_fr.pack(fill="x")
+        
+        tk.Label(ctrl_fr, text="Select Cinema:", font=FONT_BODY, bg=BG2, fg=TEXT2).pack(side="left")
+        self.forecast_cinema_var = tk.StringVar()
+        self.forecast_cinema_cb = ttk.Combobox(ctrl_fr, textvariable=self.forecast_cinema_var, state="readonly", font=FONT_BODY, width=30)
+        self.forecast_cinema_cb.pack(side="left", padx=10)
+        self.forecast_cinema_cb.bind("<<ComboboxSelected>>", self._generate_forecast)
+        
+        self.forecast_metric_lbl = tk.Label(ctrl_fr, text="Next Month Forecast: £0.00", font=FONT_H2, bg=BG2, fg=SUCCESS)
+        self.forecast_metric_lbl.pack(side="right", padx=20)
+        
+        self.forecast_plot_fr = tk.Frame(self.tab_forecast, bg=BG, padx=20, pady=20)
+        self.forecast_plot_fr.pack(fill="both", expand=True)
+        
+        import matplotlib
+        matplotlib.use("TkAgg")
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        
+        self.forecast_fig = Figure(figsize=(8, 4), dpi=100, facecolor=BG)
+        self.forecast_ax = self.forecast_fig.add_subplot(111)
+        self.forecast_ax.set_facecolor(BG2)
+        
+        self.forecast_canvas = FigureCanvasTkAgg(self.forecast_fig, master=self.forecast_plot_fr)
+        self.forecast_canvas.get_tk_widget().pack(fill="both", expand=True)
+        
+        conn = get_connection()
+        cinemas = conn.execute("SELECT cinema_name FROM cinemas ORDER BY cinema_name").fetchall()
+        self.forecast_cinema_cb["values"] = [c["cinema_name"] for c in cinemas]
+        if cinemas:
+            self.forecast_cinema_cb.current(0)
+            # Use after to allow UI to map before drawing canvas
+            self.root.after(100, self._generate_forecast)
+
+    def _generate_forecast(self, event=None):
+        cinema_name = self.forecast_cinema_var.get()
+        if not cinema_name: return
+        
+        conn = get_connection()
+        c_row = conn.execute("SELECT cinema_id FROM cinemas WHERE cinema_name = ?", (cinema_name,)).fetchone()
+        if not c_row: return
+        
+        cid = c_row["cinema_id"]
+        
+        from src.utils.revenue_forecaster import forecast_revenue
+        df, preds = forecast_revenue(cid)
+        
+        self.forecast_ax.clear()
+        self.forecast_ax.set_facecolor(BG2)
+        self.forecast_fig.set_facecolor(BG)
+        
+        if not df.empty:
+            x_actual = df["label"].tolist()
+            y_actual = df["total_revenue"].tolist()
+            
+            x_pred = [p[0] for p in preds]
+            y_pred = [p[1] for p in preds]
+            
+            self.forecast_ax.bar(x_actual, y_actual, color="#1e40af", label="Actual Revenue")
+            self.forecast_ax.bar(x_pred, y_pred, color="#16a34a", hatch="//", label="Predicted Revenue")
+            
+            self.forecast_ax.set_title(f"Revenue Forecast for {cinema_name}", color=TEXT)
+            self.forecast_ax.tick_params(colors=TEXT2)
+            for sp in self.forecast_ax.spines.values(): sp.set_color(BORDER)
+            
+            self.forecast_ax.legend(facecolor=BG_CARD, edgecolor=BORDER, labelcolor=TEXT)
+            
+            if preds:
+                self.forecast_metric_lbl.config(text=f"Next Month Forecast: £{preds[0][1]:,.2f}")
+                
+        self.forecast_fig.tight_layout()
+        self.forecast_canvas.draw()
 
 if __name__ == "__main__":
     from src.models.user import User
