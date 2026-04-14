@@ -105,17 +105,23 @@ class OccupancyHeatmapPanel:
         self.det_lbl.pack(pady=4, padx=10, anchor="w")
 
         # Treeview for showings
-        cols = ("date", "film", "occ", "rev")
+        cols = ("date", "film", "occ", "rev", "risk")
         self.det_tv = ttk.Treeview(self.det_frame, columns=cols, show="headings", height=15)
         self.det_tv.heading("date", text="Date")
         self.det_tv.heading("film", text="Film")
         self.det_tv.heading("occ", text="Occ%")
         self.det_tv.heading("rev", text="Rev(£)")
+        self.det_tv.heading("risk", text="Risk")
         
         self.det_tv.column("date", width=75, anchor="center")
         self.det_tv.column("film", width=100, anchor="w")
         self.det_tv.column("occ", width=50, anchor="center")
         self.det_tv.column("rev", width=60, anchor="e")
+        self.det_tv.column("risk", width=80, anchor="center")
+        
+        self.det_tv.tag_configure("low_risk", foreground="#16a34a") # Green
+        self.det_tv.tag_configure("med_risk", foreground="#fbbf24") # Amber
+        self.det_tv.tag_configure("high_risk", foreground="#dc2626") # Red
 
         sb = ttk.Scrollbar(self.det_frame, orient="vertical", command=self.det_tv.yview)
         self.det_tv.configure(yscrollcommand=sb.set)
@@ -179,8 +185,8 @@ class OccupancyHeatmapPanel:
             params = [since, until]
             query = """
                 SELECT 
-                    sh.show_date, sh.show_type, sh.seats_remaining,
-                    sc.total_capacity, f.title as film_title,
+                    sh.show_date, sh.show_type, sh.seats_remaining, sh.show_time,
+                    sc.total_capacity, f.title as film_title, sc.cinema_id,
                     IFNULL(SUM(b.total_cost), 0) as total_revenue
                 FROM showings sh
                 JOIN screens sc ON sh.screen_id = sc.screen_id
@@ -219,11 +225,28 @@ class OccupancyHeatmapPanel:
                 avail = r["seats_remaining"]
                 occ_pct = ((cap - avail) / cap * 100) if cap > 0 else 0
                 
+                from src.utils.noshow_predictor import predict_noshow
+                try:
+                    hour = int(r["show_time"].split(":")[0])
+                except:
+                    hour = 12
+                    
+                prob = predict_noshow({
+                    "booking_lead_days": 2, 
+                    "show_time_hour": hour,
+                    "day_of_week": weekday,
+                    "ticket_type": 0,
+                    "num_tickets": 2,
+                    "cinema_city": r["cinema_id"],
+                    "month": dt.month
+                })
+                
                 det = {
                     "date": dt.strftime("%Y-%m-%d"),
                     "film": r["film_title"],
                     "occ": occ_pct,
-                    "rev": r["total_revenue"]
+                    "rev": r["total_revenue"],
+                    "risk": prob
                 }
                 self._cell_data[(y_idx, weekday)].append(det)
                 agg_occ[(y_idx, weekday)].append(occ_pct)
@@ -328,9 +351,21 @@ class OccupancyHeatmapPanel:
         showings.sort(key=lambda s: s["date"], reverse=True)
 
         for s in showings:
+            prob = s.get("risk", 0)
+            if prob < 0.3:
+                risk_str = "Low"
+                tag = "low_risk"
+            elif prob <= 0.6:
+                risk_str = "Medium"
+                tag = "med_risk"
+            else:
+                risk_str = "High"
+                tag = "high_risk"
+                
             self.det_tv.insert("", "end", values=(
                 s["date"],
                 s["film"],
                 f"{s['occ']:.0f}%",
-                f"£{s['rev']:.2f}"
-            ))
+                f"£{s['rev']:.2f}",
+                risk_str
+            ), tags=(tag,))
