@@ -71,6 +71,7 @@ class AdminWindow:
         self.tab_revenue = tk.Frame(self.notebook, bg=BG)
         self.tab_heatmap = tk.Frame(self.notebook, bg=BG)
         self.tab_leaderboard = tk.Frame(self.notebook, bg=BG)
+        self.tab_waitlist = tk.Frame(self.notebook, bg=BG)
 
         self.notebook.add(self.tab_films,   text="Films")
         self.notebook.add(self.tab_showings, text="Showings")
@@ -79,6 +80,7 @@ class AdminWindow:
         self.notebook.add(self.tab_revenue,  text="📅 Monthly Revenue")
         self.notebook.add(self.tab_heatmap,  text="🔥 Occupancy Heatmap")
         self.notebook.add(self.tab_leaderboard, text="🏆 Staff Leaderboard")
+        self.notebook.add(self.tab_waitlist, text="⏳ Waitlist")
 
         self._build_films_tab()
         self._build_showings_tab()
@@ -87,6 +89,7 @@ class AdminWindow:
         self._build_revenue_tab()
         self._build_heatmap_tab()
         self._build_leaderboard_tab()
+        self._build_waitlist_tab()
         
     # --- FILMS TAB ---
     def _build_films_tab(self):
@@ -814,3 +817,75 @@ class AdminWindow:
     def _logout(self):
         from src.gui.login_window import _logout_and_return
         _logout_and_return(self.root)
+
+    def _build_waitlist_tab(self):
+        top = tk.Frame(self.tab_waitlist, bg=BG, pady=10)
+        top.pack(fill="x")
+        
+        tk.Label(top, text="Showing ID:", bg=BG, fg=FG).pack(side="left", padx=5)
+        self.waitlist_showing_ent = tk.Entry(top, font=("Helvetica", 11), width=10)
+        self.waitlist_showing_ent.pack(side="left", padx=5)
+        
+        tk.Button(top, text="🔍 Load", bg=ACCENT, fg=FG, command=self._refresh_waitlist).pack(side="left", padx=5)
+        tk.Button(top, text="✅ Promote", bg=SUCCESS, fg=FG, command=self._promote_waitlist).pack(side="right", padx=5)
+        tk.Button(top, text="✕ Remove", bg=WARNING, fg="#000", command=self._remove_waitlist).pack(side="right", padx=5)
+        
+        cols = ("ID", "Customer", "Email", "Phone", "Tickets", "Status", "Joined")
+        self.waitlist_tree = ttk.Treeview(self.tab_waitlist, columns=cols, show="headings", height=15)
+        
+        for c in cols:
+            self.waitlist_tree.heading(c, text=c)
+            self.waitlist_tree.column(c, anchor="center")
+        self.waitlist_tree.column("Customer", width=150, anchor="w")
+        self.waitlist_tree.column("Email", width=150, anchor="w")
+        self.waitlist_tree.column("Joined", width=150)
+        
+        sb = ttk.Scrollbar(self.tab_waitlist, orient="vertical", command=self.waitlist_tree.yview)
+        self.waitlist_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.waitlist_tree.pack(fill="both", expand=True, pady=10)
+
+    def _refresh_waitlist(self):
+        for row in self.waitlist_tree.get_children():
+            self.waitlist_tree.delete(row)
+        
+        sh_id = self.waitlist_showing_ent.get().strip()
+        if not sh_id.isdigit():
+            return
+            
+        try:
+            conn = get_connection()
+            cursor = conn.execute("SELECT * FROM waitlist WHERE showing_id = ? ORDER BY joined_at ASC", (sh_id,))
+            for r in cursor.fetchall():
+                self.waitlist_tree.insert("", "end", values=(
+                    r["waitlist_id"], r["customer_name"], r["customer_email"], 
+                    r["customer_phone"], r["num_tickets"], r["status"], r["joined_at"]
+                ))
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def _promote_waitlist(self):
+        sel = self.waitlist_tree.selection()
+        if not sel: return
+        w_id = self.waitlist_tree.item(sel[0])["values"][0]
+        import datetime
+        try:
+            conn = get_connection()
+            conn.execute("UPDATE waitlist SET status = 'offered', offered_at = ? WHERE waitlist_id = ?", 
+                         (datetime.datetime.now().isoformat(), w_id))
+            conn.commit()
+            self._refresh_waitlist()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def _remove_waitlist(self):
+        sel = self.waitlist_tree.selection()
+        if not sel: return
+        w_id = self.waitlist_tree.item(sel[0])["values"][0]
+        try:
+            conn = get_connection()
+            conn.execute("DELETE FROM waitlist WHERE waitlist_id = ?", (w_id,))
+            conn.commit()
+            self._refresh_waitlist()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))

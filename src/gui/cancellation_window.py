@@ -135,6 +135,12 @@ class CancellationWindow:
             from src.models.cancellation import CancellationManager
             res = CancellationManager.cancel_booking(ref, conn)
             
+            try:
+                from src.utils.waitlist_manager import process_waitlist
+                process_waitlist(self.current_booking["showing_id"], len(self.current_booking["tickets"]))
+            except Exception as e:
+                print(f"Waitlist processing error: {e}")
+            
             messagebox.showinfo("Success", f"Booking {ref} cancelled successfully.\nRefund amount: £{res['refund_amount']:.2f}")
             self.root.destroy()
         except Exception as e:
