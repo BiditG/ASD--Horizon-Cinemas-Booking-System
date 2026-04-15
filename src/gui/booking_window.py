@@ -414,14 +414,13 @@ class BookingWindow:
     def _reset_check(self) -> None:
         """Disable Book button and clear price text if params change."""
         self.avail_lbl.config(text="", fg=WARNING)
-        self.book_btn.config(state="disabled")
+        self.book_btn.config(text="✅ Select Seats & Book", state="disabled", bg=SUCCESS)
         self.confirmed_price = None
+        self.is_waitlist_mode = False
 
     def check_availability_and_price(self) -> None:
         """Calculate price, verify seat availability, and validate show date."""
-        self.avail_lbl.config(text="", fg=WARNING)
-        self.book_btn.config(state="disabled")
-        self.confirmed_price = None
+        self._reset_check()
 
         # 1. Validate inputs
         if not self._selected_showing:
@@ -453,8 +452,15 @@ class BookingWindow:
             return
 
         # 3. Check seat availability
-        if not Showing.is_available(sh.showing_id, qty):
+        if sh.seats_remaining <= 0:
+            self.avail_lbl.config(text="❌ Film is completely SOLD OUT.", fg=ERROR)
+            self.book_btn.config(text="📝 Join Waitlist", state="normal", bg="#d97706")
+            self.is_waitlist_mode = True
+            return
+        elif not Showing.is_available(sh.showing_id, qty):
             self.avail_lbl.config(text=f"❌ Not enough seats — only {sh.seats_remaining} remaining.", fg=ERROR)
+            self.book_btn.config(text="📝 Join Waitlist", state="normal", bg="#d97706")
+            self.is_waitlist_mode = True
             return
 
         # 4. Calculate total cost using PricingEngine
@@ -482,6 +488,10 @@ class BookingWindow:
     # ── Booking Processing ───────────────────────────────────────────────────
 
     def _process_booking(self) -> None:
+        if getattr(self, 'is_waitlist_mode', False):
+            self._process_waitlist_join()
+            return
+            
         name = self.cust_name_ent.get().strip()
         if not name:
             messagebox.showwarning("Missing Info", "Customer Name is required.")
@@ -577,6 +587,30 @@ class BookingWindow:
             
         except Exception as e:
             messagebox.showerror("Booking Failed", str(e))
+
+    def _process_waitlist_join(self) -> None:
+        name = self.cust_name_ent.get().strip()
+        email = self.cust_email_ent.get().strip()
+        phone = self.cust_phone_ent.get().strip()
+        
+        if not name or not email or not phone:
+            messagebox.showwarning("Missing Info", "Name, Email, and Phone are required to join the waitlist.")
+            return
+            
+        try:
+            qty = self.qty_var.get()
+            sh = self._selected_showing
+            
+            from src.utils.waitlist_manager import join_waitlist
+            join_waitlist(sh.showing_id, name, email, phone, qty)
+            
+            messagebox.showinfo("Waitlist Joined", f"You have been successfully added to the waitlist for {qty} seat(s).")
+            self._reset_check()
+            self.cust_name_ent.delete(0, tk.END)
+            self.cust_email_ent.delete(0, tk.END)
+            self.cust_phone_ent.delete(0, tk.END)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to join waitlist:\n{e}")
 
     def display_receipt(self, booking_data: dict) -> None:
         """Render the receipt into the text widget with rich formatting."""

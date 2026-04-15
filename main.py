@@ -18,6 +18,9 @@ from src.gui.login_window import LoginWindow
 
 
 def main() -> None:
+    from src.utils.waitlist_manager import init_waitlist_db
+    init_waitlist_db()
+
     root = tk.Tk()
     LoginWindow(root)
     root.mainloop()
