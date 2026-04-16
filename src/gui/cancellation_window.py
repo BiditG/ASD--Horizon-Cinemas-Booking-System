@@ -135,6 +135,15 @@ class CancellationWindow:
             from src.models.cancellation import CancellationManager
             res = CancellationManager.cancel_booking(ref, conn)
             
+            # Deduct loyalty points
+            try:
+                from src.utils.loyalty_manager import deduct_points
+                email = self.current_booking.get("customer_email", "")
+                if email:
+                    deduct_points(email, ref, self.current_booking.get("total_cost", 0))
+            except Exception as e:
+                print(f"Loyalty deduction error: {e}")
+            
             try:
                 from src.utils.waitlist_manager import process_waitlist
                 process_waitlist(self.current_booking["showing_id"], len(self.current_booking["tickets"]))
