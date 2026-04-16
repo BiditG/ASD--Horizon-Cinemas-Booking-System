@@ -19,7 +19,9 @@ from src.gui.login_window import LoginWindow
 
 def main() -> None:
     from src.utils.waitlist_manager import init_waitlist_db
+    from src.utils.loyalty_manager import init_loyalty_db
     init_waitlist_db()
+    init_loyalty_db()
 
     root = tk.Tk()
     LoginWindow(root)
