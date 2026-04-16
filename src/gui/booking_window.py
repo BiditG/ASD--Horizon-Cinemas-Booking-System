@@ -617,6 +617,18 @@ class BookingWindow:
             except Exception as e:
                 print(f"Loyalty award error: {e}")
             
+            
+            # Award loyalty points
+            try:
+                from src.utils.loyalty_manager import award_points
+                email = self.cust_email_ent.get().strip()
+                if email:
+                    loyalty = award_points(name, email, ref, self.confirmed_price["total_price"])
+                    self.current_booking_data["loyalty"] = loyalty
+                    self.display_receipt(self.current_booking_data)  # re-render with badge
+            except Exception as e:
+                print(f"Loyalty award error: {e}")
+            
             messagebox.showinfo("Success", f"Booking Confirmed!\nReference: {ref}")
             
         except Exception as e:
@@ -675,13 +687,6 @@ class BookingWindow:
         self.receipt_text.insert(tk.END, "\nTotal Cost:\n", "label")
         self.receipt_text.insert(tk.END, f"£{booking_data['total_cost']:.2f}\n", "bold_green")
         
-        # --- Group booking summary ---
-        qty = booking_data.get("quantity", 1)
-        if qty >= 10:
-            per_seat = booking_data['total_cost'] / qty
-            self.receipt_text.insert(tk.END, f"\n🎟 Group Booking — {qty} seats\n", "header")
-            self.receipt_text.insert(tk.END, f"Per-seat cost: £{per_seat:.2f}\n", "label")
-        
         # --- Loyalty badge ---
         if "loyalty" in booking_data:
             loy = booking_data["loyalty"]
@@ -722,6 +727,57 @@ class BookingWindow:
         self.receipt_text.delete(1.0, tk.END)
         self.receipt_text.config(state="disabled")
         self.rec_act_frame.pack_forget()
+
+    def _show_loyalty_popup(self) -> None:
+        """Show a loyalty account lookup popup keyed to the entered email."""
+        email = self.cust_email_ent.get().strip()
+        if not email:
+            from tkinter import messagebox
+            messagebox.showwarning("No Email", "Enter a customer email first.", parent=self.root)
+            return
+        
+        from src.utils.loyalty_manager import get_account, TIER_COLOURS
+        acct = get_account(email)
+        
+        pop = tk.Toplevel(self.root)
+        pop.title("Loyalty Account")
+        pop.geometry("420x380")
+        pop.configure(bg=BG)
+        pop.grab_set()
+        
+        if not acct:
+            tk.Label(pop, text="No loyalty account found for this email.", bg=BG, fg=TEXT2, font=FONT_BODY).pack(pady=40)
+            return
+        
+        tier = acct["tier"]
+        badge_colour = TIER_COLOURS.get(tier, TEXT2)
+        
+        tk.Label(pop, text="🏅 Loyalty Account", font=FONT_H2, bg=BG, fg=TEXT).pack(pady=(20, 5))
+        tk.Label(pop, text=acct["customer_name"], font=FONT_BODY, bg=BG, fg=TEXT2).pack()
+        tk.Label(pop, text=f"{tier.upper()} MEMBER", font=("Helvetica", 14, "bold"), bg=BG, fg=badge_colour).pack(pady=6)
+        tk.Label(pop, text=f"🔖 {acct['total_points']} pts", font=("Helvetica", 20, "bold"), bg=BG, fg=TEXT).pack(pady=4)
+        
+        sep = tk.Frame(pop, bg=BORDER, height=1)
+        sep.pack(fill="x", padx=20, pady=8)
+        
+        tk.Label(pop, text="Recent Transactions:", font=FONT_LABEL, bg=BG, fg=TEXT2).pack(anchor="w", padx=20)
+        
+        from tkinter import ttk
+        cols = ("Date", "Booking", "Earned", "Deducted")
+        tv = ttk.Treeview(pop, columns=cols, show="headings", height=5)
+        for c in cols:
+            tv.heading(c, text=c)
+            tv.column(c, width=90, anchor="center")
+        
+        for tx in acct.get("transactions", []):
+            tv.insert("", "end", values=(
+                tx["created_at"][:10],
+                tx.get("booking_id", "—"),
+                f"+{tx['points_earned']}" if tx["points_earned"] > 0 else str(tx["points_earned"]),
+                tx["points_redeemed"]
+            ))
+        tv.pack(fill="x", padx=20, pady=8)
+        tk.Button(pop, text="Close", bg=BG2, fg=TEXT, relief="flat", padx=20, pady=6, command=pop.destroy).pack(pady=6)
 
     def _show_loyalty_popup(self) -> None:
         """Show a loyalty account lookup popup keyed to the entered email."""
