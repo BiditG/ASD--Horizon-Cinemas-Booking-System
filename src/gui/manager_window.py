@@ -61,6 +61,15 @@ class ManagerWindow:
         tk.Button(btn_frame, text="📊 Live Dashboard", bg="#0f766e", fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_dashboard).pack(side="left", padx=10)
         tk.Button(btn_frame, text="Switch to Admin View", bg=ACCENT, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_admin).pack(side="left", padx=10)
         tk.Button(btn_frame, text="Close", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self.root.destroy).pack(side="left")
+        self.theme_btn = tk.Button(btn_frame, text="☀ Light", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=12, pady=8, cursor="hand2", command=self._toggle_theme)
+        self.theme_btn.pack(side="left", padx=(10, 0))
+
+    def _toggle_theme(self):
+        from src.utils.themes import ThemeManager
+        username = self.user.username if self.user else ""
+        new_theme = ThemeManager.toggle_theme(self.root, username)
+        icon = "☀ Light" if new_theme["name"] == "light" else "☾ Dark"
+        self.theme_btn.config(text=icon)
         
         # Notebook
         style = ttk.Style()

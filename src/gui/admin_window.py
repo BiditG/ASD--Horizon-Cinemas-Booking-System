@@ -48,6 +48,15 @@ class AdminWindow:
         tk.Button(bar, text="Logout", bg=DANGER, fg=FG, relief="flat", padx=10, command=self._logout).pack(side="right", padx=5)
         tk.Button(bar, text="Cancel Booking", bg="#b91c1c", fg=FG, relief="flat", padx=10, command=self._open_cancellation).pack(side="right", padx=5)
         tk.Button(bar, text="📊 Live Dashboard", bg="#0f766e", fg=FG, relief="flat", padx=10, command=self._open_dashboard).pack(side="right", padx=5)
+        self.theme_btn = tk.Button(bar, text="☀ Light", bg="#334155", fg=FG, relief="flat", padx=10, command=self._toggle_theme)
+        self.theme_btn.pack(side="right", padx=5)
+
+    def _toggle_theme(self):
+        from src.utils.themes import ThemeManager
+        username = self.user.username if self.user else ""
+        new_theme = ThemeManager.toggle_theme(self.root, username)
+        icon = "☀ Light" if new_theme["name"] == "light" else "☾ Dark"
+        self.theme_btn.config(text=icon)
 
     def _build_notebook(self):
         style = ttk.Style()

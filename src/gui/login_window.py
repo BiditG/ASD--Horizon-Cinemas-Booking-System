@@ -524,6 +524,11 @@ class LoginWindow:
         self._set_loading(False)
         self.session.set_current_user(user)
 
+        # Load and apply the user's saved theme preference
+        from src.utils.themes import ThemeManager, THEMES
+        saved = ThemeManager.load_user_preference(user.username)
+        ThemeManager._current = saved  # prime before window renders
+
         # Destroy the login window and launch the role-appropriate dashboard
         self.root.destroy()
 
@@ -534,6 +539,9 @@ class LoginWindow:
             _get_admin_window()(new_root)
         else:
             _get_staff_window()(new_root)
+        
+        # Apply theme after window widgets have been built
+        ThemeManager.apply_theme(new_root, THEMES[saved])
         new_root.mainloop()
 
     def _on_login_failure(self, message: str) -> None:
