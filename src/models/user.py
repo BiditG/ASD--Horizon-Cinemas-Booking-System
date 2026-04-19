@@ -143,6 +143,24 @@ class User:
         return hashed.decode('utf-8')
 
     @staticmethod
+    def verify_password(plain_text: str, hashed: str) -> bool:
+        """
+        Verify a plaintext password against a stored bcrypt hash.
+
+        Args:
+            plain_text (str): The password entered by the user.
+            hashed (str): The bcrypt hash stored in the database.
+
+        Returns:
+            bool: True if the password matches the hash, False otherwise.
+        """
+        try:
+            return bcrypt.checkpw(plain_text.encode('utf-8'), hashed.encode('utf-8'))
+        except ValueError:
+            # Raised if 'hashed' is not a valid bcrypt hash format
+            return False
+
+    @staticmethod
     def login(username: str, password: str, db_connection: sqlite3.Connection) -> "User":
         """
         Authenticate a user against the database and return a User object.
@@ -190,10 +208,7 @@ class User:
          full_name, email, role, theme_pref, is_active, last_login) = row
 
         # Verify password
-        password_matches: bool = bcrypt.checkpw(
-            password.encode('utf-8'),
-            password_hash.encode('utf-8')
-        )
+        password_matches: bool = User.verify_password(password, password_hash)
         if not password_matches:
             raise AuthenticationError("Incorrect password. Please try again.")
 

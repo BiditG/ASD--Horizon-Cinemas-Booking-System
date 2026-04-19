@@ -25,6 +25,7 @@ from src.models.cinema import Cinema
 from src.models.user import User
 from src.utils.pricing_engine import PricingEngine
 from src.gui.login_window import SessionManager
+from src.utils.input_validator import InputValidator
 
 class PDFService:
     """Stub for Sprint 4 PDF Generator."""
@@ -538,9 +539,20 @@ class BookingWindow:
             self._process_waitlist_join()
             return
             
-        name = self.cust_name_ent.get().strip()
+        name = InputValidator.sanitise_text(self.cust_name_ent.get(), 100)
+        email = InputValidator.sanitise_text(self.cust_email_ent.get(), 100)
+        phone = InputValidator.sanitise_text(self.cust_phone_ent.get(), 20)
+        
         if not name:
             messagebox.showwarning("Missing Info", "Customer Name is required.")
+            return
+            
+        if email and not InputValidator.validate_email(email):
+            messagebox.showwarning("Invalid Input", "Please enter a valid email address.")
+            return
+            
+        if phone and not InputValidator.validate_phone(phone):
+            messagebox.showwarning("Invalid Input", "Please enter a valid UK phone number.")
             return
             
         if not self._selected_showing or not self.confirmed_price:
@@ -555,8 +567,8 @@ class BookingWindow:
         def on_seats_selected(selected_seats):
             booking_data = {
                 "name": name,
-                "email": self.cust_email_ent.get().strip(),
-                "phone": self.cust_phone_ent.get().strip(),
+                "email": email,
+                "phone": phone,
                 "selected_seats": selected_seats
             }
             from src.gui.payment_window import PaymentWindow
@@ -647,12 +659,20 @@ class BookingWindow:
             messagebox.showerror("Booking Failed", str(e))
 
     def _process_waitlist_join(self) -> None:
-        name = self.cust_name_ent.get().strip()
-        email = self.cust_email_ent.get().strip()
-        phone = self.cust_phone_ent.get().strip()
+        name = InputValidator.sanitise_text(self.cust_name_ent.get(), 100)
+        email = InputValidator.sanitise_text(self.cust_email_ent.get(), 100)
+        phone = InputValidator.sanitise_text(self.cust_phone_ent.get(), 20)
         
         if not name or not email or not phone:
             messagebox.showwarning("Missing Info", "Name, Email, and Phone are required to join the waitlist.")
+            return
+            
+        if not InputValidator.validate_email(email):
+            messagebox.showwarning("Invalid Input", "Please enter a valid email address for waitlist.")
+            return
+            
+        if not InputValidator.validate_phone(phone):
+            messagebox.showwarning("Invalid Input", "Please enter a valid UK phone number for waitlist.")
             return
             
         try:

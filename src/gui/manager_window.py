@@ -133,9 +133,10 @@ class ManagerWindow:
         tk.Button(card, text="Create Cinema", bg=SUCCESS, fg=TEXT, font=FONT_BTN, relief="flat", padx=20, pady=10, cursor="hand2", command=self._submit_cinema).grid(row=6, column=0, columnspan=2, pady=20)
 
     def _submit_cinema(self):
-        city = self.cinema_city_cb.get().strip()
-        name = self.cinema_name_ent.get().strip()
-        loc = self.cinema_loc_ent.get().strip()
+        from src.utils.input_validator import InputValidator
+        city = InputValidator.sanitise_text(self.cinema_city_cb.get(), 100)
+        name = InputValidator.sanitise_text(self.cinema_name_ent.get(), 100)
+        loc = InputValidator.sanitise_text(self.cinema_loc_ent.get(), 200)
         try:
             screens = int(self.cinema_screens_spin.get())
             capacity = int(self.cinema_cap_spin.get())
@@ -300,9 +301,8 @@ class ManagerWindow:
         sid = self._screens[s_idx]["screen_id"]
         
         date_str = self.list_date_ent.get().strip()
-        try:
-            datetime.datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
+        from src.utils.input_validator import InputValidator
+        if not InputValidator.validate_date(date_str):
             messagebox.showerror("Error", "Invalid Date format. Use YYYY-MM-DD.")
             return
             
