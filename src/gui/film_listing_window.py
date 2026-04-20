@@ -709,8 +709,9 @@ class FilmListingWindow:
             messagebox.showinfo("Error", "BookingWindow not yet implemented.")
 
     def _logout(self) -> None:
-        from src.gui.login_window import _logout_and_return
-        _logout_and_return(self.root)
+        if messagebox.askyesno("Confirm Logout", "Are you sure you want to log out?"):
+            from src.gui.login_window import _logout_and_return
+            _logout_and_return(self.root)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

@@ -49,6 +49,11 @@ class AdminWindow:
         tk.Button(bar, text="Cancel Booking", bg="#b91c1c", fg=FG, relief="flat", padx=10, command=self._open_cancellation).pack(side="right", padx=5)
         tk.Button(bar, text="📊 Live Dashboard", bg="#0f766e", fg=FG, relief="flat", padx=10, command=self._open_dashboard).pack(side="right", padx=5)
 
+    def _logout(self):
+        if messagebox.askyesno("Confirm Logout", "Are you sure you want to log out?"):
+            from src.gui.login_window import _logout_and_return
+            _logout_and_return(self.root)
+
     def _build_notebook(self):
         style = ttk.Style()
         style.theme_use("default")

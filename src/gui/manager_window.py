@@ -60,7 +60,7 @@ class ManagerWindow:
         
         tk.Button(btn_frame, text="📊 Live Dashboard", bg="#0f766e", fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_dashboard).pack(side="left", padx=10)
         tk.Button(btn_frame, text="Switch to Admin View", bg=ACCENT, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_admin).pack(side="left", padx=10)
-        tk.Button(btn_frame, text="Close", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self.root.destroy).pack(side="left")
+        tk.Button(btn_frame, text="Logout", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._logout).pack(side="left")
         
         # Notebook
         style = ttk.Style()
@@ -95,6 +95,11 @@ class ManagerWindow:
     def _open_dashboard(self):
         from src.gui.dashboard_window import DashboardWindow
         DashboardWindow(tk.Toplevel(self.root))
+
+    def _logout(self):
+        if messagebox.askyesno("Confirm Logout", "Are you sure you want to log out?"):
+            from src.gui.login_window import _logout_and_return
+            _logout_and_return(self.root)
 
     # ---- TAB 1: ADD CINEMA ----
     def _build_cinema_tab(self):
