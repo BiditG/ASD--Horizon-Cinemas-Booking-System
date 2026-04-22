@@ -138,6 +138,9 @@ class BookingManager:
         if not showing:
             raise ValueError(f"Showing {showing_id} not found")
             
+        if quantity <= 0:
+            raise ValueError("Ticket quantity must be at least 1")
+    
         BookingManager.validate_booking_date(showing.show_date)
 
         # Fetch user role and home cinema

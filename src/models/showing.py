@@ -307,6 +307,14 @@ class Showing:
 
             capacity  = row["total_capacity"]
             show_time = Showing.SHOW_TYPE_TIMES[show_type]
+            
+            # Check for overlaps
+            overlap = conn.execute(
+                "SELECT showing_id FROM showings WHERE screen_id = ? AND show_date = ? AND show_time = ? AND is_cancelled = 0",
+                (screen_id, date, show_time)
+            ).fetchone()
+            if overlap:
+                raise Exception(f"Overlapping showing exists on screen {screen_id} at {date} {show_time}")
 
             cursor = conn.execute(
                 """
