@@ -222,6 +222,42 @@ def test_advance_booking_limit(setup_in_memory_db):
     with pytest.raises(BookingError, match="Advance booking limit is 7 days"):
         BookingManager.validate_booking_date(future_date)
 
+def test_get_live_availability(setup_in_memory_db):
+    """assert get_live_availability returns correct capacity minus booked seats"""
+    conn = setup_in_memory_db
+    # Setup showing
+    cinema = Cinema.get_by_id(1)
+    conn.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (?, 1, 100, 30, 60, 10)", (cinema.cinema_id,))
+    screen_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    
+    film = Film.create(title="Avail Film", genre="Drama", age_rating="15", duration_mins=100)
+    
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    showing = Showing.create(cinema.cinema_id, screen_id, film.film_id, tomorrow, 'evening')
+    
+    # Capacity is: lower_hall_seats=30, upper_gallery_seats=60, vip_seats=10
+    assert Showing.get_live_availability(showing.showing_id, 'lower_hall') == 30
+    assert Showing.get_live_availability(showing.showing_id, 'vip') == 10
+    
+    staff_id = conn.execute("SELECT user_id FROM users WHERE username='test_staff'").fetchone()[0]
+    
+    # Book 2 VIP tickets
+    BookingManager.create_booking(
+        showing_id=showing.showing_id,
+        staff_user_id=staff_id,
+        ticket_type='vip',
+        quantity=2,
+        customer_name='John',
+        customer_email='john@example.com',
+        customer_phone='123',
+        unit_price=5.0,
+        db_connection=conn
+    )
+    
+    # Check availability again
+    assert Showing.get_live_availability(showing.showing_id, 'vip') == 8
+    assert Showing.get_live_availability(showing.showing_id, 'lower_hall') == 30
+
 
 # =====================================================================
 # Booking Model Tests

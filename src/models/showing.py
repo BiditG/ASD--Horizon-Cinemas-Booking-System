@@ -177,6 +177,54 @@ class Showing:
             return False
         return showing.seats_remaining >= qty
 
+    @staticmethod
+    def get_live_availability(showing_id: int, ticket_type: str) -> int:
+        """
+        Returns the real-time number of available seats for a specific ticket type
+        by checking the screen capacity and subtracting active bookings.
+
+        Args:
+            showing_id (int): The showing to check.
+            ticket_type (str): 'lower_hall', 'upper_gallery', or 'vip'.
+
+        Returns:
+            int: Number of available seats for this type.
+        """
+        try:
+            conn = get_connection()
+            col_name = f"{ticket_type}_seats"
+            
+            # Prevent SQL injection by checking against known valid types
+            if ticket_type not in ('lower_hall', 'upper_gallery', 'vip'):
+                raise ValueError(f"Invalid ticket_type '{ticket_type}'")
+                
+            row = conn.execute(f"""
+                SELECT sc.{col_name} as capacity
+                FROM screens sc
+                JOIN showings s ON sc.screen_id = s.screen_id
+                WHERE s.showing_id = ?
+            """, (showing_id,)).fetchone()
+            
+            if not row:
+                raise ValueError(f"Showing {showing_id} not found.")
+                
+            capacity = row["capacity"]
+            
+            count_row = conn.execute("""
+                SELECT COUNT(t.ticket_id) as booked
+                FROM tickets t
+                JOIN bookings b ON t.booking_id = b.booking_id
+                WHERE b.showing_id = ? 
+                AND t.ticket_type = ? 
+                AND b.booking_status = 'Active'
+            """, (showing_id, ticket_type)).fetchone()
+            
+            booked = count_row["booked"] if count_row else 0
+            
+            return max(0, capacity - booked)
+        except sqlite3.DatabaseError as exc:
+            raise sqlite3.DatabaseError(f"Showing.get_live_availability failed: {exc}") from exc
+
     # ------------------------------------------------------------------
     # Seat count mutations (called inside a booking transaction)
     # ------------------------------------------------------------------
