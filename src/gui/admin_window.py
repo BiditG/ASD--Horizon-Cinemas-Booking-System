@@ -21,7 +21,7 @@ ACCENT = "#4f8cff"
 FG = "#f8fafc"
 TEXT2 = "#a7b4c8"
 SUCCESS = "#22c55e"
-DANGER = "#ef4444"
+ERROR = "#ef4444"
 WARNING = "#f59e0b"
 BORDER = "#26344a"
 
@@ -44,16 +44,39 @@ class AdminWindow:
         print("[DEBUG] AdminWindow._build_topbar done")
         self._build_notebook()
         print("[DEBUG] AdminWindow._build_notebook done")
+
+    def _create_btn(self, parent, text, bg, command, fg="#FFFFFF", **kwargs):
+        """Helper to create a styled button with hover effects."""
+        btn = tk.Button(
+            parent, text=text, bg=bg, fg=fg,
+            relief="flat", font=("Segoe UI Semibold", 10),
+            padx=15, pady=8, cursor="hand2",
+            activebackground=bg, activeforeground=fg,
+            command=command, **kwargs
+        )
+        
+        # Calculate hover color (slightly darker)
+        try:
+            r = int(bg[1:3], 16)
+            g = int(bg[3:5], 16)
+            b = int(bg[5:7], 16)
+            hover_bg = f"#{max(0, r-20):02x}{max(0, g-20):02x}{max(0, b-20):02x}"
+        except:
+            hover_bg = bg
+
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
+        btn.bind("<Leave>", lambda e: btn.config(bg=bg))
+        return btn
         
     def _build_topbar(self):
         bar = tk.Frame(self.root, bg=BG2, pady=10, padx=20)
         bar.pack(fill="x", side="top")
         
-        tk.Label(bar, text=f"🎬 Admin Dashboard — {self.user.full_name}", font=("Segoe UI", 16, "bold"), bg=BG2, fg=FG).pack(side="left")
+        tk.Label(bar, text=f"🎬 Admin Dashboard — {self.user.full_name}", font=("Segoe UI Variable Display", 16, "bold"), bg=BG2, fg=ACCENT).pack(side="left")
         
-        tk.Button(bar, text="Logout", bg=DANGER, fg=FG, relief="flat", padx=10, command=self._logout).pack(side="right", padx=5)
-        tk.Button(bar, text="Cancel Booking", bg="#b91c1c", fg=FG, relief="flat", padx=10, command=self._open_cancellation).pack(side="right", padx=5)
-        tk.Button(bar, text="📊 Live Dashboard", bg="#0f766e", fg=FG, relief="flat", padx=10, command=self._open_dashboard).pack(side="right", padx=5)
+        self._create_btn(bar, "Logout", ERROR, self._logout).pack(side="right", padx=5)
+        self._create_btn(bar, "Cancel Booking", "#B91C1C", self._open_cancellation).pack(side="right", padx=5)
+        self._create_btn(bar, "📊 Live Dashboard", "#0D9488", self._open_dashboard).pack(side="right", padx=5)
 
     def _logout(self):
         if messagebox.askyesno("Confirm Logout", "Are you sure you want to log out?"):
@@ -65,21 +88,25 @@ class AdminWindow:
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TNotebook", background=BG, borderwidth=0)
-        style.configure("TNotebook.Tab", background=BG2, foreground=FG, padding=[16, 10], font=("Segoe UI", 11, "bold"))
-        style.map("TNotebook.Tab", background=[("selected", ACCENT)], foreground=[("selected", FG)])
+        style.configure("TNotebook.Tab", background=BG, foreground=TEXT2, padding=[20, 12], font=("Segoe UI Semibold", 10))
+        style.map("TNotebook.Tab", 
+                 background=[("selected", ACCENT), ("active", BG2)], 
+                 foreground=[("selected", "#FFFFFF"), ("active", ACCENT)])
         
         # Customize treeview style
-        style.configure("Treeview", background=BG2, foreground=FG, fieldbackground=BG2, rowheight=28, borderwidth=0)
-        style.map("Treeview", background=[("selected", ACCENT)], foreground=[("selected", FG)])
-        style.configure("Treeview.Heading", background=BG2, foreground=FG, font=("Segoe UI", 10, "bold"))
-        style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=FG, arrowcolor=FG)
+        style.configure("Treeview", background=BG, foreground=ACCENT, fieldbackground=BG, rowheight=35, borderwidth=0)
+        style.map("Treeview", background=[("selected", ACCENT)], foreground=[("selected", "#FFFFFF")])
+        style.configure("Treeview.Heading", background=BG2, foreground=ACCENT, font=("Segoe UI", 10, "bold"))
+        
+        style.configure("TCombobox", fieldbackground=BG, background=BG, foreground=ACCENT, arrowcolor=ACCENT)
         style.map("TCombobox",
-              fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
-              foreground=[("readonly", FG), ("disabled", FG), ("focus", FG), ("active", FG)])
-        self.root.option_add('*TCombobox*Listbox.background', BG2, 100)
-        self.root.option_add('*TCombobox*Listbox.foreground', FG, 100)
-        self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
-        self.root.option_add('*TCombobox*Listbox.selectForeground', FG, 100)
+              fieldbackground=[("readonly", BG)],
+              foreground=[("readonly", ACCENT)])
+        
+        self.root.option_add('*TCombobox*Listbox.background', BG, 100)
+        self.root.option_add('*TCombobox*Listbox.foreground', ACCENT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectBackground', BG2, 100)
+        self.root.option_add('*TCombobox*Listbox.selectForeground', ACCENT, 100)
         
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True, padx=20, pady=20)
@@ -93,6 +120,7 @@ class AdminWindow:
         self.tab_heatmap = tk.Frame(self.notebook, bg=BG)
         self.tab_leaderboard = tk.Frame(self.notebook, bg=BG)
         self.tab_waitlist = tk.Frame(self.notebook, bg=BG)
+        self.tab_customers = tk.Frame(self.notebook, bg=BG)
 
         self.notebook.add(self.tab_films,   text="Films")
         self.notebook.add(self.tab_showings, text="Showings")
@@ -103,6 +131,7 @@ class AdminWindow:
         self.notebook.add(self.tab_heatmap,  text="🔥 Occupancy Heatmap")
         self.notebook.add(self.tab_leaderboard, text="🏆 Staff Leaderboard")
         self.notebook.add(self.tab_waitlist, text="⏳ Waitlist")
+        self.notebook.add(self.tab_customers, text="👥 Customers")
 
         self._build_films_tab()
         self._build_showings_tab()
@@ -113,6 +142,7 @@ class AdminWindow:
         self._build_heatmap_tab()
         self._build_leaderboard_tab()
         self._build_waitlist_tab()
+        self._build_customers_tab()
         
     # --- FILMS TAB ---
     def _build_films_tab(self):
@@ -120,10 +150,10 @@ class AdminWindow:
         top = tk.Frame(self.tab_films, bg=BG, pady=10)
         top.pack(fill="x")
         
-        tk.Button(top, text="+ Add Film", bg=SUCCESS, fg=FG, command=self._open_add_film).pack(side="left", padx=5)
-        tk.Button(top, text="✎ Edit Film", bg=ACCENT, fg=FG, command=self._open_edit_film).pack(side="left", padx=5)
-        tk.Button(top, text="✕ Remove Film", bg=WARNING, fg="#000", command=self._remove_film).pack(side="left", padx=5)
-        tk.Button(top, text="↻ Refresh", bg=BG2, fg=FG, command=self._refresh_films).pack(side="right", padx=5)
+        self._create_btn(top, "+ Add Film", SUCCESS, self._open_add_film).pack(side="left", padx=5)
+        self._create_btn(top, "✎ Edit Film", ACCENT, self._open_edit_film).pack(side="left", padx=5)
+        self._create_btn(top, "✕ Remove Film", ERROR, self._remove_film).pack(side="left", padx=5)
+        self._create_btn(top, "↻ Refresh", BG2, self._refresh_films, fg=ACCENT).pack(side="right", padx=5)
         
         cols = ("ID", "Title", "Genre", "Age Rating", "Duration", "Active")
         self.films_tree = ttk.Treeview(self.tab_films, columns=cols, show="headings", height=15)
@@ -293,7 +323,7 @@ class AdminWindow:
             except Exception as e:
                 messagebox.showerror("Error", str(e))
                 
-        tk.Button(win, text="Save Film", bg=SUCCESS, fg=FG, font=("Segoe UI", 11, "bold"), command=save).grid(row=len(fields), column=1, pady=20, sticky="e", padx=10)
+        self._create_btn(win, "Save Film", SUCCESS, save, fg="#FFFFFF").grid(row=len(fields), column=1, pady=20, sticky="e", padx=10)
 
     def _remove_film(self):
         sel = self.films_tree.selection()
@@ -323,10 +353,10 @@ class AdminWindow:
         top = tk.Frame(self.tab_showings, bg=BG, pady=10)
         top.pack(fill="x")
         
-        tk.Button(top, text="+ Add Showing", bg=SUCCESS, fg=FG, command=self._open_add_showing).pack(side="left", padx=5)
-        tk.Button(top, text="✎ Edit Showing", bg=ACCENT, fg=FG, command=self._open_edit_showing).pack(side="left", padx=5)
-        tk.Button(top, text="✕ Cancel Showing", bg=DANGER, fg=FG, command=self._cancel_showing).pack(side="left", padx=5)
-        tk.Button(top, text="↻ Refresh", bg=BG2, fg=FG, command=self._refresh_showings).pack(side="right", padx=5)
+        self._create_btn(top, "+ Add Showing", SUCCESS, self._open_add_showing).pack(side="left", padx=5)
+        self._create_btn(top, "✎ Edit Showing", ACCENT, self._open_edit_showing).pack(side="left", padx=5)
+        self._create_btn(top, "✕ Cancel Showing", ERROR, self._cancel_showing).pack(side="left", padx=5)
+        self._create_btn(top, "↻ Refresh", BG2, self._refresh_showings, fg=ACCENT).pack(side="right", padx=5)
         
         cols = ("ID", "Film", "Cinema", "Screen", "Date", "Time", "Type", "Seats", "Status")
         self.shows_tree = ttk.Treeview(self.tab_showings, columns=cols, show="headings", height=15)
@@ -351,20 +381,21 @@ class AdminWindow:
             self.shows_tree.delete(row)
         try:
             conn = get_connection()
-            q = '''SELECT s.showing_id, f.title, c.cinema_name, s.screen_id, s.show_date, s.show_time, s.show_type, s.seats_remaining
+            q = '''SELECT s.showing_id, f.title, c.cinema_name, s.screen_id, s.show_date, s.show_time, s.show_type, s.seats_remaining, s.is_cancelled
                    FROM showings s
                    JOIN films f ON s.film_id = f.film_id
                    JOIN screens sc ON s.screen_id = sc.screen_id
                    JOIN cinemas c ON sc.cinema_id = c.cinema_id
                    ORDER BY s.show_date DESC, s.show_time DESC
-                   LIMIT 200''' # limit to avoid hanging
+                   LIMIT 200'''
             rows = conn.execute(q).fetchall()
             print(f"[DEBUG] AdminWindow._refresh_showings fetched {len(rows)} rows")
             for row in rows:
+                status = "Cancelled" if row["is_cancelled"] else "Active"
                 self.shows_tree.insert("", "end", values=(
                     row["showing_id"], row["title"], row["cinema_name"], 
                     row["screen_id"], row["show_date"], row["show_time"], 
-                    row["show_type"].capitalize(), row["seats_remaining"], "Active"
+                    row["show_type"].capitalize(), row["seats_remaining"], status
                 ))
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -445,7 +476,7 @@ class AdminWindow:
             except Exception as e:
                 messagebox.showerror("Error", str(e))
                 
-        tk.Button(win, text="Create Showing", bg=SUCCESS, fg=FG, font=("Segoe UI", 10, "bold"), command=save).grid(row=5, column=1, pady=20, sticky="e")
+        self._create_btn(win, "Create Showing", SUCCESS, save).grid(row=5, column=1, pady=20, sticky="e")
 
     def _open_edit_showing(self):
         sel = self.shows_tree.selection()
@@ -495,7 +526,7 @@ class AdminWindow:
             except Exception as e:
                 messagebox.showerror("Error", str(e))
                 
-        tk.Button(win, text="Save Changes", bg=SUCCESS, fg=FG, command=save).grid(row=2, column=1, pady=20, sticky="e")
+        self._create_btn(win, "Save Changes", SUCCESS, save).grid(row=2, column=1, pady=20, sticky="e")
 
     def _cancel_showing(self):
         sel = self.shows_tree.selection()
@@ -510,8 +541,15 @@ class AdminWindow:
             messagebox.showinfo("Info", "Showing is already cancelled.")
             return
             
-        if messagebox.askyesno("Confirm Cancel", f"Are you sure you want to cancel showing ID {sid}?\nActive bookings may need refunds."):
-            messagebox.showinfo("Info", "Showing cancellation is not supported by the current database schema.")
+        if messagebox.askyesno("Confirm Cancel", f"Are you sure you want to cancel showing ID {sid}?\nAll active bookings will be cancelled with a 100% refund."):
+            try:
+                from src.models.cancellation import CancellationManager
+                conn = get_connection()
+                count = CancellationManager.cancel_showing(sid, conn)
+                messagebox.showinfo("Success", f"Showing {sid} cancelled.\n{count} booking(s) affected.")
+                self._refresh_showings()
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to cancel showing: {e}")
 
     # --- BOOKINGS TAB ---
     def _build_bookings_tab(self):
@@ -526,10 +564,10 @@ class AdminWindow:
         status_cb.pack(side="left", padx=5)
         status_cb.bind("<<ComboboxSelected>>", lambda e: self._refresh_bookings())
         
-        tk.Button(top, text="↻ Refresh", bg=BG2, fg=FG, command=self._refresh_bookings).pack(side="left", padx=5)
-        tk.Button(top, text="➕ Create Booking", bg=SUCCESS, fg=FG, command=self._open_booking).pack(side="left", padx=5)
-        tk.Button(top, text="📥 Export CSV", bg=SUCCESS, fg=FG, command=self._export_bookings_csv).pack(side="right", padx=5)
-        tk.Button(top, text="🔍 Details", bg=ACCENT, fg=FG, command=self._view_booking_details).pack(side="right", padx=5)
+        self._create_btn(top, "↻ Refresh", BG2, self._refresh_bookings, fg=ACCENT).pack(side="left", padx=5)
+        self._create_btn(top, "➕ Create Booking", SUCCESS, self._open_booking).pack(side="left", padx=5)
+        self._create_btn(top, "📥 Export CSV", SUCCESS, self._export_bookings_csv).pack(side="right", padx=5)
+        self._create_btn(top, "🔍 Details", ACCENT, self._view_booking_details).pack(side="right", padx=5)
         
         cols = ("ID", "Ref", "Customer", "Film", "Cinema", "Date", "Time", "Tickets", "Total (£)", "Status", "Booked By")
         self.bookings_tree = ttk.Treeview(self.tab_bookings, columns=cols, show="headings", height=18)
@@ -831,8 +869,7 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
         self.cb_selected_seats.pack(fill="x", pady=(0, 20))
         
         # Create booking button
-        tk.Button(left_panel, text="✓ Create Booking", bg=SUCCESS, fg=FG, font=("Segoe UI", 11, "bold"), 
-                 command=self._create_booking_action).pack(fill="x", pady=10)
+        self._create_btn(left_panel, "✓ Create Booking", SUCCESS, self._create_booking_action).pack(fill="x", pady=10)
         
         # Load cinemas
         self._load_cb_cinemas()
@@ -979,6 +1016,11 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
         if not all([cinema_str, showing_str, customer_name, seats_str]):
             messagebox.showwarning("Validation", "Please fill in all required fields and select seats.")
             return
+
+        from src.utils.input_validator import InputValidator
+        if customer_email and not InputValidator.validate_email(customer_email):
+            messagebox.showwarning("Invalid Input", "Please enter a valid email address.")
+            return
         
         try:
             showing_id = int(showing_str.split(" - ")[0])
@@ -1008,7 +1050,7 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
             
             # Get showing details for pricing
             showing = conn.execute("""
-                SELECT sh.film_id, sh.screen_id, sh.show_date, sh.show_type, f.title
+                SELECT sh.film_id, sh.screen_id, sh.show_date, sh.show_time, sh.show_type, f.title
                 FROM showings sh
                 JOIN films f ON sh.film_id = f.film_id
                 WHERE sh.showing_id = ?
@@ -1032,6 +1074,14 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
             unit_price = price['lower_hall_price'] if price else 5.0
             total_cost = unit_price * len(seats)
             
+            # Validate date and time
+            from src.models.booking import BookingManager, BookingError
+            try:
+                BookingManager.validate_booking_date(showing['show_date'], showing['show_time'])
+            except BookingError as e:
+                messagebox.showerror("Validation Error", str(e))
+                return
+                
             # Create booking reference
             booking_ref = f"HCBS-{datetime.date.today().isoformat().replace('-', '')}-{datetime.datetime.now().strftime('%H%M%S')}"
             
@@ -1331,8 +1381,8 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
         ], state="readonly", width=30, font=("Segoe UI", 11))
         rep_cb.pack(side="left", padx=5)
         
-        tk.Button(top, text="📊 Generate", bg=ACCENT, fg=FG, font=("Segoe UI", 10, "bold"), command=self._generate_report).pack(side="left", padx=15)
-        tk.Button(top, text="📥 CSV Export", bg=SUCCESS, fg=FG, font=("Segoe UI", 10, "bold"), command=self._export_csv).pack(side="right", padx=15)
+        self._create_btn(top, "📊 Generate", ACCENT, self._generate_report).pack(side="left", padx=15)
+        self._create_btn(top, "📥 CSV Export", SUCCESS, self._export_csv).pack(side="right", padx=15)
         
         self.rep_tree = ttk.Treeview(self.tab_reports, show="headings", height=20)
         
@@ -1533,3 +1583,214 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
             self._refresh_waitlist()
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+    # --- CUSTOMERS TAB ---
+    def _build_customers_tab(self):
+        """Display unique customers aggregated from bookings,
+        with email, phone (from waitlist where available), loyalty points,
+        booking count and total spend."""
+        # ── Controls bar ──────────────────────────────────────────────────
+        top = tk.Frame(self.tab_customers, bg=BG, pady=10)
+        top.pack(fill="x", padx=10)
+
+        tk.Label(top, text="Search:", bg=BG, fg=FG,
+                 font=("Segoe UI", 10)).pack(side="left", padx=(5, 3))
+        self._cust_search_var = tk.StringVar()
+        search_entry = tk.Entry(
+            top, textvariable=self._cust_search_var,
+            font=("Segoe UI", 10), bg=BG2, fg=FG, insertbackground=FG,
+            relief="flat", bd=4, width=28
+        )
+        search_entry.pack(side="left", padx=4)
+        search_entry.bind("<KeyRelease>", lambda e: self._refresh_customers())
+
+        self._create_btn(top, "↻ Refresh", BG2, self._refresh_customers, fg=ACCENT).pack(side="left", padx=8)
+
+        self._create_btn(top, "📥 Export CSV", SUCCESS, self._export_customers_csv).pack(side="right", padx=5)
+
+        # ── Summary label ─────────────────────────────────────────────────
+        self._cust_summary = tk.Label(
+            self.tab_customers, text="", bg=BG, fg=TEXT2, font=("Segoe UI", 9)
+        )
+        self._cust_summary.pack(anchor="e", padx=16)
+
+        # ── Treeview ──────────────────────────────────────────────────────
+        cols = ("Customer Name", "Email", "Phone",
+                "Loyalty Points", "Bookings", "Total Spent (£)")
+        self.customers_tree = ttk.Treeview(
+            self.tab_customers, columns=cols, show="headings", height=20
+        )
+
+        col_widths = {
+            "Customer Name":   180,
+            "Email":           210,
+            "Phone":           130,
+            "Loyalty Points":  110,
+            "Bookings":         80,
+            "Total Spent (£)": 110,
+        }
+        for c in cols:
+            self.customers_tree.heading(
+                c, text=c,
+                command=lambda _c=c: self._sort_customers(_c)
+            )
+            self.customers_tree.column(
+                c, width=col_widths.get(c, 120), anchor="center"
+            )
+        self.customers_tree.column("Customer Name", anchor="w")
+        self.customers_tree.column("Email", anchor="w")
+
+        sb = ttk.Scrollbar(
+            self.tab_customers, orient="vertical",
+            command=self.customers_tree.yview
+        )
+        self.customers_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y", padx=(0, 10))
+        self.customers_tree.pack(fill="both", expand=True, pady=10, padx=10)
+
+        # Sort state
+        self._cust_sort_col = None
+        self._cust_sort_asc = True
+        self._cust_data = []   # cache for CSV export
+
+        self._refresh_customers()
+
+    def _fetch_customers(self, search=""):
+        """Query the DB and return a list of dicts for each unique customer."""
+        conn = get_connection()
+
+        # Unique customers from bookings joined with loyalty points
+        rows = conn.execute("""
+            SELECT
+                b.customer_name,
+                b.customer_email,
+                COALESCE(lp.points, 0)          AS loyalty_points,
+                COUNT(b.booking_id)             AS booking_count,
+                COALESCE(SUM(b.total_cost), 0)  AS total_spent
+            FROM bookings b
+            LEFT JOIN loyalty_points lp
+                   ON LOWER(lp.customer_name) = LOWER(b.customer_name)
+            WHERE b.booking_status != 'Cancelled'
+            GROUP BY LOWER(b.customer_name)
+            ORDER BY b.customer_name ASC
+        """).fetchall()
+
+        # Phone lookup from waitlist contact_info (numeric-looking entries only)
+        phone_map = {}
+        for wl in conn.execute(
+            "SELECT customer_name, contact_info FROM waitlist"
+        ).fetchall():
+            info = wl["contact_info"] or ""
+            if any(ch.isdigit() for ch in info) and "@" not in info:
+                phone_map.setdefault(wl["customer_name"].lower(), info)
+
+        result = []
+        search_lower = search.lower()
+        for row in rows:
+            name  = row["customer_name"] or ""
+            email = row["customer_email"] or "N/A"
+            phone = phone_map.get(name.lower(), "N/A")
+            pts   = row["loyalty_points"]
+            bks   = row["booking_count"]
+            spent = row["total_spent"]
+
+            if search_lower and \
+               search_lower not in name.lower() and \
+               search_lower not in email.lower():
+                continue
+
+            result.append({
+                "name":           name,
+                "email":          email,
+                "phone":          phone,
+                "loyalty_points": pts,
+                "bookings":       bks,
+                "total_spent":    spent,
+            })
+
+        return result
+
+    def _refresh_customers(self):
+        """Clear and repopulate the customers treeview."""
+        for row in self.customers_tree.get_children():
+            self.customers_tree.delete(row)
+
+        search = self._cust_search_var.get().strip()
+        try:
+            self._cust_data = self._fetch_customers(search)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load customers: {e}")
+            return
+
+        if self._cust_sort_col:
+            self._apply_customer_sort()
+
+        for d in self._cust_data:
+            self.customers_tree.insert("", "end", values=(
+                d["name"],
+                d["email"],
+                d["phone"],
+                d["loyalty_points"],
+                d["bookings"],
+                f"£{d['total_spent']:.2f}",
+            ))
+
+        self._cust_summary.config(
+            text=f"{len(self._cust_data)} customer(s) found"
+        )
+
+    def _sort_customers(self, col):
+        """Toggle sort direction on the clicked column heading."""
+        if self._cust_sort_col == col:
+            self._cust_sort_asc = not self._cust_sort_asc
+        else:
+            self._cust_sort_col = col
+            self._cust_sort_asc = True
+        self._refresh_customers()
+
+    def _apply_customer_sort(self):
+        """Sort self._cust_data in-place based on the active sort column."""
+        key_map = {
+            "Customer Name":   lambda d: d["name"].lower(),
+            "Email":           lambda d: d["email"].lower(),
+            "Phone":           lambda d: d["phone"],
+            "Loyalty Points":  lambda d: d["loyalty_points"],
+            "Bookings":        lambda d: d["bookings"],
+            "Total Spent (£)": lambda d: d["total_spent"],
+        }
+        key_fn = key_map.get(self._cust_sort_col)
+        if key_fn:
+            self._cust_data.sort(key=key_fn, reverse=not self._cust_sort_asc)
+
+    def _export_customers_csv(self):
+        """Export the currently displayed customer rows to a CSV file."""
+        if not self._cust_data:
+            messagebox.showwarning("No Data", "No customers to export.")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")],
+            initialfile=f"customers_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
+        if not filepath:
+            return
+
+        try:
+            fieldnames = ["Customer Name", "Email", "Phone",
+                          "Loyalty Points", "Bookings", "Total Spent (£)"]
+            with open(filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for d in self._cust_data:
+                    writer.writerow({
+                        "Customer Name":   d["name"],
+                        "Email":           d["email"],
+                        "Phone":           d["phone"],
+                        "Loyalty Points":  d["loyalty_points"],
+                        "Bookings":        d["bookings"],
+                        "Total Spent (£)": f"£{d['total_spent']:.2f}",
+                    })
+            messagebox.showinfo("Export Successful", f"Saved to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Could not save CSV:\n{e}")

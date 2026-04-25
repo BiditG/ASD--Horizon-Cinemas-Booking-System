@@ -104,6 +104,7 @@ class Showing:
                 JOIN   screens  sc ON s.screen_id = sc.screen_id
                 WHERE  sc.cinema_id = ?
                 AND    s.show_date  = ?
+                AND    s.is_cancelled = 0
                 ORDER BY s.show_time
                 """,
                 (cinema_id, date)
@@ -404,12 +405,26 @@ class Showing:
     # Dunder methods
     # ------------------------------------------------------------------
 
+    def cancel(self) -> None:
+        """
+        Mark this showing instance as cancelled in the database.
+        Note: This is a convenience method; prefer CancellationManager.cancel_showing
+        if you need to handle bookings as well.
+        """
+        try:
+            conn = get_connection()
+            conn.execute("UPDATE showings SET is_cancelled = 1 WHERE showing_id = ?", (self.showing_id,))
+            conn.commit()
+            self.is_cancelled = True
+        except sqlite3.DatabaseError as exc:
+            raise sqlite3.DatabaseError(f"Showing.cancel failed: {exc}") from exc
+
     def __repr__(self) -> str:
         return (
             f"Showing(id={self.showing_id}, film_id={self.film_id}, "
             f"screen_id={self.screen_id}, date={self.show_date!r}, "
-            f"type={self.show_type!r}, seats={self.seats_remaining})"
+            f"type={self.show_type!r}, seats={self.seats_remaining}, cancelled={self.is_cancelled})"
         )
 
     def __str__(self) -> str:
-        return self.datetime_display
+        return f"{self.datetime_display}{' [CANCELLED]' if self.is_cancelled else ''}"

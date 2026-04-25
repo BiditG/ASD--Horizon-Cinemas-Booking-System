@@ -18,13 +18,13 @@ from src.gui.admin_window import AdminWindow
 # Style Guide constants
 BG = "#0b1220"
 BG2 = "#111b2e"
-BG_CARD = "#162338"
-ACCENT = "#4f8cff"
-TEXT = "#f8fafc"
-TEXT2 = "#a7b4c8"
-SUCCESS = "#22c55e"
-ERROR = "#ef4444"
-BORDER = "#26344a"
+BG_CARD = "#111b2e"   # Card background
+ACCENT = "#4f8cff"    # Primary blue
+TEXT = "#f8fafc"      # White/Light text
+TEXT2 = "#a7b4c8"     # Gray text
+SUCCESS = "#22c55e"   # Emerald
+ERROR = "#ef4444"     # Rose
+BORDER = "#26344a"    # Dark border
 
 FONT_H1 = ("Segoe UI", 24, "bold")
 FONT_H2 = ("Segoe UI", 16, "bold")
@@ -46,56 +46,97 @@ class ManagerWindow:
 
             
         self._build_ui()
-        self._load_overview()
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
+        # Load initial tab data (Add City) after a short delay
+        self.root.after(100, self._refresh_city_list)
+
+    def _create_btn(self, parent, text, bg, command, fg="#FFFFFF", **kwargs):
+        """Helper to create a styled button with hover effects."""
+        btn = tk.Button(
+            parent, text=text, bg=bg, fg=fg,
+            relief="flat", font=("Segoe UI Semibold", 10),
+            padx=15, pady=8, cursor="hand2",
+            activebackground=bg, activeforeground=fg,
+            command=command, **kwargs
+        )
+        # Calculate hover color (slightly darker)
+        try:
+            r = int(bg[1:3], 16)
+            g = int(bg[3:5], 16)
+            b = int(bg[5:7], 16)
+            hover_bg = f"#{max(0, r-20):02x}{max(0, g-20):02x}{max(0, b-20):02x}"
+        except:
+            hover_bg = bg
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
+        btn.bind("<Leave>", lambda e: btn.config(bg=bg))
+        return btn
 
     def _build_ui(self):
         # Header
         header_frame = tk.Frame(self.root, bg=BG2, padx=20, pady=15)
         header_frame.pack(fill="x")
         
-        tk.Label(header_frame, text="👔 Manager Dashboard", font=FONT_H1, bg=BG2, fg=TEXT).pack(side="left")
+        tk.Label(header_frame, text="👔 Manager Dashboard", font=("Segoe UI Variable Display", 24, "bold"), bg=BG2, fg=ACCENT).pack(side="left")
         
         btn_frame = tk.Frame(header_frame, bg=BG2)
         btn_frame.pack(side="right")
         
-        tk.Button(btn_frame, text="📊 Live Dashboard", bg="#0f766e", fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", activebackground="#115e59", command=self._open_dashboard).pack(side="left", padx=10)
-        tk.Button(btn_frame, text="Switch to Admin View", bg=ACCENT, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_admin).pack(side="left", padx=10)
-        tk.Button(btn_frame, text="Logout", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._logout).pack(side="left")
+        self._create_btn(btn_frame, "📊 Live Dashboard", "#0D9488", self._open_dashboard).pack(side="left", padx=10)
+        self._create_btn(btn_frame, "Switch to Admin View", ACCENT, self._open_admin).pack(side="left", padx=10)
+        self._create_btn(btn_frame, "Logout", "#64748B", self._logout).pack(side="left")
         
         # Notebook
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("HCBS.TNotebook", background=BG, borderwidth=0)
-        style.configure("HCBS.TNotebook.Tab", background=BG2, foreground=TEXT, font=FONT_BTN, padding=[18, 10])
-        style.map("HCBS.TNotebook.Tab", background=[("selected", ACCENT)], foreground=[("selected", TEXT)])
-        style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
+        style.configure("HCBS.TNotebook.Tab", background=BG, foreground=TEXT2, font=("Segoe UI Semibold", 11), padding=[22, 12])
+        style.map("HCBS.TNotebook.Tab", background=[("selected", ACCENT), ("active", BG2)], foreground=[("selected", "#FFFFFF"), ("active", ACCENT)])
+        style.configure("TCombobox", fieldbackground=BG, background=BG, foreground=ACCENT, arrowcolor=ACCENT)
         style.map("TCombobox",
-              fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
-              foreground=[("readonly", TEXT), ("disabled", TEXT), ("focus", TEXT), ("active", TEXT)])
-        self.root.option_add('*TCombobox*Listbox.background', BG2, 100)
-        self.root.option_add('*TCombobox*Listbox.foreground', TEXT, 100)
-        self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
-        self.root.option_add('*TCombobox*Listbox.selectForeground', TEXT, 100)
-        style.configure("TSpinbox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
+              fieldbackground=[("readonly", BG)],
+              foreground=[("readonly", ACCENT)])
+        self.root.option_add('*TCombobox*Listbox.background', BG, 100)
+        self.root.option_add('*TCombobox*Listbox.foreground', ACCENT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectBackground', BG2, 100)
+        self.root.option_add('*TCombobox*Listbox.selectForeground', ACCENT, 100)
+        style.configure("TSpinbox", fieldbackground=BG, background=BG, foreground=ACCENT, arrowcolor=ACCENT)
         
         self.notebook = ttk.Notebook(self.root, style="HCBS.TNotebook")
         self.notebook.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Tabs
+        self.tab_city = tk.Frame(self.notebook, bg=BG)
         self.tab_cinema = tk.Frame(self.notebook, bg=BG)
         self.tab_listing = tk.Frame(self.notebook, bg=BG)
         self.tab_overview = tk.Frame(self.notebook, bg=BG)
         self.tab_forecast = tk.Frame(self.notebook, bg=BG)
         
-        self.notebook.add(self.tab_cinema, text="Add New Cinema")
+        self.notebook.add(self.tab_city,    text="🌆 Add New City")
+        self.notebook.add(self.tab_cinema,  text="Add New Cinema")
         self.notebook.add(self.tab_listing, text="Add New Listing")
         self.notebook.add(self.tab_overview, text="Cinemas Overview")
         self.notebook.add(self.tab_forecast, text="Revenue Forecast")
         
+        self._build_city_tab()
         self._build_cinema_tab()
         self._build_listing_tab()
         self._build_overview_tab()
-        self._build_forecast_tab()
+        # Forecast tab is lazy-loaded on demand
+        self.forecast_built = False
+        self.forecast_container = tk.Frame(self.tab_forecast, bg=BG)
+        self.forecast_container.pack(fill="both", expand=True)
+        tk.Label(self.forecast_container, text="📊 Preparing forecasting engine...", font=FONT_BODY, bg=BG, fg=TEXT2).pack(pady=100)
+
+    def _on_tab_changed(self, event):
+        """Handle tab switching to load data only when needed."""
+        idx = self.notebook.index("current")
+        if idx == 3: # Overview
+            self._load_overview()
+        elif idx == 4: # Forecast
+            if not self.forecast_built:
+                self._really_build_forecast_tab()
+            else:
+                self._generate_forecast()
 
     # ---- ADMIN VIEW ----
     def _open_admin(self):
@@ -110,6 +151,182 @@ class ManagerWindow:
             from src.gui.login_window import _logout_and_return
             _logout_and_return(self.root)
 
+    # ---- TAB 0: ADD CITY ----
+    def _build_city_tab(self):
+        card = tk.Frame(self.tab_city, bg=BG_CARD, padx=30, pady=30,
+                        highlightbackground=BORDER, highlightthickness=1)
+        card.pack(pady=30, padx=50, fill="x")
+
+        tk.Label(card, text="Register New City", font=FONT_H2,
+                 bg=BG_CARD, fg=TEXT).grid(row=0, column=0, columnspan=2,
+                                           sticky="w", pady=(0, 20))
+
+        # City name
+        tk.Label(card, text="City Name:", font=FONT_BODY,
+                 bg=BG_CARD, fg=TEXT2).grid(row=1, column=0, sticky="w", pady=10)
+        self.city_name_ent = tk.Entry(
+            card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT,
+            width=32, relief="flat",
+            highlightbackground=BORDER, highlightthickness=1
+        )
+        self.city_name_ent.grid(row=1, column=1, sticky="w", pady=10)
+
+        # Default pricing
+        tk.Label(card, text="Default Ticket Prices", font=FONT_H2,
+                 bg=BG_CARD, fg=TEXT).grid(row=2, column=0, columnspan=2,
+                                           sticky="w", pady=(20, 8))
+
+        price_frame = tk.Frame(card, bg=BG_CARD)
+        price_frame.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 10))
+
+        tk.Label(price_frame, text="Morning (£):",
+                 font=FONT_BODY, bg=BG_CARD, fg=TEXT2).pack(side="left")
+        self.city_p_morn = tk.Entry(
+            price_frame, font=FONT_BODY, bg=BG, fg=TEXT,
+            width=8, insertbackground=TEXT, relief="flat",
+            highlightbackground=BORDER, highlightthickness=1
+        )
+        self.city_p_morn.pack(side="left", padx=(5, 20))
+        self.city_p_morn.insert(0, "5.00")
+
+        tk.Label(price_frame, text="Afternoon (£):",
+                 font=FONT_BODY, bg=BG_CARD, fg=TEXT2).pack(side="left")
+        self.city_p_aft = tk.Entry(
+            price_frame, font=FONT_BODY, bg=BG, fg=TEXT,
+            width=8, insertbackground=TEXT, relief="flat",
+            highlightbackground=BORDER, highlightthickness=1
+        )
+        self.city_p_aft.pack(side="left", padx=(5, 20))
+        self.city_p_aft.insert(0, "7.00")
+
+        tk.Label(price_frame, text="Evening (£):",
+                 font=FONT_BODY, bg=BG_CARD, fg=TEXT2).pack(side="left")
+        self.city_p_eve = tk.Entry(
+            price_frame, font=FONT_BODY, bg=BG, fg=TEXT,
+            width=8, insertbackground=TEXT, relief="flat",
+            highlightbackground=BORDER, highlightthickness=1
+        )
+        self.city_p_eve.pack(side="left", padx=(5, 0))
+        self.city_p_eve.insert(0, "10.00")
+
+        # Existing cities list
+        tk.Label(card, text="Existing Cities:", font=FONT_BODY,
+                 bg=BG_CARD, fg=TEXT2).grid(row=4, column=0, sticky="nw", pady=(20, 5))
+        self.city_list_var = tk.StringVar()
+        self.city_listbox = tk.Listbox(
+            card, listvariable=self.city_list_var,
+            font=FONT_BODY, bg=BG, fg=TEXT,
+            selectbackground=ACCENT, selectforeground=TEXT,
+            relief="flat", highlightbackground=BORDER, highlightthickness=1,
+            height=6, width=32
+        )
+        self.city_listbox.grid(row=4, column=1, sticky="w", pady=(20, 5))
+        self._refresh_city_list()
+
+        tk.Button(
+            card, text="➕ Add City", bg=SUCCESS, fg=TEXT,
+            font=FONT_BTN, relief="flat", padx=20, pady=10,
+            cursor="hand2", command=self._submit_city
+        ).grid(row=5, column=0, columnspan=2, pady=20)
+
+    def _refresh_city_list(self):
+        """Refresh the existing-cities listbox and the cinema-tab city dropdown."""
+        try:
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT city_name FROM cities ORDER BY city_name"
+            ).fetchall()
+            names = [r["city_name"] for r in rows]
+            # Update the listbox on this tab
+            if hasattr(self, "city_listbox"):
+                self.city_listbox.delete(0, tk.END)
+                for n in names:
+                    self.city_listbox.insert(tk.END, n)
+            # Also keep the cinema-tab combobox in sync
+            if hasattr(self, "cinema_city_cb"):
+                self.cinema_city_cb["values"] = names
+        except Exception as e:
+            print(f"Error refreshing city list: {e}")
+
+    def _refresh_all_cinema_data(self):
+        """Unified refresh for all tabs that display cinema/city lists."""
+        self._load_overview()       # Overview tab
+        self._load_listing_data()   # Listing tab
+        self._refresh_city_list()    # City/Cinema tabs
+        
+        # Forecast tab
+        try:
+            conn = get_connection()
+            cinemas = conn.execute("SELECT cinema_name FROM cinemas ORDER BY cinema_name").fetchall()
+            if hasattr(self, "forecast_cinema_cb"):
+                self.forecast_cinema_cb["values"] = [c["cinema_name"] for c in cinemas]
+        except Exception as e:
+            print(f"Error refreshing forecast cinema list: {e}")
+
+    def _submit_city(self):
+        from src.utils.input_validator import InputValidator
+        city_name = InputValidator.sanitise_text(self.city_name_ent.get(), 100)
+        if not city_name:
+            messagebox.showerror("Validation Error", "City name is required.")
+            return
+
+        try:
+            pm = float(self.city_p_morn.get())
+            pa = float(self.city_p_aft.get())
+            pe = float(self.city_p_eve.get())
+        except ValueError:
+            messagebox.showerror("Validation Error",
+                                 "Prices must be valid numbers.")
+            return
+
+        if any(p <= 0 for p in (pm, pa, pe)):
+            messagebox.showerror("Validation Error",
+                                 "All prices must be greater than zero.")
+            return
+
+        try:
+            conn = get_connection()
+            # Check duplicate
+            existing = conn.execute(
+                "SELECT city_id FROM cities WHERE LOWER(city_name) = ?",
+                (city_name.lower(),)
+            ).fetchone()
+            if existing:
+                messagebox.showerror(
+                    "Duplicate",
+                    f"City '{city_name}' already exists."
+                )
+                return
+
+            conn.execute("BEGIN")
+            cur = conn.execute(
+                "INSERT INTO cities (city_name) VALUES (?)", (city_name,)
+            )
+            city_id = cur.lastrowid
+
+            today_iso = datetime.date.today().isoformat()
+            for stype, price in [
+                ("morning", pm), ("afternoon", pa), ("evening", pe)
+            ]:
+                conn.execute(
+                    "INSERT INTO prices (city_id, show_type, lower_hall_price, effective_from) "
+                    "VALUES (?, ?, ?, ?)",
+                    (city_id, stype, price, today_iso)
+                )
+
+            conn.commit()
+            messagebox.showinfo(
+                "Success",
+                f"City '{city_name}' added with prices:\n"
+                f"  Morning: £{pm:.2f}  |  Afternoon: £{pa:.2f}  |  Evening: £{pe:.2f}"
+            )
+            self.city_name_ent.delete(0, tk.END)
+            self._refresh_all_cinema_data()
+
+        except Exception as e:
+            conn.rollback()
+            messagebox.showerror("Database Error", f"Failed to add city:\n{e}")
+
     # ---- TAB 1: ADD CINEMA ----
     def _build_cinema_tab(self):
         card = tk.Frame(self.tab_cinema, bg=BG_CARD, padx=30, pady=30, highlightbackground=BORDER, highlightthickness=1)
@@ -117,10 +334,11 @@ class ManagerWindow:
         
         tk.Label(card, text="Register New Cinema Location", font=FONT_H2, bg=BG_CARD, fg=TEXT).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 20))
         
-        # City
+        # City — loaded dynamically from DB
         tk.Label(card, text="City:", font=FONT_BODY, bg=BG_CARD, fg=TEXT2).grid(row=1, column=0, sticky="w", pady=10)
-        self.cinema_city_cb = ttk.Combobox(card, values=["Birmingham", "Bristol", "Cardiff", "London"], font=FONT_BODY, width=30)
+        self.cinema_city_cb = ttk.Combobox(card, font=FONT_BODY, width=30)
         self.cinema_city_cb.grid(row=1, column=1, sticky="w", pady=10)
+        self._refresh_city_list()  # populate from DB
         
         # Name
         tk.Label(card, text="Cinema Name:", font=FONT_BODY, bg=BG_CARD, fg=TEXT2).grid(row=2, column=0, sticky="w", pady=10)
@@ -208,8 +426,7 @@ class ManagerWindow:
             # Clear form & refresh
             self.cinema_name_ent.delete(0, tk.END)
             self.cinema_loc_ent.delete(0, tk.END)
-            self._load_overview()
-            self._load_listing_data()
+            self._refresh_all_cinema_data()
             
         except Exception as e:
             conn.rollback()
@@ -388,11 +605,11 @@ class ManagerWindow:
         fr = tk.Frame(self.tab_overview, bg=BG)
         fr.pack(fill="both", expand=True, padx=30, pady=30)
         
-        tk.Label(fr, text="Cinemas Overview", font=FONT_H2, bg=BG, fg=TEXT).pack(anchor="w", pady=(0, 10))
+        tk.Label(fr, text="Cinemas Overview", font=FONT_H2, bg=BG, fg="#F2EAD3").pack(anchor="w", pady=(0, 10))
         
         style = ttk.Style()
-        style.configure("HCBS.Treeview", background=BG_CARD, foreground=TEXT, fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=30)
-        style.configure("HCBS.Treeview.Heading", background=BG2, foreground=TEXT, font=FONT_BTN)
+        style.configure("HCBS.Treeview", background=BG_CARD, foreground=TEXT, fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=35)
+        style.configure("HCBS.Treeview.Heading", background=BG2, foreground=ACCENT, font=FONT_BTN)
         
         cols = ("city", "cinema", "screens", "listings")
         self.tv = ttk.Treeview(fr, columns=cols, show="headings", style="HCBS.Treeview")
@@ -426,7 +643,7 @@ class ManagerWindow:
             query = """
             SELECT c.city_name, cn.cinema_name, 
                    COUNT(DISTINCT s.screen_id) as screen_count, 
-                   COUNT(DISTINCT sh.showing_id) as listing_count
+                   COUNT(DISTINCT CASE WHEN sh.is_cancelled = 0 THEN sh.showing_id END) as listing_count
             FROM cities c
             JOIN cinemas cn ON c.city_id = cn.city_id
             LEFT JOIN screens s ON cn.cinema_id = s.cinema_id
@@ -445,8 +662,15 @@ class ManagerWindow:
         except Exception as e:
             print(f"Overview loading error: {e}")
 
-    def _build_forecast_tab(self):
-        ctrl_fr = tk.Frame(self.tab_forecast, bg=BG2, pady=15, padx=20)
+    def _really_build_forecast_tab(self):
+        """Actual construction of the forecast UI (heavy imports and canvas)."""
+        if self.forecast_built: return
+        
+        # Clear the "Preparing..." label
+        for child in self.forecast_container.winfo_children():
+            child.destroy()
+            
+        ctrl_fr = tk.Frame(self.forecast_container, bg=BG2, pady=15, padx=20)
         ctrl_fr.pack(fill="x")
         
         tk.Label(ctrl_fr, text="Select Cinema:", font=FONT_BODY, bg=BG2, fg=TEXT2).pack(side="left")
@@ -458,28 +682,37 @@ class ManagerWindow:
         self.forecast_metric_lbl = tk.Label(ctrl_fr, text="Next Month Forecast: £0.00", font=FONT_H2, bg=BG2, fg=SUCCESS)
         self.forecast_metric_lbl.pack(side="right", padx=20)
         
-        self.forecast_plot_fr = tk.Frame(self.tab_forecast, bg=BG, padx=20, pady=20)
+        self.forecast_plot_fr = tk.Frame(self.forecast_container, bg=BG, padx=20, pady=20)
         self.forecast_plot_fr.pack(fill="both", expand=True)
         
-        import matplotlib
-        matplotlib.use("TkAgg")
-        from matplotlib.figure import Figure
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        
-        self.forecast_fig = Figure(figsize=(8, 4), dpi=144, facecolor=BG)
-        self.forecast_ax = self.forecast_fig.add_subplot(111)
-        self.forecast_ax.set_facecolor(BG2)
-        
-        self.forecast_canvas = FigureCanvasTkAgg(self.forecast_fig, master=self.forecast_plot_fr)
-        self.forecast_canvas.get_tk_widget().pack(fill="both", expand=True)
-        
-        conn = get_connection()
-        cinemas = conn.execute("SELECT cinema_name FROM cinemas ORDER BY cinema_name").fetchall()
-        self.forecast_cinema_cb["values"] = [c["cinema_name"] for c in cinemas]
-        if cinemas:
-            self.forecast_cinema_cb.current(0)
-            # Use after to allow UI to map before drawing canvas
-            self.root.after(100, self._generate_forecast)
+        # Heavy imports deferred here
+        try:
+            import matplotlib
+            matplotlib.use("TkAgg")
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            
+            self.forecast_fig = Figure(figsize=(8, 4), dpi=144, facecolor=BG)
+            self.forecast_ax = self.forecast_fig.add_subplot(111)
+            self.forecast_ax.set_facecolor(BG2)
+            
+            self.forecast_canvas = FigureCanvasTkAgg(self.forecast_fig, master=self.forecast_plot_fr)
+            self.forecast_canvas.get_tk_widget().pack(fill="both", expand=True)
+            
+            conn = get_connection()
+            cinemas = conn.execute("SELECT cinema_name FROM cinemas ORDER BY cinema_name").fetchall()
+            self.forecast_cinema_cb["values"] = [c["cinema_name"] for c in cinemas]
+            if cinemas:
+                self.forecast_cinema_cb.current(0)
+                
+            self.forecast_built = True
+            self._generate_forecast()
+        except ImportError:
+            tk.Label(self.forecast_container, text="Error: Required libraries (matplotlib/pandas) missing.", fg=ERROR, bg=BG).pack(pady=20)
+
+    def _build_forecast_tab(self):
+        # Placeholder for compatibility, but we use _really_build_forecast_tab
+        pass
 
     def _generate_forecast(self, event=None):
         cinema_name = self.forecast_cinema_var.get()
@@ -516,6 +749,10 @@ class ManagerWindow:
             
             if preds:
                 self.forecast_metric_lbl.config(text=f"Next Month Forecast: £{preds[0][1]:,.2f}")
+        else:
+            self.forecast_ax.text(0.5, 0.5, "No historical data available for this cinema", 
+                                  ha='center', va='center', color=TEXT2, transform=self.forecast_ax.transAxes)
+            self.forecast_metric_lbl.config(text="Next Month Forecast: £0.00")
                 
         self.forecast_fig.tight_layout()
         self.forecast_canvas.draw()

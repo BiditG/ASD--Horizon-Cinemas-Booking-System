@@ -12,12 +12,12 @@ from src.gui.film_listing_window import FilmListingWindow
 from src.gui.booking_window import BookingWindow
 from src.gui.cancellation_window import CancellationWindow
 
-BG = "#0b1220"
-BG2 = "#111b2e"
-ACCENT = "#4f8cff"
-TEXT = "#f8fafc"
-TEXT2 = "#a7b4c8"
-ERROR = "#ef4444"
+BG = "#1A120B"
+BG2 = "#FFFFFF"
+ACCENT = "#C69B7B"
+TEXT = "#1A120B"
+TEXT2 = "#4A4A4A"
+ERROR = "#A35709"
 FF = "Segoe UI"
 FONT_H2 = (FF, 14, "bold")
 FONT_BTN = (FF, 10, "bold")
@@ -40,6 +40,26 @@ class StaffShellWindow:
 
         self._build_topbar()
         self._build_notebook()
+
+    def _create_btn(self, parent, text, bg, command, fg="#FFFFFF", **kwargs):
+        """Helper to create a styled button with hover effects."""
+        btn = tk.Button(
+            parent, text=text, bg=bg, fg=fg,
+            relief="flat", font=("Segoe UI Semibold", 10),
+            padx=15, pady=8, cursor="hand2",
+            activebackground=bg, activeforeground=fg,
+            command=command, **kwargs
+        )
+        try:
+            r = int(bg[1:3], 16)
+            g = int(bg[3:5], 16)
+            b = int(bg[5:7], 16)
+            hover_bg = f"#{max(0, r-20):02x}{max(0, g-20):02x}{max(0, b-20):02x}"
+        except:
+            hover_bg = bg
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
+        btn.bind("<Leave>", lambda e: btn.config(bg=bg))
+        return btn
 
     # ── Tabs API used by embedded panels ────────────────────────────────────
 
@@ -86,86 +106,27 @@ class StaffShellWindow:
 
         col = 3
         if self.user and self.user.role in ("admin", "manager"):
-            tk.Button(
-                bar,
-                text="Admin Dashboard",
-                font=FONT_BTN,
-                bg="#0284c7",
-                fg=TEXT,
-                activebackground="#0369a1",
-                relief="flat",
-                cursor="hand2",
-                padx=14,
-                pady=4,
-                command=self._open_admin,
-            ).grid(row=0, column=col, padx=(0, 16))
+            self._create_btn(bar, "Admin Dashboard", "#0284C7", self._open_admin).grid(row=0, column=col, padx=(0, 16))
             col += 1
-            tk.Button(
-                bar,
-                text="📊 Dashboard",
-                font=FONT_BTN,
-                bg="#0f766e",
-                fg=TEXT,
-                activebackground="#0d9488",
-                relief="flat",
-                cursor="hand2",
-                padx=14,
-                pady=4,
-                command=self._open_dashboard,
-            ).grid(row=0, column=col, padx=(0, 16))
+            self._create_btn(bar, "📊 Dashboard", "#0D9488", self._open_dashboard).grid(row=0, column=col, padx=(0, 16))
+            col += 1
+
+        if self.user:
+            self._create_btn(bar, "Logout", ERROR, self._on_logout).grid(row=0, column=col, padx=(0, 16))
             col += 1
 
         if self.user and self.user.role == "manager":
-            tk.Button(
-                bar,
-                text="Manager Dashboard",
-                font=FONT_BTN,
-                bg="#7c3aed",
-                fg=TEXT,
-                activebackground="#6d28d9",
-                relief="flat",
-                cursor="hand2",
-                padx=14,
-                pady=4,
-                command=self._open_manager,
-            ).grid(row=0, column=col, padx=(0, 16))
+            self._create_btn(bar, "Manager Dashboard", "#7C3AED", self._open_manager).grid(row=0, column=col, padx=(0, 16))
             col += 1
 
-        tk.Button(
-            bar,
-            text="❓ Help",
-            font=FONT_BTN,
-            bg="#f59e0b",
-            fg="#000",
-            activebackground="#d97706",
-            relief="flat",
-            cursor="hand2",
-            padx=14,
-            pady=4,
-            command=self._open_chatbot,
-        ).grid(row=0, column=col, padx=(0, 16))
-        col += 1
-
-        tk.Button(
-            bar,
-            text="Logout",
-            font=FONT_BTN,
-            bg=ERROR,
-            fg=TEXT,
-            activebackground="#b91c1c",
-            relief="flat",
-            cursor="hand2",
-            padx=14,
-            pady=4,
-            command=self._logout,
-        ).grid(row=0, column=col, padx=(0, 16))
+        self._create_btn(bar, "❓ Help", WARNING, self._open_chatbot, fg="#000000").grid(row=0, column=col, padx=(0, 16))
 
     def _build_notebook(self) -> None:
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TNotebook", background=BG, borderwidth=0)
-        style.configure("TNotebook.Tab", padding=[14, 10], font=(FF, 11, "bold"))
-        style.map("TNotebook.Tab", background=[("selected", ACCENT)], foreground=[("selected", TEXT)])
+        style.configure("TNotebook.Tab", background=BG, foreground=TEXT2, padding=[14, 10], font=(FF, 11, "bold"))
+        style.map("TNotebook.Tab", background=[("selected", ACCENT), ("active", BG2)], foreground=[("selected", "#FFFFFF"), ("active", TEXT)])
 
         nb = ttk.Notebook(self.root)
         nb.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))

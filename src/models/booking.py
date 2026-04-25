@@ -21,18 +21,34 @@ class BookingManager:
     """
 
     @staticmethod
-    def validate_booking_date(show_date: date) -> None:
+    def validate_booking_date(show_date: date, show_time: Optional[str] = None) -> None:
         """
-        Validates that the show_date is within the allowed booking window.
+        Validates that the show_date (and optionally show_time) is in the future.
         """
         if isinstance(show_date, str):
             show_date = datetime.date.fromisoformat(show_date)
         elif isinstance(show_date, datetime.datetime):
             show_date = show_date.date()
             
-        difference = (show_date - datetime.date.today()).days
+        today = datetime.date.today()
+        difference = (show_date - today).days
+        
         if difference < 0:
             raise BookingError('Cannot book for a past showing')
+            
+        if difference == 0 and show_time:
+            # If it's today, check the time
+            try:
+                now_time = datetime.datetime.now().time()
+                # Parse show_time (HH:MM)
+                h, m = map(int, show_time.split(':'))
+                show_t = datetime.time(h, m)
+                
+                if now_time >= show_t:
+                    raise BookingError('This showing has already started or passed')
+            except ValueError:
+                pass # If time format is weird, fallback to date-only check
+                
         if difference > 7:
             raise BookingError('Advance booking limit is 7 days')
         return None
@@ -141,7 +157,7 @@ class BookingManager:
         if quantity <= 0:
             raise ValueError("Ticket quantity must be at least 1")
     
-        BookingManager.validate_booking_date(showing.show_date)
+        BookingManager.validate_booking_date(showing.show_date, showing.show_time)
 
         # Fetch user role and home cinema
         cursor = db_connection.execute("SELECT role, cinema_id FROM users WHERE user_id = ?", (staff_user_id,))

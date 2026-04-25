@@ -80,16 +80,16 @@ TOTAL COST        : £{booking_data['total_cost']:.2f}
 ========================================""".strip()
 
 # ── Style Constants ──────────────────────────────────────────────────────────
-BG          = "#0b1220"
-BG2         = "#111b2e"
-BG_CARD     = "#162338"
-ACCENT      = "#4f8cff"
-SUCCESS     = "#22c55e"
-WARNING     = "#f59e0b"
-ERROR       = "#ef4444"
-TEXT        = "#f8fafc"
-TEXT2       = "#a7b4c8"
-BORDER      = "#26344a"
+BG          = "#1A120B"
+BG2         = "#FFFFFF"
+BG_CARD     = "#FFFFFF"
+ACCENT      = "#C69B7B"
+SUCCESS     = "#8E9775"
+WARNING     = "#C69B7B"
+ERROR       = "#A35709"
+TEXT        = "#1A120B"
+TEXT2       = "#4A4A4A"
+BORDER      = "#E5E5E5"
 
 FF          = "Segoe UI"
 FONT_H1     = (FF, 22, "bold")
@@ -131,8 +131,29 @@ class BookingWindow:
         self._debounce_timer = None
         
         self._configure_styles()
+        self._configure_styles()
         self._build_ui()
         self._initialise_data()
+
+    def _create_btn(self, parent, text, bg, command, fg="#FFFFFF", **kwargs):
+        """Helper to create a styled button with hover effects."""
+        btn = tk.Button(
+            parent, text=text, bg=bg, fg=fg,
+            relief="flat", font=("Segoe UI Semibold", 11),
+            padx=20, pady=10, cursor="hand2",
+            activebackground=bg, activeforeground=fg,
+            command=command, **kwargs
+        )
+        try:
+            r = int(bg[1:3], 16)
+            g = int(bg[3:5], 16)
+            b = int(bg[5:7], 16)
+            hover_bg = f"#{max(0, r-20):02x}{max(0, g-20):02x}{max(0, b-20):02x}"
+        except:
+            hover_bg = bg
+        btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
+        btn.bind("<Leave>", lambda e: btn.config(bg=bg))
+        return btn
 
     def load_showing_prefill(self, showing_id: int) -> None:
         """Used from the staff shell: open New booking with a showing pre-selected."""
@@ -262,9 +283,8 @@ class BookingWindow:
         chk_frame = tk.Frame(tkt_card, bg=BG_CARD)
         chk_frame.grid(row=2, column=0, columnspan=4, sticky="w", pady=(20, 0))
 
-        tk.Button(chk_frame, text="🔍 Check Availability & Price", font=FONT_BTN, bg=BG2, fg=TEXT,
-              activebackground=BG, relief="flat", padx=15, pady=6, cursor="hand2",
-              command=self.check_availability_and_price).pack(side="left")
+        self.check_btn = self._create_btn(chk_frame, "🔍 Check Availability & Price", BG2, self.check_availability_and_price, fg=ACCENT)
+        self.check_btn.pack(side="left")
 
         self.avail_lbl = tk.Label(
             chk_frame,
@@ -302,28 +322,23 @@ class BookingWindow:
         self.dup_lbl = tk.Label(self.dup_banner, text="", bg=WARNING, fg="#0b1220", font=FONT_BODY, wraplength=400)
         self.dup_lbl.pack(side="left", fill="x", expand=True)
         
-        self.dup_yes_btn = tk.Button(self.dup_banner, text="Yes", bg="#0b1220", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._dismiss_duplicate_banner)
+        self.dup_yes_btn = self._create_btn(self.dup_banner, "Yes", ACCENT, self._dismiss_duplicate_banner, fg="#FFFFFF")
         self.dup_yes_btn.pack(side="right", padx=5)
         
-        self.dup_no_btn = tk.Button(self.dup_banner, text="No", bg="#0b1220", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._reset_form)
+        self.dup_no_btn = self._create_btn(self.dup_banner, "No", ERROR, self._reset_form, fg="#FFFFFF")
         self.dup_no_btn.pack(side="right", padx=5)
         
         # 4. Action Buttons
         act_frame = tk.Frame(form_frame, bg=BG)
         act_frame.pack(fill="x", pady=(10, 0))
         
-        self.book_btn = tk.Button(act_frame, text="✅ Select Seats & Book", font=FONT_BTN, bg=SUCCESS, fg=TEXT, 
-                                  activebackground="#15803d", relief="flat", padx=20, pady=10, 
-                                  cursor="hand2", state="disabled", command=self._process_booking)
+        self.book_btn = self._create_btn(act_frame, "✅ Select Seats & Book", SUCCESS, self._process_booking, fg="#FFFFFF")
+        self.book_btn.config(state="disabled")
         self.book_btn.pack(side="right")
         
-        tk.Button(act_frame, text="Main Menu", font=FONT_BTN, bg=BG2, fg=TEXT,
-                  activebackground=BG_CARD, relief="flat", padx=20, pady=10,
-                  cursor="hand2", command=self._main_menu_click).pack(side="left")
+        self._create_btn(act_frame, "Main Menu", BG2, self._main_menu_click, fg=ACCENT).pack(side="left")
         
-        tk.Button(act_frame, text="🏅 Check Loyalty", font=FONT_BTN, bg="#92400e", fg=TEXT,
-                  activebackground="#78350f", relief="flat", padx=14, pady=10,
-                  cursor="hand2", command=self._show_loyalty_popup).pack(side="left", padx=(12, 0))
+        self._create_btn(act_frame, "🏅 Check Loyalty", "#92400E", self._show_loyalty_popup, fg="#FFFFFF").pack(side="left", padx=(12, 0))
 
     def _build_receipt_panel(self) -> None:
         rec_frame = tk.Frame(self.root, bg=BG2, padx=30, pady=30, highlightbackground=BORDER, highlightthickness=1)
@@ -345,14 +360,10 @@ class BookingWindow:
         # Action Buttons below receipt
         self.rec_act_frame = tk.Frame(rec_frame, bg=BG2)
         
-        self.pdf_btn = tk.Button(self.rec_act_frame, text="🖨️ Print / Save PDF", font=FONT_BTN, bg=BG_CARD, fg=TEXT, 
-                                  activebackground=BG, relief="flat", padx=15, pady=10, 
-                                  cursor="hand2", command=self._generate_pdf)
+        self.pdf_btn = self._create_btn(self.rec_act_frame, "🖨️ Print / Save PDF", ACCENT, self._generate_pdf, fg="#FFFFFF")
         self.pdf_btn.pack(side="left")
 
-        self.new_booking_btn = tk.Button(self.rec_act_frame, text="🔄 New Booking", font=FONT_BTN, bg=BG_CARD, fg=TEXT, 
-                                  activebackground=BG, relief="flat", padx=15, pady=10, 
-                                  cursor="hand2", command=self._reset_form)
+        self.new_booking_btn = self._create_btn(self.rec_act_frame, "🔄 New Booking", BG2, self._reset_form, fg=ACCENT)
         self.new_booking_btn.pack(side="right")
         
         # Hide buttons initially
@@ -592,7 +603,7 @@ class BookingWindow:
         # 2. Check booking date validation
         from src.models.booking import BookingManager, BookingError
         try:
-            BookingManager.validate_booking_date(sh.show_date)
+            BookingManager.validate_booking_date(sh.show_date, sh.show_time)
         except BookingError as e:
             self.avail_lbl.config(text=f"❌ Error: {str(e)}", fg=ERROR)
             return
@@ -682,15 +693,15 @@ class BookingWindow:
             phone = InputValidator.sanitise_text(self.cust_phone_ent.get(), 20)
 
             if not name:
-                messagebox.showwarning("Missing Info", "Customer Name is required.")
+                self.avail_lbl.config(text="❌ Error: Customer Name is required.", fg=ERROR)
                 return
 
             if email and not InputValidator.validate_email(email):
-                messagebox.showwarning("Invalid Input", "Please enter a valid email address.")
+                self.avail_lbl.config(text="❌ Error: Please enter a valid email address.", fg=ERROR)
                 return
 
             if not self._selected_showing or not self.confirmed_price:
-                messagebox.showwarning("Incomplete", "Please check availability and price first.")
+                self.avail_lbl.config(text="❌ Error: Please check availability and price first.", fg=ERROR)
                 return
 
             qty = self.confirmed_price["quantity"]

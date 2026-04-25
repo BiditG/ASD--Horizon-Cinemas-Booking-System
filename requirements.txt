@@ -5,3 +5,5 @@ reportlab
 qrcode
 bcrypt
 matplotlib
+pandas
+scikit-learn

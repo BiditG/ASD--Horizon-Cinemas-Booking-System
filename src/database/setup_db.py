@@ -68,6 +68,7 @@ def create_tables(cursor):
         show_time TEXT NOT NULL,
         show_type TEXT NOT NULL,
         seats_remaining INTEGER NOT NULL,
+        is_cancelled INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY(film_id) REFERENCES films(film_id),
         FOREIGN KEY(screen_id) REFERENCES screens(screen_id)
     );
@@ -231,26 +232,28 @@ def seed_data(cursor):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, users_data)
 
-    # 7. Create 72 showings for TODAY across all cinemas (9 per cinema, 3 per screen)
-    print("Seeding showings for today...")
+    # 7. Create showings for the next 7 days (including Today)
+    print("Seeding showings for the next 7 days...")
     show_types_times = [('morning', '10:00'), ('afternoon', '14:30'), ('evening', '19:00')]
-    today_showings = []
+    future_showings = []
     film_idx = 0
     
     cursor.execute("SELECT screen_id, total_capacity FROM screens ORDER BY screen_id")
     all_screens = cursor.fetchall()
     films_list = list(range(1, 9))
     
-    for screen_id, capacity in all_screens:
-        for show_type, show_time in show_types_times:
-            film_id = films_list[film_idx % len(films_list)]
-            today_showings.append((film_id, screen_id, today, show_time, show_type, capacity))
-            film_idx += 1
+    for d_offset in range(8): # Today + next 7 days
+        target_date = (datetime.date.today() + datetime.timedelta(days=d_offset)).isoformat()
+        for screen_id, capacity in all_screens:
+            for show_type, show_time in show_types_times:
+                film_id = films_list[film_idx % len(films_list)]
+                future_showings.append((film_id, screen_id, target_date, show_time, show_type, capacity))
+                film_idx += 1
     
     cursor.executemany("""
         INSERT INTO showings (film_id, screen_id, show_date, show_time, show_type, seats_remaining)
         VALUES (?, ?, ?, ?, ?, ?)
-    """, today_showings)
+    """, future_showings)
 
     # 8. Create historical showings (past 30 days) for reports
     print("Seeding historical showings for reports...")

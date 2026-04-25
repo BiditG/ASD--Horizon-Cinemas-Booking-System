@@ -53,6 +53,7 @@ class RevenueReportPanel:
 
     def __init__(self, parent):
         self.parent = parent
+        self.root = parent.winfo_toplevel()
         self._sort_col = None
         self._sort_asc = True
         self._report_rows: list[dict] = []   # current table data

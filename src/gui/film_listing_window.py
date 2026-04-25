@@ -31,19 +31,19 @@ from src.models.film    import Film
 from src.gui.login_window import SessionManager
 
 # ── Colour / font constants (matches GUI_STYLE_GUIDE.md) ────────────────────
-BG          = "#0b1220"
-BG2         = "#111b2e"
-BG_CARD     = "#162338"
-ACCENT      = "#4f8cff"
-ACCENT_HVR  = "#3478f6"
-SUCCESS     = "#22c55e"
-SUCCESS_HVR = "#16a34a"
-SOLD_OUT    = "#2b3750"
-WARNING     = "#f59e0b"
-TEXT        = "#f8fafc"
-TEXT2       = "#a7b4c8"
-ERROR       = "#ef4444"
-BORDER      = "#26344a"
+BG          = "#1A120B"
+BG2         = "#FFFFFF"
+BG_CARD     = "#FFFFFF"
+ACCENT      = "#C69B7B"
+ACCENT_HVR  = "#D9D2B6"
+SUCCESS     = "#8E9775"
+SUCCESS_HVR = "#A7AF92"
+SOLD_OUT    = "#E5E5E5"
+WARNING     = "#C69B7B"
+TEXT        = "#1A120B"
+TEXT2       = "#4A4A4A"
+ERROR       = "#A35709"
+BORDER      = "#E5E5E5"
 
 FF          = "Segoe UI"
 FONT_H1     = (FF, 20, "bold")
@@ -155,17 +155,12 @@ class FilmListingWindow:
                  font=FONT_H2, bg=BG2, fg=TEXT
                  ).grid(row=0, column=1, sticky="w")
 
-        # User info
-        user_text = f"{self.user.full_name}  ({self.user.role.capitalize()})" if self.user else ""
-        tk.Label(bar, text=user_text, font=FONT_SMALL, bg=BG2, fg=TEXT2
-                 ).grid(row=0, column=2, padx=12)
-
         col = 3
         # Admin Dashboard
         if self.user and self.user.role in ('admin', 'manager'):
             admin_btn = tk.Button(
                 bar, text="Admin Dashboard", font=FONT_BTN,
-                bg="#0284c7", fg=TEXT, activebackground="#0369a1",
+                bg=ACCENT, fg=TEXT, activebackground=ACCENT_HVR,
                 relief="flat", cursor="hand2", padx=14, pady=4,
                 command=self._open_admin
             )
@@ -174,7 +169,7 @@ class FilmListingWindow:
 
             dash_btn = tk.Button(
                 bar, text="📊 Dashboard", font=FONT_BTN,
-                bg="#0f766e", fg=TEXT, activebackground="#0d9488",
+                bg="#8E9775", fg=TEXT, activebackground="#A7AF92",
                 relief="flat", cursor="hand2", padx=14, pady=4,
                 command=self._open_dashboard
             )
@@ -185,18 +180,18 @@ class FilmListingWindow:
         if self.user and self.user.role == 'manager':
             mgr_btn = tk.Button(
                 bar, text="Manager Dashboard", font=FONT_BTN,
-                bg="#7c3aed", fg=TEXT, activebackground="#6d28d9",
+                bg="#8E9775", fg=TEXT, activebackground="#A7AF92",
                 relief="flat", cursor="hand2", padx=14, pady=4,
                 command=self._open_manager
             )
             mgr_btn.grid(row=0, column=col, padx=(0, 16))
             col += 1
 
-        # Cancel Booking (shell uses a tab; keep button for standalone window only)
+        # Cancel Booking
         if not self._embedded:
             cancel_btn = tk.Button(
                 bar, text="Cancel Booking", font=FONT_BTN,
-                bg="#dc2626", fg=TEXT, activebackground="#b91c1c",
+                bg=ERROR, fg=TEXT, activebackground="#C16A0B",
                 relief="flat", cursor="hand2", padx=14, pady=4,
                 command=self._open_cancellation
             )
@@ -206,7 +201,7 @@ class FilmListingWindow:
         # Help Chatbot
         help_btn = tk.Button(
             bar, text="❓ Help", font=FONT_BTN,
-            bg="#f59e0b", fg="#000", activebackground="#d97706",
+            bg=WARNING, fg=TEXT, activebackground=ACCENT_HVR,
             relief="flat", cursor="hand2", padx=14, pady=4,
             command=self._open_chatbot
         )
@@ -216,7 +211,7 @@ class FilmListingWindow:
         # Logout
         logout_btn = tk.Button(
             bar, text="Logout", font=FONT_BTN,
-            bg=ERROR, fg=TEXT, activebackground="#b91c1c",
+            bg="#4A4A4A", fg="#FFFFFF", activebackground="#333333",
             relief="flat", cursor="hand2", padx=14, pady=4,
             command=self._logout
         )

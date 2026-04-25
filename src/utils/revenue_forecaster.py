@@ -63,39 +63,48 @@ def generate_synthetic_history(cinema_id: int, num_months: int = 6) -> pd.DataFr
 def forecast_revenue(cinema_id: int) -> tuple[pd.DataFrame, list[tuple[str, float]]]:
     """
     Returns:
-    - actuals_df: DataFrame of last 6 months (actual or synthetic)
+    - display_df: DataFrame of last 6 months (ACTUAL data only for display)
     - predictions: List of (month_label, predicted_revenue) for next 3 months
     
-    Implementation: Option A (scikit-learn LinearRegression)
-    Predicts next 3 months using linear regression on a time index.
+    Implementation: Uses actuals for display but backfills with synthetic 
+    internally to allow the LinearRegression model to function for new cinemas.
     """
-    df = get_actual_revenue_data()
+    df_all = get_actual_revenue_data()
+    actuals_df = pd.DataFrame()
     
-    if not df.empty:
-        df = df[df["cinema_id"] == cinema_id]
+    if not df_all.empty:
+        actuals_df = df_all[df_all["cinema_id"] == cinema_id].copy()
         
-    if len(df) < 6:
-        syn_df = generate_synthetic_history(cinema_id, 6 - len(df))
-        if df.empty:
-            df = syn_df
-        else:
-            df = pd.concat([syn_df, df], ignore_index=True)
+    if actuals_df.empty:
+        # No actual data at all
+        return pd.DataFrame(columns=["cinema_id", "year", "month", "total_revenue", "label"]), []
             
-    # Sort chronologically and take last 6
-    df = df.sort_values(by=["year", "month"]).tail(6).copy()
+    # For display: last 6 actual months
+    display_df = actuals_df.sort_values(by=["year", "month"]).tail(6).copy()
+    display_df["label"] = display_df.apply(lambda r: datetime.date(int(r["year"]), int(r["month"]), 1).strftime("%b %Y"), axis=1)
+
+    # For the model: we need multiple points for regression. 
+    # We backfill with synthetic data internally if we have < 6 points.
+    model_df = actuals_df.sort_values(by=["year", "month"]).copy()
+    if len(model_df) < 6:
+        # Generate enough to have 6 months total
+        syn_count = 6 - len(model_df)
+        syn_df = generate_synthetic_history(cinema_id, syn_count)
+        model_df = pd.concat([syn_df, model_df], ignore_index=True)
     
-    # Create time index
-    df["time_idx"] = np.arange(len(df))
+    # Take last 6 for the model
+    model_df = model_df.sort_values(by=["year", "month"]).tail(6).copy()
+    model_df["time_idx"] = np.arange(len(model_df))
     
-    X = df[["time_idx"]]
-    y = df["total_revenue"]
+    X = model_df[["time_idx"]].values
+    y = model_df["total_revenue"].values
     
     model = LinearRegression()
     model.fit(X, y)
     
-    last_year = int(df["year"].iloc[-1])
-    last_month = int(df["month"].iloc[-1])
-    last_idx = int(df["time_idx"].iloc[-1])
+    last_year = int(model_df["year"].iloc[-1])
+    last_month = int(model_df["month"].iloc[-1])
+    last_idx = int(model_df["time_idx"].iloc[-1])
     
     predictions = []
     for i in range(1, 4):
@@ -111,7 +120,4 @@ def forecast_revenue(cinema_id: int) -> tuple[pd.DataFrame, list[tuple[str, floa
         label = datetime.date(ny, nm, 1).strftime("%b %Y")
         predictions.append((label, round(float(pred_rev), 2)))
         
-    # Format actuals df labels
-    df["label"] = df.apply(lambda r: datetime.date(int(r["year"]), int(r["month"]), 1).strftime("%b %Y"), axis=1)
-    
-    return df, predictions
+    return display_df, predictions

@@ -65,3 +65,38 @@ class CancellationManager:
         except Exception as e:
             db_connection.rollback()
             raise Exception(f"Failed to cancel booking: {e}")
+    @staticmethod
+    def cancel_showing(showing_id: int, db_connection) -> int:
+        """
+        Cancels a showing and all its associated bookings with 100% refund (0 fee).
+        Returns the count of bookings affected.
+        """
+        try:
+            db_connection.execute("BEGIN")
+            
+            # 1. Update showing status
+            db_connection.execute("UPDATE showings SET is_cancelled = 1 WHERE showing_id = ?", (showing_id,))
+            
+            # 2. Get count of affected bookings
+            cursor = db_connection.execute(
+                "SELECT COUNT(*) as c FROM bookings WHERE showing_id = ? AND booking_status = 'Active'", 
+                (showing_id,)
+            )
+            count = cursor.fetchone()["c"]
+            
+            now = datetime.datetime.now().isoformat()
+            
+            # 3. Update all active bookings to 'Showing Cancelled'
+            db_connection.execute("""
+                UPDATE bookings 
+                SET booking_status = 'Showing Cancelled',
+                    cancellation_fee = 0.00,
+                    cancelled_at = ?
+                WHERE showing_id = ? AND booking_status = 'Active'
+            """, (now, showing_id))
+            
+            db_connection.commit()
+            return count
+        except Exception as e:
+            db_connection.rollback()
+            raise Exception(f"Failed to cancel showing: {e}")

@@ -4,15 +4,15 @@ from typing import Callable, List
 from src.database.db_connection import get_connection
 from src.utils.seat_recommender import recommend_seats
 
-BG = "#0b1220"
-BG2 = "#111b2e"
-CARD = "#162338"
-ACCENT = "#4f8cff"
-SUCCESS = "#22c55e"
-WARNING = "#f59e0b"
-TEXT = "#f8fafc"
-TEXT2 = "#a7b4c8"
-BORDER = "#26344a"
+BG = "#FFFFFF"
+BG2 = "#F8FAFC"
+CARD = "#FFFFFF"
+ACCENT = "#093C5D"
+SUCCESS = "#10B981"
+WARNING = "#F59E0B"
+TEXT = "#093C5D"
+TEXT2 = "#64748B"
+BORDER = "#E2E8F0"
 FONT_FAMILY = "Segoe UI"
 
 class SeatMapWindow:
@@ -131,7 +131,7 @@ class SeatMapWindow:
         if self.is_bulk:
             self._add_legend_item(legend_frame, "Group Selection", "#f97316", fg="white")
         else:
-            self._add_legend_item(legend_frame, "Recommended/Selected", "yellow", fg="black")
+            self._add_legend_item(legend_frame, "Recommended/Selected", "yellow", fg=TEXT)
         
         # Status Label — show group booking banner if bulk
         if self.is_bulk:
