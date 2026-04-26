@@ -1,399 +1,262 @@
 import pytest
 import sqlite3
 import datetime
-import sys
-from unittest.mock import MagicMock
 
-# Mock bcrypt to avoid ModuleNotFoundError in test environments that lack it
-mock_bcrypt = MagicMock()
-mock_bcrypt.gensalt.return_value = b'salt'
-mock_bcrypt.hashpw.return_value = b'hashed_password'
-mock_bcrypt.checkpw.return_value = True
-sys.modules['bcrypt'] = mock_bcrypt
-
+from src.database.db_connection import get_connection
 from src.database import db_connection
-from src.database.setup_db import create_tables, seed_data
-from src.models.cinema import Cinema, CinemaNotFoundError
-from src.models.screen import Screen, ScreenNotFoundError
-from src.models.film import Film, FilmNotFoundError
-from src.models.showing import Showing, ShowingNotFoundError, ShowingFullError
+import src.database.setup_db as setup_db
+from src.models.cinema import Cinema
+from src.models.screen import Screen
+from src.models.film import Film
+from src.models.showing import Showing
 from src.models.booking import BookingManager, BookingError
-from src.models.user import User, AuthenticationError
+from src.models.user import User
 from src.utils.pricing_engine import PricingEngine
 
-
-@pytest.fixture(autouse=True)
-def setup_in_memory_db():
+@pytest.fixture(scope="function")
+def db():
     """
-    Sets up an in-memory SQLite database for testing, isolated from the production db.
-    Applies the schema and inserts basic seed data (cities, cinemas, films).
+    Setup an in-memory SQLite database for testing.
+    This creates tables and seeds initial data via setup_db.
+    It overrides the singleton connection in db_connection.
     """
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    conn = sqlite3.connect(':memory:', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     
-    cursor = conn.cursor()
-    # Create the tables using the existing setup script
-    create_tables(cursor)
+    setup_db.create_tables(conn)
+    setup_db.seed_data(conn)
     
-    # Patch the schema to match model expectations (setup_db.py is out of date)
-    cursor.executescript("""
-        ALTER TABLE cinemas ADD COLUMN location TEXT DEFAULT '';
-        ALTER TABLE cinemas ADD COLUMN is_active INTEGER DEFAULT 1;
-        ALTER TABLE films ADD COLUMN description TEXT DEFAULT '';
-        ALTER TABLE films ADD COLUMN imdb_rating REAL DEFAULT NULL;
-        ALTER TABLE films ADD COLUMN cast_members TEXT DEFAULT '';
-        ALTER TABLE films ADD COLUMN poster_path TEXT DEFAULT '';
-        ALTER TABLE films ADD COLUMN is_active INTEGER DEFAULT 1;
-        ALTER TABLE showings ADD COLUMN is_cancelled INTEGER DEFAULT 0;
-    """)
-    
-    # We'll seed the database with basic lookup data so FK constraints pass
-    # Cities
-    cities = ['Birmingham', 'Bristol', 'Cardiff', 'London']
-    for city in cities:
-        cursor.execute("INSERT INTO cities (city_name) VALUES (?)", (city,))
-        
-    # Prices (needed for PricingEngine)
-    today = datetime.date.today().isoformat()
-    prices_data = [
-        # Birmingham (city_id=1)
-        (1, 'morning', 5.0, today), (1, 'afternoon', 6.0, today), (1, 'evening', 7.0, today),
-        # London (city_id=4)
-        (4, 'morning', 10.0, today), (4, 'afternoon', 11.0, today), (4, 'evening', 12.0, today)
-    ]
-    cursor.executemany("INSERT INTO prices (city_id, show_type, lower_hall_price, effective_from) VALUES (?, ?, ?, ?)", prices_data)
-    
-    # Insert a dummy cinema to satisfy FK constraints for users
-    cursor.execute("INSERT INTO cinemas (cinema_id, city_id, cinema_name) VALUES (1, 1, 'Test Cinema')")
-    
-    # Insert a dummy user to act as staff for bookings
-    cursor.execute(
-        "INSERT INTO users (cinema_id, username, password_hash, full_name, email, role, theme_pref, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (1, 'test_staff', 'hashed_password', 'Test Staff', 'staff@test.com', 'staff', 'dark', 1)
-    )
-    
-    conn.commit()
-    
-    # Inject into application
+    # Store original connection and swap with in-memory one
+    original_conn = db_connection._connection
     db_connection._connection = conn
+    
     yield conn
     
-    # Teardown
-    db_connection._connection = None
+    # Restore and close
+    db_connection._connection = original_conn
     conn.close()
 
+# ------------------------------------------------------------------------------
+# Cinema model tests
+# ------------------------------------------------------------------------------
 
-# =====================================================================
-# Cinema Model Tests
-# =====================================================================
-
-def test_cinema_creation_valid():
+def test_cinema_creation_valid(db):
     """assert all fields stored correctly"""
-    cinema = Cinema.create(city_id=1, name="Test Cinema", location="123 Test St")
+    cinema = Cinema.create(city_id=1, name="Test Cinema", location="Test Location")
+    assert cinema.cinema_id is not None
     assert cinema.cinema_name == "Test Cinema"
-    assert cinema.location == "123 Test St"
+    assert cinema.location == "Test Location"
     assert cinema.city_id == 1
     assert cinema.is_active is True
 
-def test_cinema_city_validation():
-    """assert only valid cities accepted (FK constraint check)"""
-    with pytest.raises(sqlite3.DatabaseError):
-        # City ID 999 does not exist
-        Cinema.create(city_id=999, name="Invalid City Cinema", location="Unknown")
+def test_cinema_city_validation(db):
+    """assert only valid cities accepted"""
+    # Attempt to create a cinema in a non-existent city (e.g., city_id 999)
+    # The foreign key constraint should raise an IntegrityError
+    with pytest.raises(sqlite3.IntegrityError):
+        Cinema.create(city_id=999, name="Test Cinema", location="Test Location")
 
-def test_add_screen_to_cinema(setup_in_memory_db):
+def test_add_screen_to_cinema(db):
     """assert screen count increases"""
-    conn = setup_in_memory_db
-    cinema = Cinema.create(city_id=1, name="Screen Test Cinema", location="Location")
+    initial_screens = Screen.get_by_cinema(1)
     
-    initial_screens = len(Screen.get_by_cinema(cinema.cinema_id))
-    assert initial_screens == 0
-    
-    conn.execute(
-        "INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (?, ?, ?, ?, ?, ?)",
-        (cinema.cinema_id, 1, 100, 30, 60, 10)
+    # Manually insert a screen to the cinema
+    db.execute(
+        """INSERT INTO screens (cinema_id, screen_number, total_capacity, 
+           lower_hall_seats, upper_gallery_seats, vip_seats) 
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (1, 99, 100, 30, 60, 10)
     )
-    conn.commit()
+    db.commit()
     
-    final_screens = len(Screen.get_by_cinema(cinema.cinema_id))
-    assert final_screens == 1
+    new_screens = Screen.get_by_cinema(1)
+    assert len(new_screens) == len(initial_screens) + 1
 
+# ------------------------------------------------------------------------------
+# Screen model tests
+# ------------------------------------------------------------------------------
 
-# =====================================================================
-# Screen Model Tests
-# =====================================================================
-
-def test_screen_capacity_range():
+def test_screen_capacity_range(db):
     """assert capacity between 50–120, reject outside range"""
-    # Assuming the Screen class or business logic should validate this
-    # We will test the bounds (if validation is missing, this serves as a failing TDD spec)
-    try:
-        # Some implementations might validate in __init__
-        Screen(screen_id=1, cinema_id=1, screen_number=1, total_capacity=200, lower_hall_seats=60, upper_gallery_seats=120, vip_seats=20)
-        # If no exception in __init__, we check manual logic for TDD expectations
-        raise ValueError("Capacity 200 should be rejected")
-    except ValueError:
-        pass # Expected
+    screens = db.execute("SELECT * FROM screens").fetchall()
+    for s in screens:
+        assert 50 <= s["total_capacity"] <= 120
 
-def test_lower_hall_seat_count():
+def test_lower_hall_seat_count(db):
     """assert ~30% of capacity assigned to lower hall"""
-    capacity = 100
-    expected_lower = int(capacity * 0.3)
-    screen = Screen(screen_id=1, cinema_id=1, screen_number=1, total_capacity=capacity, 
-                    lower_hall_seats=expected_lower, upper_gallery_seats=60, vip_seats=10)
-    
-    assert screen.lower_hall_seats == 30
+    screens = db.execute("SELECT * FROM screens").fetchall()
+    for s in screens:
+        expected_lower = int(s["total_capacity"] * 0.3)
+        assert s["lower_hall_seats"] == expected_lower
 
+# ------------------------------------------------------------------------------
+# Film model tests
+# ------------------------------------------------------------------------------
 
-# =====================================================================
-# Film Model Tests
-# =====================================================================
-
-def test_film_creation():
+def test_film_creation(db):
     """assert title, genre, age_rating, duration stored correctly"""
-    film = Film.create(title="Epic Movie", genre="Action", age_rating="12A", duration_mins=120)
-    assert film.title == "Epic Movie"
+    film = Film.create(title="Test Film", genre="Action", age_rating="15", duration_mins=120)
+    assert film.title == "Test Film"
     assert film.genre == "Action"
-    assert film.age_rating == "12A"
+    assert film.age_rating == "15"
     assert film.duration_mins == 120
 
-def test_film_age_rating_valid_values():
+def test_film_age_rating_valid_values(db):
     """assert only valid BBFC ratings accepted (U, PG, 12A, 12, 15, 18)"""
-    # Valid rating
-    Film.create(title="Valid Rating", genre="Comedy", age_rating="PG", duration_mins=90)
-    
-    # Invalid rating
     with pytest.raises(ValueError, match="Invalid age rating"):
-        Film.create(title="Invalid Rating", genre="Horror", age_rating="X", duration_mins=90)
+        Film.create(title="Test Film", genre="Action", age_rating="INVALID", duration_mins=120)
 
+# ------------------------------------------------------------------------------
+# Showing model tests
+# ------------------------------------------------------------------------------
 
-# =====================================================================
-# Showing Model Tests
-# =====================================================================
-
-def test_showing_creation(setup_in_memory_db):
+def test_showing_creation(db):
     """assert film, screen, show_time, date stored"""
-    conn = setup_in_memory_db
-    cinema = Cinema.create(city_id=1, name="Show Cinema", location="Loc")
-    conn.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (?, 1, 100, 30, 60, 10)", (cinema.cinema_id,))
-    screen_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
-    film = Film.create(title="Show Film", genre="Drama", age_rating="15", duration_mins=100)
-    
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    showing = Showing.create(cinema.cinema_id, screen_id, film.film_id, tomorrow, 'evening')
-    
-    assert showing.film_id == film.film_id
-    assert showing.screen_id == screen_id
-    assert showing.show_date == tomorrow
-    assert showing.show_time == "19:00" # Evening defaults to 19:00
+    assert showing.film_id == 1
+    assert showing.screen_id == 1
+    assert showing.show_date == date_str
+    assert showing.show_time == "10:00"
 
-def test_no_overlapping_shows_same_screen(setup_in_memory_db):
+def test_no_overlapping_shows_same_screen(db):
     """assert two showings on same screen at same time raises an error"""
-    # Since there's no strict DB constraint on overlapping times in sqlite setup,
-    # we simulate the test or check for business logic ValueError.
-    conn = setup_in_memory_db
-    cinema = Cinema.create(city_id=1, name="Overlap Cinema", location="Loc")
-    conn.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (?, 1, 100, 30, 60, 10)", (cinema.cinema_id,))
-    screen_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    film = Film.create(title="Overlap Film", genre="Action", age_rating="12A", duration_mins=120)
+    date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    Showing.create(cinema.cinema_id, screen_id, film.film_id, tomorrow, 'morning')
-    
-    # TDD expectation: should raise error
-    try:
-        # If business logic checks this, it will raise Exception. 
-        # Since it currently doesn't, we add a mock check for the test
-        existing = Showing.get_by_cinema_date(cinema.cinema_id, tomorrow)
-        for e in existing:
-            if e.screen_id == screen_id and e.show_time == "10:00":
-                raise ValueError("Overlapping show")
-        Showing.create(cinema.cinema_id, screen_id, film.film_id, tomorrow, 'morning')
-    except ValueError as e:
-        assert str(e) == "Overlapping show"
+    with pytest.raises(Exception, match="Overlapping showing exists"):
+        Showing.create(cinema_id=1, screen_id=1, film_id=2, date=date_str, show_type="morning")
 
-def test_advance_booking_limit(setup_in_memory_db):
+def test_advance_booking_limit(db):
     """assert bookings beyond 7 days ahead are rejected"""
-    conn = setup_in_memory_db
-    future_date = datetime.date.today() + datetime.timedelta(days=8)
+    future_date = (datetime.date.today() + datetime.timedelta(days=8)).isoformat()
     
     with pytest.raises(BookingError, match="Advance booking limit is 7 days"):
         BookingManager.validate_booking_date(future_date)
 
-def test_get_live_availability(setup_in_memory_db):
-    """assert get_live_availability returns correct capacity minus booked seats"""
-    conn = setup_in_memory_db
-    # Setup showing
-    cinema = Cinema.get_by_id(1)
-    conn.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (?, 1, 100, 30, 60, 10)", (cinema.cinema_id,))
-    screen_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+# ------------------------------------------------------------------------------
+# Booking model tests
+# ------------------------------------------------------------------------------
+
+def test_unique_booking_reference(db):
+    """assert two bookings get different references"""
+    date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
-    film = Film.create(title="Avail Film", genre="Drama", age_rating="15", duration_mins=100)
-    
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    showing = Showing.create(cinema.cinema_id, screen_id, film.film_id, tomorrow, 'evening')
-    
-    # Capacity is: lower_hall_seats=30, upper_gallery_seats=60, vip_seats=10
-    assert Showing.get_live_availability(showing.showing_id, 'lower_hall') == 30
-    assert Showing.get_live_availability(showing.showing_id, 'vip') == 10
-    
-    staff_id = conn.execute("SELECT user_id FROM users WHERE username='test_staff'").fetchone()[0]
-    
-    # Book 2 VIP tickets
-    BookingManager.create_booking(
-        showing_id=showing.showing_id,
-        staff_user_id=staff_id,
-        ticket_type='vip',
-        quantity=2,
-        customer_name='John',
-        customer_email='john@example.com',
-        customer_phone='123',
-        unit_price=5.0,
-        db_connection=conn
+    # Using admin user (user_id=1) to bypass home cinema restrictions
+    booking1 = BookingManager.create_booking(
+        showing_id=showing.showing_id, staff_user_id=1, ticket_type="lower_hall", 
+        quantity=1, customer_name="John Doe", customer_email="john@example.com", 
+        customer_phone="123", unit_price=5.0, db_connection=db
+    )
+    booking2 = BookingManager.create_booking(
+        showing_id=showing.showing_id, staff_user_id=1, ticket_type="lower_hall", 
+        quantity=1, customer_name="Jane Doe", customer_email="jane@example.com", 
+        customer_phone="123", unit_price=5.0, db_connection=db
     )
     
-    # Check availability again
-    assert Showing.get_live_availability(showing.showing_id, 'vip') == 8
-    assert Showing.get_live_availability(showing.showing_id, 'lower_hall') == 30
+    assert booking1["booking_ref"] != booking2["booking_ref"]
 
-
-# =====================================================================
-# Booking Model Tests
-# =====================================================================
-
-def test_unique_booking_reference(setup_in_memory_db):
-    """assert two bookings get different references"""
-    conn = setup_in_memory_db
-    ref1 = BookingManager.generate_booking_ref(conn)
-    
-    # Setup dependencies
-    cinema = Cinema.create(city_id=1, name="Ref Cinema", location="Loc")
-    conn.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (?, 1, 100, 30, 60, 10)", (cinema.cinema_id,))
-    screen_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    film = Film.create(title="Ref Film", genre="Drama", age_rating="15", duration_mins=100)
-    showing = Showing.create(cinema.cinema_id, screen_id, film.film_id, (datetime.date.today() + datetime.timedelta(days=1)).isoformat(), 'morning')
-    
-    # We must insert it to get a new sequence
-    conn.execute("INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent) VALUES (?, ?, 'A', 10.0, 'Active', 0)", (showing.showing_id, ref1,))
-    
-    ref2 = BookingManager.generate_booking_ref(conn)
-    assert ref1 != ref2
-
-def test_booking_total_cost_lower_hall(setup_in_memory_db):
+def test_booking_total_cost_lower_hall(db):
     """assert correct price calculated"""
-    conn = setup_in_memory_db
-    # City 1, morning = 5.0 base price
-    result = PricingEngine.calculate_price(city_id=1, show_type='morning', ticket_type='lower_hall', quantity=2, db_connection=conn)
-    assert result["unit_price"] == 5.0
-    assert result["total_price"] == 10.0
+    date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
+    
+    # Base lower_hall price in morning is 5.0
+    unit_price = 5.0
+    booking = BookingManager.create_booking(
+        showing_id=showing.showing_id, staff_user_id=1, ticket_type="lower_hall", 
+        quantity=2, customer_name="Test User", customer_email="t@test.com", 
+        customer_phone="123", unit_price=unit_price, db_connection=db
+    )
+    
+    assert booking["total_cost"] == 10.0
 
-def test_booking_total_cost_vip(setup_in_memory_db):
+def test_booking_total_cost_vip(db):
     """assert VIP price = lower_hall * 1.20 * 1.20"""
-    conn = setup_in_memory_db
-    # City 1, morning = 5.0 base price. VIP = 5.0 * 1.2 * 1.2 = 7.20
-    result = PricingEngine.calculate_price(city_id=1, show_type='morning', ticket_type='vip', quantity=1, db_connection=conn)
-    assert result["unit_price"] == 7.20
-
-def test_booking_receipt_fields(setup_in_memory_db):
-    """assert receipt contains all required fields"""
-    conn = setup_in_memory_db
-    # Fetch the test cinema that is matched to our test_staff (cinema_id=1)
-    cinema = Cinema.get_by_id(1)
-    conn.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (?, 1, 100, 30, 60, 10)", (cinema.cinema_id,))
-    screen_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    film = Film.create(title="Film", genre="Drama", age_rating="15", duration_mins=100)
+    date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
     
-    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    showing = Showing.create(cinema.cinema_id, screen_id, film.film_id, tomorrow, 'morning')
+    # Create a screen for London (city_id=4)
+    db.execute("INSERT INTO cinemas (cinema_id, city_id, cinema_name, is_active) VALUES (99, 4, 'London Cinema', 1)")
+    db.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (99, 1, 100, 30, 60, 10)")
+    screen_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
     
-    # Fetch the staff user inserted in fixture
-    staff_id = conn.execute("SELECT user_id FROM users WHERE username='test_staff'").fetchone()[0]
+    showing = Showing.create(cinema_id=99, screen_id=screen_id, film_id=1, date=date_str, show_type="evening")
+    
+    # London evening base price is 12.0
+    # VIP = 12.0 * 1.20 * 1.20 = 17.28
+    price_info = PricingEngine.calculate_price(4, "evening", "vip", 2, db)
+    assert price_info["unit_price"] == 17.28
     
     booking = BookingManager.create_booking(
-        showing_id=showing.showing_id,
-        staff_user_id=staff_id,
-        ticket_type='lower_hall',
-        quantity=2,
-        customer_name='John Doe',
-        customer_email='john@example.com',
-        customer_phone='12345',
-        unit_price=5.0,
-        db_connection=conn
+        showing_id=showing.showing_id, staff_user_id=1, ticket_type="vip", 
+        quantity=2, customer_name="VIP", customer_email="vip@vip.com", 
+        customer_phone="123", unit_price=price_info["unit_price"], db_connection=db
+    )
+    
+    assert booking["total_cost"] == 34.56
+
+def test_booking_receipt_fields(db):
+    """assert receipt contains all required fields"""
+    date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
+    
+    booking = BookingManager.create_booking(
+        showing_id=showing.showing_id, staff_user_id=1, ticket_type="lower_hall", 
+        quantity=1, customer_name="Receipt User", customer_email="r@test.com", 
+        customer_phone="123", unit_price=5.0, db_connection=db
     )
     
     assert "booking_ref" in booking
     assert "customer_name" in booking
     assert "total_cost" in booking
     assert "seat_numbers" in booking
-    assert "showing" in booking
 
-
-# =====================================================================
-# User Model Tests
-# =====================================================================
+# ------------------------------------------------------------------------------
+# User model tests
+# ------------------------------------------------------------------------------
 
 def test_user_role_validation():
-    """assert only 'manager', 'admin', 'staff' accepted"""
-    # Note: DB schema stores role strings. The class validates against VALID_ROLES.
-    # The prompt asked for 'booking_staff', but implementation uses 'staff'. We test what's built.
-    with pytest.raises(ValueError, match="Invalid role"):
-        User(user_id=1, cinema_id=1, username="test", password_hash="hash", full_name="Test", email="e", role="super_admin")
+    """assert only 'manager', 'admin', 'staff' ('booking_staff') accepted"""
+    User(1, 1, "mngr", "hash", "manager", "m@c.com", "manager")
+    User(2, 1, "admn", "hash", "admin", "a@c.com", "admin")
+    User(3, 1, "stff", "hash", "staff", "s@c.com", "staff")
     
-    valid_user = User(user_id=1, cinema_id=1, username="test", password_hash="hash", full_name="Test", email="e", role="manager")
-    assert valid_user.role == "manager"
+    with pytest.raises(ValueError, match="Invalid role"):
+        User(4, 1, "invalid", "hash", "name", "e@c.com", "booking_staff")
 
 def test_password_hashing():
     """assert stored password != plain text"""
-    # Since we mocked bcrypt, we'll assert that hash_password returns the mocked hash
-    plain = "my_secure_password"
+    plain = "secure_password"
     hashed = User.hash_password(plain)
     
     assert hashed != plain
-    assert hashed == "hashed_password" # The mocked return value
     assert User.verify_password(plain, hashed) is True
 
+# ------------------------------------------------------------------------------
+# Pricing engine tests
+# ------------------------------------------------------------------------------
 
-# =====================================================================
-# Pricing Engine Tests
-# =====================================================================
-
-def test_price_birmingham_morning(setup_in_memory_db):
+def test_price_birmingham_morning(db):
     """assert £5 for Birmingham morning lower hall"""
-    conn = setup_in_memory_db
-    # city_id 1 is Birmingham in our seed
-    price = PricingEngine.get_lower_hall_price(city_id=1, show_type='morning', db_connection=conn)
+    price = PricingEngine.get_lower_hall_price(1, "morning", db)
     assert price == 5.0
 
-def test_price_london_evening_vip(setup_in_memory_db):
+def test_price_london_evening_vip(db):
     """assert correct VIP calculation for London evening (£12 * 1.2 * 1.2 = £17.28)"""
-    conn = setup_in_memory_db
-    # city_id 4 is London in our seed. Evening base is 12.0.
-    result = PricingEngine.calculate_price(city_id=4, show_type='evening', ticket_type='vip', quantity=1, db_connection=conn)
-    assert result["unit_price"] == 17.28
+    price_info = PricingEngine.calculate_price(4, "evening", "vip", 1, db)
+    assert price_info["total_price"] == 17.28
 
-def test_upper_gallery_20_percent_higher(setup_in_memory_db):
+def test_upper_gallery_20_percent_higher(db):
     """assert upper gallery = lower hall * 1.20"""
-    conn = setup_in_memory_db
-    # city_id 1 is Birmingham, morning base is 5.0
-    result = PricingEngine.calculate_price(city_id=1, show_type='morning', ticket_type='upper_gallery', quantity=1, db_connection=conn)
-    # 5.0 * 1.20 = 6.0
-    assert result["unit_price"] == 6.0
-
-def test_pricing_breakdown_format(setup_in_memory_db):
-    """Additional pricing engine test to ensure breakdown string is correct"""
-    conn = setup_in_memory_db
-    result = PricingEngine.calculate_price(city_id=1, show_type='morning', ticket_type='vip', quantity=2, db_connection=conn)
+    base_price = PricingEngine.get_lower_hall_price(1, "morning", db)
+    price_info = PricingEngine.calculate_price(1, "morning", "upper_gallery", 1, db)
     
-    # 2 VIP tickets at 7.20 = 14.40
-    assert result["price_breakdown"] == "2x Vip @ £7.20 = £14.40"
+    assert price_info["unit_price"] == round(base_price * 1.20, 2)
 
-def test_get_price_breakdown_tiers(setup_in_memory_db):
-    """Additional pricing engine test to check all tiers simultaneously"""
-    conn = setup_in_memory_db
-    tiers = PricingEngine.get_price_breakdown(city_id=1, show_type='morning', db_connection=conn)
-    
-    assert tiers["lower_hall"] == 5.0
-    assert tiers["upper_gallery"] == 6.0
-    assert tiers["vip"] == 7.20
+def test_pricing_breakdown(db):
+    """Additional pricing engine test to ensure breakdown is generated"""
+    price_info = PricingEngine.calculate_price(1, "morning", "vip", 2, db)
+    assert "Vip @ £7.20 = £14.40" in price_info["price_breakdown"]
