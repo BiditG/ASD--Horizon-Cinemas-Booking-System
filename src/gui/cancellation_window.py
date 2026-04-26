@@ -1,3 +1,4 @@
+# Student: Simona Kattel, 24030159
 import tkinter as tk
 from tkinter import messagebox
 from src.database.db_connection import get_connection

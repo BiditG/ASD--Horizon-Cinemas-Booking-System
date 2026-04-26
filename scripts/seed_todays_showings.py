@@ -1,3 +1,4 @@
+# Student: Simona Kattel, 24030159
 """
 Seed today's showings across all cinemas and screens.
 Run this to populate the database with showings for today.

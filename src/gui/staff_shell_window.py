@@ -1,3 +1,4 @@
+# Student: Simona Kattel, 24030159
 """
 Single-window staff UI: shared top bar + tabbed Now Showing / New booking / Cancel booking.
 """

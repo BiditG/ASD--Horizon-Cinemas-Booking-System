@@ -1,3 +1,4 @@
+# Student: Simona Kattel, 24030159
 """
 src/gui/revenue_report_window.py
 =================================

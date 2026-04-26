@@ -1,3 +1,4 @@
+# Student: Kanchan Chaudhary, 24030115
 """
 src/gui/dashboard_window.py
 ===========================
