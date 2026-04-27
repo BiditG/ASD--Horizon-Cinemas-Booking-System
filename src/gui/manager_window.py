@@ -60,11 +60,7 @@ class ManagerWindow:
         
         tk.Button(btn_frame, text="📊 Live Dashboard", bg="#0f766e", fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", activebackground="#115e59", command=self._open_dashboard).pack(side="left", padx=10)
         tk.Button(btn_frame, text="Switch to Admin View", bg=ACCENT, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_admin).pack(side="left", padx=10)
-<<<<<<< HEAD
-        tk.Button(btn_frame, text="Close", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", activebackground=BG2, command=self.root.destroy).pack(side="left")
-=======
         tk.Button(btn_frame, text="Logout", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._logout).pack(side="left")
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
         
         # Notebook
         style = ttk.Style()

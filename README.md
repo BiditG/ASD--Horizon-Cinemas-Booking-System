@@ -4,37 +4,61 @@ HCBS is a comprehensive Python-based cinema booking system designed to streamlin
 
 ## 🚀 Setup Instructions
 
-Follow these steps to set up the project locally:
+Follow these steps to set up and run the project locally. The steps cover Windows (PowerShell) and macOS/Linux.
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd ASD--Horizon-Cinemas-Booking-System
-    ```
+### Prerequisites
+- Python 3.10+ installed (3.13 tested in development).
+- Git to clone the repository.
+- Optional: system package manager to install system-level libraries for Pillow/matplotlib if needed.
 
-2.  **Create a virtual environment (optional but recommended):**
-    ```bash
-    python -m venv venv
-    # Windows
-    .\venv\Scripts\activate
-    # Linux/macOS
-    source venv/bin/activate
-    ```
+### 1) Clone the repository
+```bash
+git clone https://github.com/shritika28/ASD--Horizon-Cinemas-Booking-System.git
+cd ASD--Horizon-Cinemas-Booking-System
+```
 
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+### 2) Create & activate a virtual environment (recommended)
+Windows (PowerShell):
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+Windows (cmd.exe):
+```cmd
+python -m venv .venv
+.\.venv\Scripts\activate.bat
+```
+macOS / Linux:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
-4.  **Run the application:**
-    ```bash
-    python main.py
-    ```
+### 3) Install Python dependencies
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-### 🔐 Credentials
+### 4) Initialize the database (SQLite)
+The project uses an SQLite database file `hcbs.db` stored in the project root. Create and seed the DB with the provided script:
 
-The following accounts are available for testing various access levels within the system:
+```bash
+python src/database/setup_db.py
+```
 
+This will create `hcbs.db` and insert demo cinemas, screens, films, showings, prices, users, and a few bookings.
+
+If you prefer an empty database or want to re-run the setup, delete `hcbs.db` first.
+
+### 5) Run the application
+```bash
+python main.py
+```
+
+The login screen appears first. Use one of the demo accounts listed below.
+
+### Demo credentials (seeded by `setup_db.py`)
 | Role    | Username | Password   |
 | :------ | :------- | :--------- |
 | Manager | manager1 | password123 |
@@ -44,48 +68,41 @@ The following accounts are available for testing various access levels within th
 | Staff   | staff2   | password123 |
 | Staff   | staff3   | password123 |
 
-## 📦 Bulk Booking Feature
+---
 
-- **Group Booking Mode** automatically activates when the user selects a quantity of **10 or more** seats.
-- Seats are auto‑selected using a best‑available algorithm that fills whole rows first and splits across the fewest rows when necessary.
-- A banner appears in the booking UI indicating *Group Booking Mode* and the selected seats are highlighted in a distinct colour.
-- The receipt displays a *Group Booking* summary with per‑seat cost.
-- If insufficient contiguous seats are available, the system suggests the maximum possible group size.
+## Running tests
+If you want to run unit tests (requires `pytest`):
+```bash
+pip install pytest
+pytest -q
+```
 
-## 🎨 Dark Mode
+## Troubleshooting
+- "SyntaxError: invalid decimal literal" or leftover merge markers: run a file search for `<<<<<<<`, `=======`, `>>>>>>>` and remove any conflict text. This repo had merge artifacts previously — ensure files are clean.
+- If Python imports still show errors after fix, remove stale bytecode caches:
+```powershell
+Get-ChildItem -Path . -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+Get-ChildItem -Path . -Recurse -Include *.pyc | Remove-Item -Force
+```
+- Windows DPI / low-resolution UI: the app tries to enable DPI awareness in `main.py`. If UI looks tiny/large, try adjusting scaling in `main.py` or your OS display settings.
+- Git push/pull issues: if `MERGE_HEAD` exists, either finish the merge message in your editor and `git commit`, or abort with `git merge --abort`.
 
-A persistent dark‑mode toggle is available on the admin and manager dashboards. The UI theme is saved per‑user in `user_prefs.json` and applied automatically on login.
+## Developer notes
+- Database file: `hcbs.db` (SQLite) at project root.
+- Seed script: `src/database/setup_db.py` (idempotent for development re-seeds — delete `hcbs.db` to start fresh).
+- GUI: `src/gui/` (Tkinter + ttk). Styles and palette constants are defined at the top of each window module.
 
-## 🎁 Loyalty Points
+## Additional tips
+- To run a single window for manual UI tests, you can run the module directly, for example:
+```bash
+python src/gui/film_listing_window.py
+```
+- To clear and re-seed the database in one line:
+```bash
+rm hcbs.db 2>nul || del hcbs.db
+python src/database/setup_db.py
+```
 
-Customers earn 1 point per £1 spent. Points are tracked per email and displayed via a loyalty popup. Tier badges (Bronze, Silver, Gold) are shown on the receipt.
+---
 
-
-The following accounts are available for testing various access levels within the system:
-
-| Role    | Username | Password   |
-| :------ | :------- | :--------- |
-| Manager | manager1 | admin123   |
-| Admin   | admin1   | admin123   |
-| Staff   | staff1   | staff123   |
-
-## 👥 Team Members
-
-| Name | Student ID | Role |
-| :--- | :--------- | :--- |
-| Member 1 | [ID] | Project Lead / Backend |
-| Member 2 | [ID] | GUI Developer |
-| Member 3 | [ID] | Database Administrator |
-| Member 4 | [ID] | AI Integration |
-| Member 5 | [ID] | QA / Documentation |
-
-## 📁 Project Structure
-
-- `src/models/`: Data models and business logic.
-- `src/gui/`: Tkinter interface components.
-- `src/database/`: SQLite database scripts and connection logic.
-- `src/utils/`: Helper functions and utilities.
-- `src/ai/`: Artificial Intelligence modules.
-- `tests/`: Unit and integration tests.
-- `docs/`: Project documentation and user guides.
-- `assets/`: Images, icons, and other static files.
+(If you want I can add a short `CONTRIBUTING.md` with branch/PR rules, or add a `make`/`invoke` script to automate setup.)

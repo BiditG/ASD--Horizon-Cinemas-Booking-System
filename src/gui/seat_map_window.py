@@ -156,9 +156,13 @@ class SeatMapWindow:
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
 
-        # Mousewheel support
+        # Mousewheel support with error handling for destroyed windows
         def _on_mousewheel(event):
-            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                if self.canvas.winfo_exists():
+                    self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except tk.TclError:
+                pass  # Canvas was destroyed, ignore the event
         self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
         self.canvas.create_window((430, 0), window=self.scrollable_frame, anchor="n") # Center the frame in canvas
