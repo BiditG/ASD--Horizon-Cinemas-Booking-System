@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox, filedialog
 import csv
 import datetime
 import os
+import shutil
+import uuid
 from src.database.db_connection import get_connection
 from src.gui.login_window import SessionManager
 from src.models.film import Film
@@ -156,22 +158,69 @@ class AdminWindow:
             ("Duration (mins)", "entry"),
             ("Description", "text"),
             ("Cast Members", "entry"),
-            ("Poster Path", "entry")
+            ("Poster Path", "poster"),
         ]
-        
+
+        _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        posters_dir = os.path.join(_project_root, "assets", "posters")
+
         inputs = {}
         for idx, field in enumerate(fields):
             name, ftype = field[0], field[1]
             tk.Label(win, text=name + ":", bg=BG, fg=TEXT2, font=("Helvetica", 10)).grid(row=idx, column=0, pady=10, padx=15, sticky="e")
-            
-            if ftype == "entry":
+
+            if ftype == "poster":
+                pf = tk.Frame(win, bg=BG)
+                pf.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
+                w = tk.Entry(pf, width=34, font=("Helvetica", 10))
+                w.pack(side=tk.LEFT)
+                inputs[name] = w
+
+                def browse_poster(fid=film_id):
+                    src = filedialog.askopenfilename(
+                        parent=win,
+                        title="Select poster image",
+                        filetypes=[
+                            ("Images", "*.png *.jpg *.jpeg *.webp *.gif"),
+                            ("All files", "*.*"),
+                        ],
+                    )
+                    if not src:
+                        return
+                    try:
+                        os.makedirs(posters_dir, exist_ok=True)
+                        _, ext = os.path.splitext(src)
+                        ext = ext.lower() if ext else ".jpg"
+                        if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+                            ext = ".jpg"
+                        if fid is not None:
+                            dest_name = f"poster_film_{fid}{ext}"
+                        else:
+                            dest_name = f"poster_{uuid.uuid4().hex[:12]}{ext}"
+                        dest_abs = os.path.join(posters_dir, dest_name)
+                        shutil.copy2(src, dest_abs)
+                        rel = f"assets/posters/{dest_name}"
+                        inputs["Poster Path"].delete(0, tk.END)
+                        inputs["Poster Path"].insert(0, rel)
+                    except OSError as ex:
+                        messagebox.showerror("Copy failed", str(ex), parent=win)
+
+                tk.Button(
+                    pf,
+                    text="Browse…",
+                    bg=BG2,
+                    fg=FG,
+                    command=browse_poster,
+                ).pack(side=tk.LEFT, padx=(8, 0))
+            elif ftype == "entry":
                 w = tk.Entry(win, width=40, font=("Helvetica", 10))
                 w.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
                 inputs[name] = w
             elif ftype == "combo":
                 w = ttk.Combobox(win, values=field[2], state="readonly", width=37)
                 w.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
-                if field[2]: w.current(0)
+                if field[2]:
+                    w.current(0)
                 inputs[name] = w
             elif ftype == "text":
                 w = tk.Text(win, width=40, height=4, font=("Helvetica", 10))

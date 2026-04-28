@@ -12,6 +12,8 @@ import sqlite3
 import os
 from typing import Optional
 
+from src.database.schema_migrate import apply_migrations
+
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.abspath(os.path.join(_THIS_DIR, '..', '..'))
 DB_PATH = os.path.join(_PROJECT_ROOT, 'hcbs.db')
@@ -36,6 +38,7 @@ def get_connection() -> sqlite3.Connection:
         _connection = sqlite3.connect(DB_PATH, check_same_thread=False)
         _connection.row_factory = sqlite3.Row
         _connection.execute("PRAGMA foreign_keys = ON")
+        apply_migrations(_connection)
     return _connection
 
 

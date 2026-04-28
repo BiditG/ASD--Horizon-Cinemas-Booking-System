@@ -173,11 +173,13 @@ class BookingWindow:
         self.film_cb.grid(row=row_offset+1, column=1, padx=10, pady=5)
         self.film_cb.bind("<<ComboboxSelected>>", self._on_date_or_film_change)
         
-        # Showing
-        tk.Label(sel_card, text="Select Showing:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset+2, column=0, sticky="w", pady=5)
+        # Showing (each option includes screen number — there is no separate screen control)
+        tk.Label(sel_card, text="Select Screen & time:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset+2, column=0, sticky="w", pady=5)
         self.showing_var = tk.StringVar()
-        self.showing_cb = ttk.Combobox(sel_card, textvariable=self.showing_var, state="readonly", width=40, style="HCBS.TCombobox")
-        self.showing_cb.grid(row=row_offset+2, column=1, padx=10, pady=5)
+        # Wider so "Screen N — time (Type) — seats" is readable (tk width is in characters).
+        self.showing_cb = ttk.Combobox(sel_card, textvariable=self.showing_var, state="readonly", width=52, style="HCBS.TCombobox")
+        self.showing_cb.grid(row=row_offset+2, column=1, padx=10, pady=5, sticky="ew")
+        sel_card.columnconfigure(1, weight=1)
         self.showing_cb.bind("<<ComboboxSelected>>", self._on_showing_change)
 
         # 2. Ticket Details Card
@@ -363,13 +365,13 @@ class BookingWindow:
                         pass
                 self.film_var.set(f_title)
                 
-                # Load Showings and Select
+                # Load Showings and Select (match by showing_id so screen + seats stay correct)
                 self._on_date_or_film_change()
-                
-                display_str = f"{sh.show_time} ({sh.show_type.title()}) - {sh.seats_remaining} seats"
-                if display_str in self.showing_cb['values']:
-                    self.showing_var.set(display_str)
-                    self._on_showing_change()
+                for i, s in enumerate(self._available_showings):
+                    if s.showing_id == sh.showing_id:
+                        self.showing_cb.current(i)
+                        self._on_showing_change()
+                        break
                     
                 # Lock Cinema, Date & Film to prevent confusion
                 if hasattr(self, 'cinema_cb'):
@@ -417,23 +419,30 @@ class BookingWindow:
 
             cursor = conn.execute(
                 """
-                SELECT s.*, sc.cinema_id 
+                SELECT s.*, sc.cinema_id, sc.screen_number
                 FROM showings s
                 JOIN screens sc ON s.screen_id = sc.screen_id
                 WHERE s.film_id = ? AND s.show_date = ? AND sc.cinema_id = ? AND s.is_cancelled = 0
-                ORDER BY s.show_time
-                """, 
-                (film.film_id, date_str, cinema_id_filter)
+                ORDER BY sc.screen_number, s.show_time
+                """,
+                (film.film_id, date_str, cinema_id_filter),
             )
             rows = cursor.fetchall()
-            self._available_showings = [Showing._from_row(row) for row in rows]
-            
+            self._available_showings = []
+            displays = []
+            for row in rows:
+                s = Showing._from_row(row)
+                self._available_showings.append(s)
+                sn = row["screen_number"] if "screen_number" in row.keys() else s.screen_id
+                displays.append(
+                    f"Screen {sn} — {s.show_time} ({s.show_type.title()}) — {s.seats_remaining} seats"
+                )
+
             if not self._available_showings:
                 self.showing_cb['values'] = ["No showings available"]
                 self.showing_var.set("No showings available")
                 self._selected_showing = None
             else:
-                displays = [f"{s.show_time} ({s.show_type.title()}) - {s.seats_remaining} seats" for s in self._available_showings]
                 self.showing_cb['values'] = displays
                 self.showing_cb.current(0)
                 self._on_showing_change()
@@ -442,22 +451,18 @@ class BookingWindow:
             messagebox.showerror("Error", f"Could not load showings: {e}")
 
     def _on_showing_change(self, event=None) -> None:
-        """Select the actual Showing object from the dropdown string."""
+        """Map combobox selection index to the Showing object (avoids duplicate label bugs)."""
         self._reset_check()
         display_val = self.showing_var.get()
         if not display_val or display_val == "No showings available":
             self._selected_showing = None
             return
-            
-        # Match display string to showing list (ignoring seats_remaining part for robustness)
-        # Display format: "10:00 (Morning) - 92 seats"
-        selected_time_type = display_val.split(" - ")[0]
-        
-        for s in self._available_showings:
-            test_str = f"{s.show_time} ({s.show_type.title()})"
-            if test_str == selected_time_type:
-                self._selected_showing = s
-                break
+
+        idx = self.showing_cb.current()
+        if idx < 0 or idx >= len(self._available_showings):
+            self._selected_showing = None
+            return
+        self._selected_showing = self._available_showings[idx]
 
     def _on_qty_change(self):
         """Called whenever qty spinbox changes — shows/hides group banner."""

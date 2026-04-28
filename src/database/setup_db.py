@@ -50,9 +50,14 @@ def create_tables(cursor):
     CREATE TABLE films (
         film_id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
+        description TEXT DEFAULT '',
         genre TEXT NOT NULL,
         age_rating TEXT NOT NULL,
-        duration_mins INTEGER NOT NULL
+        duration_mins INTEGER NOT NULL,
+        imdb_rating REAL,
+        cast_members TEXT DEFAULT '',
+        poster_path TEXT DEFAULT '',
+        is_active INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE showings (
@@ -170,20 +175,29 @@ def seed_data(cursor):
         VALUES (?, ?, ?, ?, ?, ?)
     """, screens_data)
 
-    # 4. Films
+    # 4. Films (poster_path is relative to project root; add files under assets/posters/)
     films_data = [
-        ('The Matrix Awakens', 'Sci-Fi', '15', 140),
-        ('Inception: Restart', 'Sci-Fi', '12A', 152),
-        ('Toy Story 5', 'Animation', 'U', 98),
-        ('Avengers: Next Gen', 'Action', '12A', 165),
-        ('The Silent Echo', 'Horror', '18', 110),
-        ('Love in Paris', 'Romance', 'PG', 105),
-        ('Desert Storm', 'Action', '15', 130),
-        ('Ocean Planet', 'Documentary', 'U', 85)
+        ('The Matrix Awakens', 'The simulation continues.', 'Sci-Fi', '15', 140, 7.9,
+         'Keanu Reeves, Carrie-Anne Moss', 'assets/posters/matrix_awakens.jpg'),
+        ('Inception: Restart', 'Dreams within dreams return.', 'Sci-Fi', '12A', 152, 8.1,
+         'Leonardo DiCaprio, Elliot Page', 'assets/posters/inception_restart.jpg'),
+        ('Toy Story 5', 'The toys are back for another adventure.', 'Animation', 'U', 98, 7.5,
+         'Tom Hanks, Tim Allen', 'assets/posters/toy_story_5.jpg'),
+        ('Avengers: Next Gen', 'Earth mightiest heroes assemble again.', 'Action', '12A', 165, 8.0,
+         'Samuel L. Jackson', 'assets/posters/avengers_next_gen.jpg'),
+        ('The Silent Echo', 'Some sounds should stay unheard.', 'Horror', '18', 110, 6.8,
+         'Florence Pugh', 'assets/posters/silent_echo.jpg'),
+        ('Love in Paris', 'A romantic escape along the Seine.', 'Romance', 'PG', 105, 7.2,
+         'Emma Stone', 'assets/posters/love_paris.jpg'),
+        ('Desert Storm', 'One mission. No turning back.', 'Action', '15', 130, 7.0,
+         'Idris Elba', 'assets/posters/desert_storm.jpg'),
+        ('Ocean Planet', 'Blue worlds beneath the waves.', 'Documentary', 'U', 85, 8.4,
+         'David Attenborough', 'assets/posters/ocean_planet.jpg'),
     ]
     cursor.executemany("""
-        INSERT INTO films (title, genre, age_rating, duration_mins)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO films (title, description, genre, age_rating, duration_mins,
+            imdb_rating, cast_members, poster_path, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
     """, films_data)
 
     # 5. Prices
