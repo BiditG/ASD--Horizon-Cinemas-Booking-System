@@ -1,9 +1,19 @@
 import os
-import qrcode
-from reportlab.pdfgen import canvas
+from xml.sax.saxutils import escape
+
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A5
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.platypus import HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
 from src.database.db_connection import get_connection
+
+
+def _safe_p(text) -> str:
+    return escape(str(text)) if text is not None else ""
+
 
 class PDFService:
     @staticmethod
@@ -11,90 +21,218 @@ class PDFService:
         """
         Generates an A5 PDF ticket for the booking, embeds a QR code, saves it,
         and updates the 'pdf_path' in the tickets database table.
+        Mirrors the on-screen receipt (all fields, loyalty when present, full text wrap).
         """
         ref = booking_data.get('booking_ref', 'UNKNOWN')
-        
+
         if not output_path:
             out_dir = "tickets"
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
             output_path = os.path.join(out_dir, f"{ref}.pdf")
-            
+
         try:
-            c = canvas.Canvas(output_path, pagesize=A5)
-            width, height = A5
-            
-            # --- Header ---
-            c.setFont("Helvetica-Bold", 24)
-            c.drawCentredString(width / 2.0, height - 25*mm, "HORIZON CINEMAS")
-            
-            c.setFont("Helvetica", 14)
-            c.drawCentredString(width / 2.0, height - 35*mm, booking_data.get("cinema_name", "Cinema"))
-            
-            # --- Divider ---
-            c.setLineWidth(1)
-            c.line(15*mm, height - 42*mm, width - 15*mm, height - 42*mm)
-            
-            # --- Details (Two-column) ---
-            c.setFont("Helvetica", 11)
-            
+            margin = 14 * mm
+            doc = SimpleDocTemplate(
+                output_path,
+                pagesize=A5,
+                leftMargin=margin,
+                rightMargin=margin,
+                topMargin=margin,
+                bottomMargin=margin,
+            )
+            styles = getSampleStyleSheet()
+            title = ParagraphStyle(
+                name="ReceiptTitle",
+                parent=styles["Heading1"],
+                fontName="Helvetica-Bold",
+                fontSize=18,
+                leading=22,
+                alignment=TA_CENTER,
+                spaceAfter=4,
+            )
+            subtitle = ParagraphStyle(
+                name="ReceiptSub",
+                parent=styles["Normal"],
+                fontName="Helvetica",
+                fontSize=11,
+                leading=14,
+                alignment=TA_CENTER,
+                textColor=colors.HexColor("#333333"),
+                spaceAfter=8,
+            )
+            confirmed = ParagraphStyle(
+                name="Confirmed",
+                parent=styles["Normal"],
+                fontName="Helvetica-Bold",
+                fontSize=12,
+                leading=15,
+                alignment=TA_CENTER,
+                textColor=colors.HexColor("#16a34a"),
+                spaceBefore=4,
+                spaceAfter=10,
+            )
+            label_style = ParagraphStyle(
+                name="ReceiptLabel",
+                parent=styles["Normal"],
+                fontName="Helvetica-Bold",
+                fontSize=10,
+                leading=13,
+            )
+            value_style = ParagraphStyle(
+                name="ReceiptValue",
+                parent=styles["Normal"],
+                fontName="Helvetica",
+                fontSize=10,
+                leading=13,
+            )
+            loyalty_style = ParagraphStyle(
+                name="LoyaltyLine",
+                parent=styles["Normal"],
+                fontName="Helvetica",
+                fontSize=10,
+                leading=14,
+                alignment=TA_CENTER,
+                spaceBefore=6,
+                spaceAfter=4,
+            )
+            footer_style = ParagraphStyle(
+                name="FooterIt",
+                parent=styles["Normal"],
+                fontName="Helvetica-Oblique",
+                fontSize=9,
+                leading=12,
+                alignment=TA_CENTER,
+                textColor=colors.grey,
+                spaceBefore=8,
+            )
+
             seat_numbers = booking_data.get("seat_numbers", [])
-            seats_str = ", ".join(seat_numbers) if isinstance(seat_numbers, list) else str(seat_numbers)
-            
-            fields_left = [
-                ("Film:", booking_data.get("film_name", "")),
-                ("Date:", booking_data.get("show_date", "")),
-                ("Time:", booking_data.get("show_time", "")),
-                ("Screen:", str(booking_data.get("screen_id", ""))),
+            seats_str = (
+                ", ".join(seat_numbers)
+                if isinstance(seat_numbers, list)
+                else str(seat_numbers)
+            )
+            ticket_type_fmt = (
+                booking_data.get("ticket_type", "").replace("_", " ").title()
+            )
+            total_cost = booking_data.get("total_cost")
+            try:
+                total_fmt = f"£{float(total_cost):.2f}"
+            except (TypeError, ValueError):
+                total_fmt = _safe_p(total_cost)
+
+            # Same field order and labels as booking_window.display_receipt
+            detail_rows = [
+                ("Booking Reference", ref),
+                ("Film Name", booking_data.get("film_name", "")),
+                ("Show Date", booking_data.get("show_date", "")),
+                ("Show Time", booking_data.get("show_time", "")),
+                ("Screen Number", str(booking_data.get("screen_id", ""))),
+                ("Cinema Name", booking_data.get("cinema_name", "N/A")),
+                ("Number of Tickets", str(booking_data.get("quantity", ""))),
+                ("Seat Numbers", seats_str),
+                ("Ticket Type", ticket_type_fmt),
+                ("Booking Date", booking_data.get("booking_date", "")),
+                ("Total Cost", total_fmt),
             ]
-            
-            fields_right = [
-                ("Cinema:", booking_data.get("cinema_name", "")),
-                ("Ticket Type:", booking_data.get("ticket_type", "").replace('_', ' ').title()),
-                ("Seat Numbers:", seats_str),
-                ("Customer Name:", booking_data.get("customer_name", "")),
-                ("Booking Ref:", ref)
-            ]
-            
-            y_pos = height - 55*mm
-            line_height = 8*mm
-            
-            # Draw left column
-            for label, value in fields_left:
-                c.setFont("Helvetica-Bold", 11)
-                c.drawString(15*mm, y_pos, label)
-                c.setFont("Helvetica", 11)
-                c.drawString(45*mm, y_pos, str(value))
-                y_pos -= line_height
-                
-            # Draw right column
-            y_pos = height - 55*mm
-            for label, value in fields_right:
-                c.setFont("Helvetica-Bold", 11)
-                c.drawString(width/2.0 + 5*mm, y_pos, label)
-                c.setFont("Helvetica", 11)
-                val_str = str(value)
-                if len(val_str) > 25:
-                    val_str = val_str[:22] + "..."
-                c.drawString(width/2.0 + 35*mm, y_pos, val_str)
-                y_pos -= line_height
-                
-            # --- QR Code ---
+
+            usable_w = doc.width
+            label_w = 42 * mm
+            val_w = usable_w - label_w
+
+            story = []
+            story.append(Paragraph(_safe_p("HORIZON CINEMAS"), title))
+            story.append(
+                Paragraph(_safe_p(booking_data.get("cinema_name", "Cinema")), subtitle)
+            )
+            story.append(HRFlowable(width="100%", thickness=0.8, color=colors.HexColor("#cccccc")))
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(_safe_p("BOOKING CONFIRMED"), confirmed))
+            story.append(Spacer(1, 4))
+
+            table_data = []
+            for lab, val in detail_rows[:-1]:
+                table_data.append(
+                    [
+                        Paragraph(_safe_p(lab), label_style),
+                        Paragraph(_safe_p(val), value_style),
+                    ]
+                )
+            lab_last, val_last = detail_rows[-1]
+            table_data.append(
+                [
+                    Paragraph(_safe_p(lab_last), label_style),
+                    Paragraph(f"<b><font color='#16a34a'>{_safe_p(val_last)}</font></b>", value_style),
+                ]
+            )
+
+            tbl = Table(
+                table_data,
+                colWidths=[label_w, val_w],
+                hAlign="LEFT",
+            )
+            tbl.setStyle(
+                TableStyle(
+                    [
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                        ("TOPPADDING", (0, 0), (-1, -1), 3),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                        ("LINEBELOW", (0, -1), (-1, -1), 0.5, colors.HexColor("#e5e5e5")),
+                    ]
+                )
+            )
+            story.append(tbl)
+
+            if "loyalty" in booking_data:
+                loy = booking_data["loyalty"]
+                tier = str(loy.get("tier", "")).title()
+                pts = loy.get("total_points", "")
+                earned = loy.get("points_earned", "")
+                tier_colors = {
+                    "Bronze": "#b45309",
+                    "Silver": "#64748b",
+                    "Gold": "#d97706",
+                }
+                tc = tier_colors.get(tier, "#333333")
+                line = f"{tier} Member — {pts} pts (+{earned} earned today)"
+                story.append(
+                    Paragraph(
+                        f'<font color="{tc}"><b>{_safe_p(line)}</b></font>',
+                        loyalty_style,
+                    )
+                )
+
+            story.append(Spacer(1, 10))
+
             from src.utils.qr_generator import save_qr_to_file
+
             temp_qr_path = f"temp_qr_{ref}.png"
             save_qr_to_file(ref, temp_qr_path)
-            
-            # Embed in bottom-right
-            qr_size = 40*mm
-            c.drawImage(temp_qr_path, width - 15*mm - qr_size, 25*mm, width=qr_size, height=qr_size)
-            
-            # --- Footer ---
-            c.setFont("Helvetica-Oblique", 10)
-            c.drawCentredString(width / 2.0, 15*mm, "Please present this ticket at the door. No same-day cancellations.")
-            
-            c.save()
-            
-            # Cleanup temp qr
+            qr_mm = 38 * mm
+            story.append(
+                Image(
+                    temp_qr_path,
+                    width=qr_mm,
+                    height=qr_mm,
+                    hAlign="CENTER",
+                )
+            )
+
+            story.append(Spacer(1, 6))
+            story.append(
+                Paragraph(
+                    _safe_p(
+                        "Please present this ticket at the door. No same-day cancellations."
+                    ),
+                    footer_style,
+                )
+            )
+
+            doc.build(story)
+
             if os.path.exists(temp_qr_path):
                 os.remove(temp_qr_path)
                 
