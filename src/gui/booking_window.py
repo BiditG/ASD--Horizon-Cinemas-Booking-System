@@ -692,10 +692,6 @@ class BookingWindow:
                 messagebox.showwarning("Invalid Input", "Please enter a valid email address.")
                 return
 
-            if phone and not InputValidator.validate_phone(phone):
-                messagebox.showwarning("Invalid Input", "Please enter a valid UK phone number.")
-                return
-
             if not self._selected_showing or not self.confirmed_price:
                 messagebox.showwarning("Incomplete", "Please check availability and price first.")
                 return
@@ -813,10 +809,6 @@ class BookingWindow:
             
         if not InputValidator.validate_email(email):
             messagebox.showwarning("Invalid Input", "Please enter a valid email address for waitlist.")
-            return
-            
-        if not InputValidator.validate_phone(phone):
-            messagebox.showwarning("Invalid Input", "Please enter a valid UK phone number for waitlist.")
             return
             
         try:
