@@ -248,12 +248,11 @@ class BookingWindow:
         # Real-time availability Result Label
         chk_frame = tk.Frame(tkt_card, bg=BG_CARD)
         chk_frame.grid(row=2, column=0, columnspan=4, sticky="w", pady=(20, 0))
-        
-<<<<<<< HEAD
-        tk.Button(chk_frame, text="🔍 Check Availability & Price", font=FONT_BTN, bg=BG2, fg=TEXT, 
-                  activebackground=BG, relief="flat", padx=15, pady=6, cursor="hand2", 
-                  command=self.check_availability_and_price).pack(side="left")
-                  
+
+        tk.Button(chk_frame, text="🔍 Check Availability & Price", font=FONT_BTN, bg=BG2, fg=TEXT,
+              activebackground=BG, relief="flat", padx=15, pady=6, cursor="hand2",
+              command=self.check_availability_and_price).pack(side="left")
+
         self.avail_lbl = tk.Label(
             chk_frame,
             text="",
@@ -265,10 +264,6 @@ class BookingWindow:
             anchor="w"
         )
         self.avail_lbl.pack(side="left", padx=20, fill="x", expand=True)
-=======
-        self.avail_lbl = tk.Label(chk_frame, text="Select a showing and quantity to see live availability.", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2)
-        self.avail_lbl.pack(side="left", padx=5)
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
 
         # 3. Customer Details Card
         self.cust_card = tk.Frame(form_frame, bg=BG_CARD, padx=20, pady=20, highlightbackground=BORDER, highlightthickness=1)
@@ -508,7 +503,6 @@ class BookingWindow:
             messagebox.showerror("Error", f"Could not load showings: {e}")
 
     def _on_showing_change(self, event=None) -> None:
-<<<<<<< HEAD
         """Map combobox selection index to the Showing object (avoids duplicate label bugs)."""
         self._reset_check()
         display_val = self.showing_var.get()
@@ -516,12 +510,6 @@ class BookingWindow:
             self._selected_showing = None
             return
 
-        idx = self.showing_cb.current()
-        if idx < 0 or idx >= len(self._available_showings):
-            self._selected_showing = None
-            return
-        self._selected_showing = self._available_showings[idx]
-=======
         idx = self.showing_cb.current()
         if 0 <= idx < len(self._available_showings):
             self._selected_showing = self._available_showings[idx]
@@ -540,19 +528,21 @@ class BookingWindow:
         except tk.TclError:
             pass
         self._schedule_realtime_update()
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
 
-    def _on_qty_change(self):
-        """Called whenever qty spinbox changes — shows/hides group banner."""
-        try:
-            qty = self.qty_var.get()
-            if qty >= 10:
-                self.group_banner.grid()
-            else:
-                self.group_banner.grid_remove()
-        except tk.TclError:
-            pass
-        self._reset_check()
+    def _schedule_realtime_update(self, event=None) -> None:
+        """Debounce wrapper for the real-time availability and price update."""
+        if getattr(self, '_debounce_timer', None) is not None:
+            try:
+                self.root.after_cancel(self._debounce_timer)
+            except Exception:
+                pass
+        self._debounce_timer = self.root.after(300, self._perform_realtime_update)
+
+    def _perform_realtime_update(self) -> None:
+        """Calculate price, verify seat availability dynamically in real-time."""
+        self.book_btn.config(text="✅ Select Seats & Book", state="disabled", bg=SUCCESS)
+        self.confirmed_price = None
+        self.is_waitlist_mode = False
 
     def _reset_check(self) -> None:
         """Disable Book button and clear price text if params change."""
@@ -561,7 +551,6 @@ class BookingWindow:
         self.confirmed_price = None
         self.is_waitlist_mode = False
 
-<<<<<<< HEAD
     def _check_duplicate_booking(self, event=None):
         pass # Placeholder for duplicate booking check
         
@@ -571,19 +560,6 @@ class BookingWindow:
     def check_availability_and_price(self) -> None:
         """Calculate price, verify seat availability, and validate show date."""
         self._reset_check()
-=======
-    def _schedule_realtime_update(self, event=None) -> None:
-        """Debounce wrapper for the real-time availability and price update."""
-        if self._debounce_timer is not None:
-            self.root.after_cancel(self._debounce_timer)
-        self._debounce_timer = self.root.after(300, self._perform_realtime_update)
-
-    def _perform_realtime_update(self) -> None:
-        """Calculate price, verify seat availability dynamically in real-time."""
-        self.book_btn.config(text="✅ Select Seats & Book", state="disabled", bg=SUCCESS)
-        self.confirmed_price = None
-        self.is_waitlist_mode = False
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
 
         # 1. Validate inputs
         if not self._selected_showing:
@@ -599,11 +575,7 @@ class BookingWindow:
             if qty < 1 or qty > 50:
                 raise ValueError
         except (tk.TclError, ValueError):
-<<<<<<< HEAD
-            self.avail_lbl.config(text="Error: Quantity must be between 1 and 50.", fg=ERROR)
-=======
             self.avail_lbl.config(text="❌ Error: Quantity must be between 1 and 50.", fg=ERROR)
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
             return
 
         sh = self._selected_showing
@@ -677,20 +649,12 @@ class BookingWindow:
             
             # 5. Display success result with color coding
             total_str = f"£{self.confirmed_price['total_price']:.2f}"
-<<<<<<< HEAD
-            msg = f"✅ {avail_in_zone} seats available — Total: {total_str}"
-            self.avail_lbl.config(text=msg, fg=SUCCESS)
-            
-            # 7. Enable Book Now button
-            self.is_waitlist_mode = False
-            self.book_btn.config(text="✅ Select Seats & Book", state="normal", bg=SUCCESS)
-=======
             color = SUCCESS if available_seats > 10 else WARNING
             msg = f"✅ {available_seats} seats available — Total: {total_str}"
-            
+
             self.avail_lbl.config(text=msg, fg=color)
-            self.book_btn.config(state="normal")
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
+            self.is_waitlist_mode = False
+            self.book_btn.config(text="✅ Select Seats & Book", state="normal", bg=SUCCESS)
             
         except Exception as e:
             self.is_waitlist_mode = False
@@ -715,72 +679,51 @@ class BookingWindow:
                 
             qty = self.confirmed_price["quantity"]
             sh = self._selected_showing
-            
-<<<<<<< HEAD
+
+            name = InputValidator.sanitise_text(self.cust_name_ent.get(), 100)
+            email = InputValidator.sanitise_text(self.cust_email_ent.get(), 100)
+            phone = InputValidator.sanitise_text(self.cust_phone_ent.get(), 20)
+
+            if not name:
+                messagebox.showwarning("Missing Info", "Customer Name is required.")
+                return
+
+            if email and not InputValidator.validate_email(email):
+                messagebox.showwarning("Invalid Input", "Please enter a valid email address.")
+                return
+
+            if phone and not InputValidator.validate_phone(phone):
+                messagebox.showwarning("Invalid Input", "Please enter a valid UK phone number.")
+                return
+
+            if not self._selected_showing or not self.confirmed_price:
+                messagebox.showwarning("Incomplete", "Please check availability and price first.")
+                return
+
+            qty = self.confirmed_price["quantity"]
+            sh = self._selected_showing
+
             # Open Seat Map to select seats
             from src.gui.seat_map_window import SeatMapWindow
-            
+
             def on_seats_selected(selected_seats):
                 booking_data = {
                     "name": name,
-                    "email": self.cust_email_ent.get().strip(),
-                    "phone": self.cust_phone_ent.get().strip(),
+                    "email": email,
+                    "phone": phone,
                     "selected_seats": selected_seats
                 }
                 from src.gui.payment_window import PaymentWindow
                 PaymentWindow(
-                    self._tl,
+                    self.root,
                     total_amount=self.confirmed_price["total_price"],
                     booking_data=booking_data,
                     on_payment_success=self._on_payment_success
                 )
-                
-            SeatMapWindow(self._tl, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
+
+            SeatMapWindow(self.root, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start booking process: {e}")
-=======
-        name = InputValidator.sanitise_text(self.cust_name_ent.get(), 100)
-        email = InputValidator.sanitise_text(self.cust_email_ent.get(), 100)
-        phone = InputValidator.sanitise_text(self.cust_phone_ent.get(), 20)
-        
-        if not name:
-            messagebox.showwarning("Missing Info", "Customer Name is required.")
-            return
-            
-        if email and not InputValidator.validate_email(email):
-            messagebox.showwarning("Invalid Input", "Please enter a valid email address.")
-            return
-            
-        if phone and not InputValidator.validate_phone(phone):
-            messagebox.showwarning("Invalid Input", "Please enter a valid UK phone number.")
-            return
-            
-        if not self._selected_showing or not self.confirmed_price:
-            return
-            
-        qty = self.confirmed_price["quantity"]
-        sh = self._selected_showing
-        
-        # Open Seat Map to select seats
-        from src.gui.seat_map_window import SeatMapWindow
-        
-        def on_seats_selected(selected_seats):
-            booking_data = {
-                "name": name,
-                "email": email,
-                "phone": phone,
-                "selected_seats": selected_seats
-            }
-            from src.gui.payment_window import PaymentWindow
-            PaymentWindow(
-                self.root,
-                total_amount=self.confirmed_price["total_price"],
-                booking_data=booking_data,
-                on_payment_success=self._on_payment_success
-            )
-            
-        SeatMapWindow(self.root, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
 
     def _on_payment_success(self, booking_data: dict) -> None:
         self._finalize_booking(
@@ -1025,7 +968,6 @@ class BookingWindow:
         tv.pack(fill="x", padx=20, pady=8)
         tk.Button(pop, text="Close", bg=BG2, fg=TEXT, relief="flat", padx=20, pady=6, command=pop.destroy).pack(pady=6)
 
-<<<<<<< HEAD
     def _show_loyalty_popup(self) -> None:
         """Show a loyalty account lookup popup keyed to the entered email."""
         email = self.cust_email_ent.get().strip()
@@ -1076,9 +1018,6 @@ class BookingWindow:
             ))
         tv.pack(fill="x", padx=20, pady=8)
         tk.Button(pop, text="Close", bg=BG2, fg=TEXT, relief="flat", padx=20, pady=6, command=pop.destroy).pack(pady=6)
-
-=======
->>>>>>> 7c5554d7012ced10fe76507575996cece775083e
 
 # ── Standalone launch (for isolated testing) ─────────────────────────────────
 
