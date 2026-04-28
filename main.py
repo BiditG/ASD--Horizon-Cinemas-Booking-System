@@ -58,14 +58,17 @@ def main() -> None:
     style.configure('TButton', background=ACCENT, foreground='white', padding=10, font=('Segoe UI', 10, 'bold'))
     style.map('TButton', background=[('active', '#3478f6')])
     style.configure('TCombobox', fieldbackground=BG_SECONDARY, background=BG_SECONDARY, foreground=TEXT_PRIMARY, arrowcolor=TEXT_PRIMARY)
+    style.map('TCombobox',
+              fieldbackground=[('readonly', BG_SECONDARY), ('disabled', BG_SECONDARY), ('focus', BG_SECONDARY), ('active', BG_SECONDARY)],
+              foreground=[('readonly', TEXT_PRIMARY), ('disabled', TEXT_PRIMARY), ('focus', TEXT_PRIMARY), ('active', TEXT_PRIMARY)])
     style.configure('Treeview', background=BG_SECONDARY, foreground=TEXT_PRIMARY, fieldbackground=BG_SECONDARY, borderwidth=0, rowheight=26)
     style.configure('Treeview.Heading', background=BG_SECONDARY, foreground=TEXT_PRIMARY, font=('Segoe UI', 10, 'bold'))
     style.map('Treeview', background=[('selected', ACCENT)], foreground=[('selected', TEXT_PRIMARY)])
 
-    root.option_add('*TCombobox*Listbox.background', BG_SECONDARY)
-    root.option_add('*TCombobox*Listbox.foreground', TEXT_PRIMARY)
-    root.option_add('*TCombobox*Listbox.selectBackground', ACCENT)
-    root.option_add('*TCombobox*Listbox.selectForeground', TEXT_PRIMARY)
+    root.option_add('*TCombobox*Listbox.background', BG_SECONDARY, 100)
+    root.option_add('*TCombobox*Listbox.foreground', TEXT_PRIMARY, 100)
+    root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
+    root.option_add('*TCombobox*Listbox.selectForeground', TEXT_PRIMARY, 100)
     root.option_add('*Button.background', BG_SECONDARY)
     root.option_add('*Button.foreground', TEXT_PRIMARY)
     root.option_add('*Entry.background', BG_SECONDARY)

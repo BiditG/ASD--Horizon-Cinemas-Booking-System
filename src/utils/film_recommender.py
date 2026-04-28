@@ -40,10 +40,10 @@ def recommend_films(current_film_id: int, cinema_id: int = None) -> list[dict]:
                MIN(s.show_date) as next_show_date,
                MIN(s.show_time) as next_show_time,
                MIN(s.showing_id) as next_showing_id,
-               (SELECT MIN(show_date) FROM showings WHERE film_id = f.film_id AND is_cancelled = 0) as first_ever_show_date
+               (SELECT MIN(show_date) FROM showings WHERE film_id = f.film_id) as first_ever_show_date
         FROM films f
         JOIN showings s ON f.film_id = s.film_id
-        WHERE s.show_date >= ? AND f.film_id != ? AND f.is_active = 1 AND s.is_cancelled = 0
+        WHERE s.show_date >= ? AND f.film_id != ? AND f.is_active = 1
         {cinema_filter}
         GROUP BY f.film_id
     """

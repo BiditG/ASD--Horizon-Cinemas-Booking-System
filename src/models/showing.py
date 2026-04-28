@@ -104,7 +104,6 @@ class Showing:
                 JOIN   screens  sc ON s.screen_id = sc.screen_id
                 WHERE  sc.cinema_id = ?
                 AND    s.show_date  = ?
-                AND    s.is_cancelled = 0
                 ORDER BY s.show_time
                 """,
                 (cinema_id, date)
@@ -254,7 +253,6 @@ class Showing:
                 SET    seats_remaining = seats_remaining - ?
                 WHERE  showing_id = ?
                 AND    seats_remaining >= ?
-                AND    is_cancelled = 0
                 """,
                 (qty, showing_id, qty)
             )
@@ -358,7 +356,7 @@ class Showing:
             
             # Check for overlaps
             overlap = conn.execute(
-                "SELECT showing_id FROM showings WHERE screen_id = ? AND show_date = ? AND show_time = ? AND is_cancelled = 0",
+                "SELECT showing_id FROM showings WHERE screen_id = ? AND show_date = ? AND show_time = ?",
                 (screen_id, date, show_time)
             ).fetchone()
             if overlap:
@@ -368,8 +366,8 @@ class Showing:
                 """
                 INSERT INTO showings
                     (film_id, screen_id, show_date, show_time,
-                     show_type, seats_remaining, is_cancelled)
-                VALUES (?, ?, ?, ?, ?, ?, 0)
+                     show_type, seats_remaining)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (film_id, screen_id, date, show_time, show_type, capacity)
             )

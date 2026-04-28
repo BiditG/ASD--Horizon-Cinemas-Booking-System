@@ -69,6 +69,13 @@ class ManagerWindow:
         style.configure("HCBS.TNotebook.Tab", background=BG2, foreground=TEXT, font=FONT_BTN, padding=[18, 10])
         style.map("HCBS.TNotebook.Tab", background=[("selected", ACCENT)], foreground=[("selected", TEXT)])
         style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
+        style.map("TCombobox",
+              fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
+              foreground=[("readonly", TEXT), ("disabled", TEXT), ("focus", TEXT), ("active", TEXT)])
+        self.root.option_add('*TCombobox*Listbox.background', BG2, 100)
+        self.root.option_add('*TCombobox*Listbox.foreground', TEXT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectForeground', TEXT, 100)
         style.configure("TSpinbox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
         
         self.notebook = ttk.Notebook(self.root, style="HCBS.TNotebook")
@@ -333,7 +340,7 @@ class ManagerWindow:
             # Validate no overlap
             for t in times:
                 cur = conn.execute(
-                    "SELECT showing_id FROM showings WHERE screen_id = ? AND show_date = ? AND show_time = ? AND is_cancelled = 0",
+                    "SELECT showing_id FROM showings WHERE screen_id = ? AND show_date = ? AND show_time = ?",
                     (sid, date_str, t)
                 )
                 if cur.fetchone():

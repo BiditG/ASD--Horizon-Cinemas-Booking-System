@@ -78,7 +78,7 @@ class ReportManager:
                 SUM(sc.total_capacity - s.seats_remaining) as occupied_seats
             FROM showings s
             JOIN screens sc ON s.screen_id = sc.screen_id
-            WHERE sc.cinema_id = ? AND s.show_date LIKE ? AND s.is_cancelled = 0
+            WHERE sc.cinema_id = ? AND s.show_date LIKE ?
         """
         occ_row = db_connection.execute(query_occupancy, (cinema_id, f"{month_str}%")).fetchone()
         

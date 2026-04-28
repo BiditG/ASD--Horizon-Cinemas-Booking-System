@@ -118,6 +118,13 @@ class DashboardWindow:
         style.configure("Dash.Treeview.Heading", background=BG2, foreground=TEXT, font=FONT_BTN)
         style.map("Dash.Treeview", background=[("selected", ACCENT)], foreground=[("selected", TEXT)])
         style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
+        style.map("TCombobox",
+              fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
+              foreground=[("readonly", TEXT), ("disabled", TEXT), ("focus", TEXT), ("active", TEXT)])
+        self.root.option_add('*TCombobox*Listbox.background', BG2, 100)
+        self.root.option_add('*TCombobox*Listbox.foreground', TEXT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectForeground', TEXT, 100)
         
         cols = ("cinema", "film", "time", "screen", "booked", "cap", "pct")
         self.tv = ttk.Treeview(table_frame, columns=cols, show="headings", style="Dash.Treeview")
@@ -238,7 +245,7 @@ class DashboardWindow:
                        IFNULL(SUM(sc.total_capacity), 0) as total
                 FROM showings sh
                 JOIN screens sc ON sh.screen_id = sc.screen_id
-                WHERE sh.show_date = ? AND sh.is_cancelled = 0 {cinema_filter}
+                WHERE sh.show_date = ? {cinema_filter}
             """
             cur = conn.execute(query_shows, params_today)
             row = cur.fetchone()
@@ -279,7 +286,7 @@ class DashboardWindow:
                 JOIN screens sc ON sh.screen_id = sc.screen_id
                 JOIN cinemas c ON sc.cinema_id = c.cinema_id
                 JOIN films f ON sh.film_id = f.film_id
-                WHERE sh.show_date = ? AND sh.is_cancelled = 0 {cinema_filter}
+                WHERE sh.show_date = ? {cinema_filter}
                 ORDER BY sh.show_time
             """
             cur = conn.execute(query_table, params_today)

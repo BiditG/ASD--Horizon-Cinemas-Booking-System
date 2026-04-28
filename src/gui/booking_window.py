@@ -28,6 +28,22 @@ from src.gui.login_window import SessionManager
 from src.utils.input_validator import InputValidator
 
 from src.utils.pdf_service import PDFService
+from src.utils.rbac import require_role
+
+
+def allow_staff_and_admin(cls):
+    """Decorator to allow staff, admin, and manager users to access the booking window."""
+    original_init = cls.__init__
+
+    def new_init(self, *args, **kwargs):
+        session = SessionManager.get_instance()
+        user = session.get_current_user()
+        if user and user.role not in ['staff', 'admin', 'manager']:
+            raise PermissionError(f"Access denied. Required: staff, admin, or manager. Got: {user.role}")
+        original_init(self, *args, **kwargs)
+
+    cls.__init__ = new_init
+    return cls
 
 def format_receipt_text(booking_data: dict) -> str:
     """Helper function to format the receipt as plain text."""
@@ -84,9 +100,7 @@ FONT_BTN    = (FF, 12, "bold")
 FONT_MONO   = ("Consolas", 11)
 
 
-from src.utils.rbac import require_role
-
-@require_role('staff')
+@allow_staff_and_admin
 class BookingWindow:
     def __init__(
         self,
@@ -146,7 +160,6 @@ class BookingWindow:
         )
         style.map(
             "HCBS.TCombobox",
-            fieldbackground=[('readonly', BG2), ('active', BG2), ('focus', BG2)],
             foreground=[('readonly', TEXT), ('active', TEXT), ('focus', TEXT)],
         )
                         
@@ -311,10 +324,6 @@ class BookingWindow:
         tk.Button(act_frame, text="🏅 Check Loyalty", font=FONT_BTN, bg="#92400e", fg=TEXT,
                   activebackground="#78350f", relief="flat", padx=14, pady=10,
                   cursor="hand2", command=self._show_loyalty_popup).pack(side="left", padx=(12, 0))
-        
-        tk.Button(act_frame, text="🏅 Check Loyalty", font=FONT_BTN, bg="#92400e", fg=TEXT,
-                  activebackground="#78350f", relief="flat", padx=14, pady=10,
-                  cursor="hand2", command=self._show_loyalty_popup).pack(side="left", padx=(12, 0))
 
     def _build_receipt_panel(self) -> None:
         rec_frame = tk.Frame(self.root, bg=BG2, padx=30, pady=30, highlightbackground=BORDER, highlightthickness=1)
@@ -474,7 +483,7 @@ class BookingWindow:
                 SELECT s.*, sc.cinema_id, sc.screen_number
                 FROM showings s
                 JOIN screens sc ON s.screen_id = sc.screen_id
-                WHERE s.film_id = ? AND s.show_date = ? AND sc.cinema_id = ? AND s.is_cancelled = 0
+                WHERE s.film_id = ? AND s.show_date = ? AND sc.cinema_id = ?
                 ORDER BY sc.screen_number, s.show_time
                 """,
                 (film.film_id, date_str, cinema_id_filter),
@@ -667,18 +676,6 @@ class BookingWindow:
             if getattr(self, 'is_waitlist_mode', False):
                 self._process_waitlist_join()
                 return
-                
-            name = self.cust_name_ent.get().strip()
-            if not name:
-                messagebox.showwarning("Missing Info", "Customer Name is required.")
-                return
-                
-            if not self._selected_showing or not self.confirmed_price:
-                messagebox.showwarning("Incomplete", "Please check availability and price first.")
-                return
-                
-            qty = self.confirmed_price["quantity"]
-            sh = self._selected_showing
 
             name = InputValidator.sanitise_text(self.cust_name_ent.get(), 100)
             email = InputValidator.sanitise_text(self.cust_email_ent.get(), 100)
@@ -699,7 +696,6 @@ class BookingWindow:
             qty = self.confirmed_price["quantity"]
             sh = self._selected_showing
 
-            # Open Seat Map to select seats
             from src.gui.seat_map_window import SeatMapWindow
 
             def on_seats_selected(selected_seats):
@@ -707,17 +703,33 @@ class BookingWindow:
                     "name": name,
                     "email": email,
                     "phone": phone,
-                    "selected_seats": selected_seats
+                    "selected_seats": selected_seats,
                 }
-                from src.gui.payment_window import PaymentWindow
-                PaymentWindow(
-                    self.root,
-                    total_amount=self.confirmed_price["total_price"],
-                    booking_data=booking_data,
-                    on_payment_success=self._on_payment_success
-                )
 
-            SeatMapWindow(self.root, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
+                if self.user and self.user.role in ('admin', 'manager'):
+                    self._finalize_booking(
+                        booking_data["name"],
+                        booking_data["email"],
+                        booking_data["phone"],
+                        booking_data["selected_seats"],
+                    )
+                else:
+                    from src.gui.payment_window import PaymentWindow
+
+                    PaymentWindow(
+                        self.root,
+                        total_amount=self.confirmed_price["total_price"],
+                        booking_data=booking_data,
+                        on_payment_success=self._on_payment_success,
+                    )
+
+            SeatMapWindow(
+                self.root,
+                sh.showing_id,
+                qty,
+                self.confirmed_price["ticket_type"],
+                on_seats_selected,
+            )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start booking process: {e}")
 

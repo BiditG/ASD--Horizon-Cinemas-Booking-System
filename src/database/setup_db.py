@@ -217,28 +217,7 @@ def seed_data(cursor):
         VALUES (?, ?, ?, ?)
     """, prices_data)
 
-    # 6. Showings (At least 20)
-    show_types = [('morning', '10:00'), ('afternoon', '14:30'), ('evening', '19:00')]
-    showings_data = []
-    base_date = datetime.date.today()
-    for i in range(30):
-        film_id = random.randint(1, 8)
-        screen_id = random.randint(1, 24)
-        show_date = (base_date + datetime.timedelta(days=random.randint(0, 14))).isoformat()
-        stype, stime = random.choice(show_types)
-        
-        # Get capacity for screen
-        cursor.execute("SELECT total_capacity FROM screens WHERE screen_id=?", (screen_id,))
-        capacity = cursor.fetchone()[0]
-        
-        showings_data.append((film_id, screen_id, show_date, stime, stype, capacity))
-        
-    cursor.executemany("""
-        INSERT INTO showings (film_id, screen_id, show_date, show_time, show_type, seats_remaining)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, showings_data)
-
-    # 7. Users (cinema_id, username, password_hash, full_name, email, role, theme_pref, is_active)
+    # 6. Users (cinema_id, username, password_hash, full_name, email, role, theme_pref, is_active)
     users_data = [
         (None, 'manager1', hash_password('password123'), 'Alice Manager',   'alice@hcbs.com',   'manager', 'dark', 1),
         (1,    'admin1',   hash_password('password123'), 'Bob Admin',        'bob@hcbs.com',     'admin',   'dark', 1),
@@ -252,19 +231,152 @@ def seed_data(cursor):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, users_data)
 
+    # 7. Create 72 showings for TODAY across all cinemas (9 per cinema, 3 per screen)
+    print("Seeding showings for today...")
+    show_types_times = [('morning', '10:00'), ('afternoon', '14:30'), ('evening', '19:00')]
+    today_showings = []
+    film_idx = 0
+    
+    cursor.execute("SELECT screen_id, total_capacity FROM screens ORDER BY screen_id")
+    all_screens = cursor.fetchall()
+    films_list = list(range(1, 9))
+    
+    for screen_id, capacity in all_screens:
+        for show_type, show_time in show_types_times:
+            film_id = films_list[film_idx % len(films_list)]
+            today_showings.append((film_id, screen_id, today, show_time, show_type, capacity))
+            film_idx += 1
+    
+    cursor.executemany("""
+        INSERT INTO showings (film_id, screen_id, show_date, show_time, show_type, seats_remaining)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, today_showings)
 
-    # Add a dummy booking and ticket to ensure tables are working
+    # 8. Create historical showings (past 30 days) for reports
+    print("Seeding historical showings for reports...")
+    historical_showings = []
+    base_date = datetime.date.today()
+    for i in range(1, 31):
+        past_date = (base_date - datetime.timedelta(days=i)).isoformat()
+        for screen_id, capacity in all_screens:
+            stype, stime = random.choice(show_types_times)
+            film_id = random.randint(1, 8)
+            historical_showings.append((film_id, screen_id, past_date, stime, stype, capacity))
+    
+    cursor.executemany("""
+        INSERT INTO showings (film_id, screen_id, show_date, show_time, show_type, seats_remaining)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, historical_showings)
+
+    # 9. Create bookings and tickets for reports (past 30 days)
+    print("Seeding bookings and tickets for reports...")
+    cursor.execute("SELECT showing_id, screen_id FROM showings WHERE show_date < ?", (today,))
+    past_showings = cursor.fetchall()
+    
+    booking_ref_counter = 1
+    staff_ids = [4, 5, 6]  # staff1, staff2, staff3 user IDs
+    
+    for showing_id, screen_id in past_showings[:100]:  # Sample past showings
+        # Create 1-3 bookings per showing
+        num_bookings = random.randint(1, 3)
+        for _ in range(num_bookings):
+            customer_name = f"Customer_{random.randint(1000, 9999)}"
+            booking_ref = f"HCBS-{today}-{booking_ref_counter:04d}"
+            booking_ref_counter += 1
+            
+            staff_id = random.choice(staff_ids)
+            
+            # Determine prices by show_type
+            cursor.execute("SELECT show_type FROM showings WHERE showing_id = ?", (showing_id,))
+            show_type = cursor.fetchone()[0]
+            
+            cursor.execute("""
+                SELECT s.screen_id FROM showings s WHERE s.showing_id = ?
+            """, (showing_id,))
+            scr = cursor.fetchone()
+            if not scr:
+                continue
+            
+            # Get screen capacity to determine seat distribution
+            cursor.execute("SELECT total_capacity FROM screens WHERE screen_id = ?", (scr[0],))
+            cap_row = cursor.fetchone()
+            if not cap_row:
+                continue
+            capacity = cap_row[0]
+            
+            # Random number of tickets (1-5)
+            num_tickets = random.randint(1, min(5, capacity))
+            
+            # Calculate price
+            cursor.execute("""
+                SELECT sp.screen_id, c.city_id FROM screens sp
+                JOIN cinemas c ON sp.cinema_id = c.cinema_id
+                WHERE sp.screen_id = ?
+            """, (scr[0],))
+            screen_info = cursor.fetchone()
+            if not screen_info:
+                continue
+            city_id = screen_info[1]
+            
+            cursor.execute("""
+                SELECT lower_hall_price FROM prices
+                WHERE city_id = ? AND show_type = ?
+            """, (city_id, show_type))
+            price_row = cursor.fetchone()
+            base_price = price_row[0] if price_row else 5.0
+            
+            total_cost = base_price * num_tickets
+            
+            cursor.execute("""
+                INSERT INTO bookings
+                (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent, staff_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (showing_id, booking_ref, customer_name, total_cost, 'Active', 1, staff_id))
+            
+            booking_id = cursor.lastrowid
+            
+            # Create tickets
+            ticket_types = ['lower_hall'] * max(1, int(num_tickets * 0.6)) + \
+                          ['upper_gallery'] * max(1, int(num_tickets * 0.3)) + \
+                          ['vip'] * max(0, num_tickets - max(1, int(num_tickets * 0.6)) - max(1, int(num_tickets * 0.3)))
+            
+            for idx, ticket_type in enumerate(ticket_types):
+                seat_num = f"{chr(65 + idx // 10)}{idx % 10 + 1}"
+                cursor.execute("""
+                    INSERT INTO tickets (booking_id, seat_number, ticket_type, unit_price)
+                    VALUES (?, ?, ?, ?)
+                """, (booking_id, seat_num, ticket_type, base_price))
+
+    # 10. Add waitlist entries
+    print("Seeding waitlist...")
+    cursor.execute("SELECT showing_id FROM showings WHERE show_date = ? ORDER BY RANDOM() LIMIT 5", (today,))
+    today_showings_sample = cursor.fetchall()
+    
+    for showing_id, in today_showings_sample:
+        for i in range(random.randint(1, 3)):
+            cursor.execute("""
+                INSERT INTO waitlist (showing_id, customer_name, contact_info)
+                VALUES (?, ?, ?)
+            """, (showing_id, f"WaitlistCustomer_{random.randint(1000, 9999)}", f"email_{random.randint(1, 9999)}@example.com"))
+
+    # 11. Add loyalty points
+    print("Seeding loyalty points...")
+    cursor.execute("SELECT customer_name FROM bookings ORDER BY RANDOM() LIMIT 10")
+    customers = cursor.fetchall()
+    for customer, in customers:
+        points = random.randint(50, 500)
+        cursor.execute("""
+            INSERT INTO loyalty_points (customer_name, points)
+            VALUES (?, ?)
+        """, (customer, points))
+
+    # 12. Add agent logs
+    print("Seeding agent logs...")
     cursor.execute("""
-        INSERT INTO bookings (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent)
-        VALUES (1, 'HCBS-20260430-0001', 'John Doe', 12.0, 'Active', 0)
-    """)
-    cursor.execute("""
-        INSERT INTO tickets (booking_id, seat_number, ticket_type, unit_price)
-        VALUES (1, 'A1', 'lower_hall', 6.0), (1, 'A2', 'lower_hall', 6.0)
-    """)
-    cursor.execute("INSERT INTO waitlist (showing_id, customer_name, contact_info) VALUES (2, 'Jane Smith', 'jane@example.com')")
-    cursor.execute("INSERT INTO loyalty_points (customer_name, points) VALUES ('John Doe', 100)")
-    cursor.execute("INSERT INTO agent_logs (session_id, tool_name, tool_input, tool_output) VALUES ('sess_123', 'check_availability', '{\"film\":\"Inception\"}', '{\"available\": true}')")
+        INSERT INTO agent_logs (session_id, tool_name, tool_input, tool_output)
+        VALUES (?, ?, ?, ?)
+    """, ('sess_001', 'check_availability', '{"film":"Inception"}', '{"available": true}'))
+
 
 
 def main():

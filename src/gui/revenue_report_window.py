@@ -153,6 +153,13 @@ class RevenueReportPanel:
         style.configure("Rev.Treeview.Heading", background=BG2, foreground=FG, font=FONT_BTN)
         style.map("Rev.Treeview", background=[("selected", ACCENT)], foreground=[("selected", FG)])
         style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=FG, arrowcolor=FG)
+        style.map("TCombobox",
+              fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
+              foreground=[("readonly", FG), ("disabled", FG), ("focus", FG), ("active", FG)])
+        self.root.option_add('*TCombobox*Listbox.background', BG2, 100)
+        self.root.option_add('*TCombobox*Listbox.foreground', FG, 100)
+        self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectForeground', FG, 100)
 
         self._tv = ttk.Treeview(parent, columns=cols, show="headings",
                                 style="Rev.Treeview")

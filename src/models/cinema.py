@@ -57,6 +57,10 @@ class Cinema:
             is_active   = row["is_active"] if "is_active" in row.keys() else True,
         )
 
+    @staticmethod
+    def _table_columns(conn: sqlite3.Connection) -> set[str]:
+        return {row[1] for row in conn.execute("PRAGMA table_info(cinemas)").fetchall()}
+
     # ------------------------------------------------------------------
     # Read operations
     # ------------------------------------------------------------------
@@ -74,9 +78,15 @@ class Cinema:
         """
         try:
             conn   = get_connection()
-            cursor = conn.execute(
-                "SELECT * FROM cinemas WHERE is_active = 1 ORDER BY city_id, cinema_name"
-            )
+            columns = Cinema._table_columns(conn)
+            if "is_active" in columns:
+                cursor = conn.execute(
+                    "SELECT * FROM cinemas WHERE is_active = 1 ORDER BY city_id, cinema_name"
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT * FROM cinemas ORDER BY city_id, cinema_name"
+                )
             return [Cinema._from_row(row) for row in cursor.fetchall()]
         except sqlite3.DatabaseError as exc:
             raise sqlite3.DatabaseError(f"Cinema.get_all failed: {exc}") from exc
@@ -124,10 +134,17 @@ class Cinema:
         """
         try:
             conn   = get_connection()
-            cursor = conn.execute(
-                "SELECT * FROM cinemas WHERE city_id = ? AND is_active = 1",
-                (city_id,)
-            )
+            columns = Cinema._table_columns(conn)
+            if "is_active" in columns:
+                cursor = conn.execute(
+                    "SELECT * FROM cinemas WHERE city_id = ? AND is_active = 1",
+                    (city_id,)
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT * FROM cinemas WHERE city_id = ?",
+                    (city_id,)
+                )
             return [Cinema._from_row(row) for row in cursor.fetchall()]
         except sqlite3.DatabaseError as exc:
             raise sqlite3.DatabaseError(f"Cinema.get_by_city failed: {exc}") from exc
@@ -159,13 +176,25 @@ class Cinema:
             raise ValueError("Cinema location cannot be empty.")
         try:
             conn   = get_connection()
-            cursor = conn.execute(
-                """
-                INSERT INTO cinemas (city_id, cinema_name, location, is_active)
-                VALUES (?, ?, ?, 1)
-                """,
-                (city_id, name.strip(), location.strip())
-            )
+            columns = Cinema._table_columns(conn)
+            if "location" in columns and "is_active" in columns:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO cinemas (city_id, cinema_name, location, is_active)
+                    VALUES (?, ?, ?, 1)
+                    """,
+                    (city_id, name.strip(), location.strip())
+                )
+            elif "location" in columns:
+                cursor = conn.execute(
+                    "INSERT INTO cinemas (city_id, cinema_name, location) VALUES (?, ?, ?)",
+                    (city_id, name.strip(), location.strip())
+                )
+            else:
+                cursor = conn.execute(
+                    "INSERT INTO cinemas (city_id, cinema_name) VALUES (?, ?)",
+                    (city_id, name.strip())
+                )
             conn.commit()
             return Cinema(
                 cinema_id   = cursor.lastrowid,
@@ -196,14 +225,19 @@ class Cinema:
         """
         if not name.strip():
             raise ValueError("Cinema name cannot be empty.")
-        if not location.strip():
-            raise ValueError("Cinema location cannot be empty.")
         try:
             conn   = get_connection()
-            cursor = conn.execute(
-                "UPDATE cinemas SET cinema_name = ?, location = ? WHERE cinema_id = ?",
-                (name.strip(), location.strip(), cinema_id)
-            )
+            columns = Cinema._table_columns(conn)
+            if "location" in columns:
+                cursor = conn.execute(
+                    "UPDATE cinemas SET cinema_name = ?, location = ? WHERE cinema_id = ?",
+                    (name.strip(), location.strip(), cinema_id)
+                )
+            else:
+                cursor = conn.execute(
+                    "UPDATE cinemas SET cinema_name = ? WHERE cinema_id = ?",
+                    (name.strip(), cinema_id)
+                )
             conn.commit()
             return cursor.rowcount > 0
         except sqlite3.DatabaseError as exc:
@@ -225,6 +259,9 @@ class Cinema:
         """
         try:
             conn   = get_connection()
+            columns = Cinema._table_columns(conn)
+            if "is_active" not in columns:
+                return False
             cursor = conn.execute(
                 "UPDATE cinemas SET is_active = 0 WHERE cinema_id = ?",
                 (cinema_id,)

@@ -193,7 +193,6 @@ class OccupancyHeatmapPanel:
                 JOIN films f ON sh.film_id = f.film_id
                 LEFT JOIN bookings b ON sh.showing_id = b.showing_id AND b.booking_status != 'Cancelled'
                 WHERE sh.show_date BETWEEN ? AND ?
-                AND sh.is_cancelled = 0
             """
             if cid:
                 query += " AND sc.cinema_id = ?"

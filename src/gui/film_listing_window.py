@@ -299,6 +299,14 @@ class FilmListingWindow:
                             fieldbackground=BG2, background=BG2,
                             foreground=TEXT, selectbackground=ACCENT,
                             arrowcolor=TEXT)
+            style.map("HCBS.TCombobox",
+                      fieldbackground=[('readonly', BG2), ('disabled', BG2), ('focus', BG2), ('active', BG2)],
+                      foreground=[('readonly', TEXT), ('disabled', TEXT), ('focus', TEXT), ('active', TEXT)])
+            app_root = self._tl._root()
+            app_root.option_add('*TCombobox*Listbox.background', BG2, 100)
+            app_root.option_add('*TCombobox*Listbox.foreground', TEXT, 100)
+            app_root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
+            app_root.option_add('*TCombobox*Listbox.selectForeground', TEXT, 100)
             self._cinema_cb = ttk.Combobox(
                 ctrl, textvariable=self._cinema_var,
                 state="readonly", font=FONT_BODY, width=34,
@@ -449,7 +457,9 @@ class FilmListingWindow:
     def _load_cinemas(self) -> None:
         """Populate the cinema selection and load initial film data."""
         try:
+            print(f"[DEBUG] FilmListingWindow._load_cinemas called")
             self._cinemas = Cinema.get_all()
+            print(f"[DEBUG] Loaded {len(self._cinemas)} cinemas")
             names = [c.cinema_name for c in self._cinemas]
             
             # Handle home cinema for staff
@@ -460,9 +470,11 @@ class FilmListingWindow:
             if home_cinema:
                 self._cinema_var.set(home_cinema.cinema_name)
                 self._selected_cinema_id = home_cinema.cinema_id
+                print(f"[DEBUG] Selected home cinema: {self._selected_cinema_id} ({home_cinema.cinema_name})")
             elif names:
                 self._cinema_var.set(names[0])
                 self._selected_cinema_id = self._cinemas[0].cinema_id
+                print(f"[DEBUG] Selected first cinema: {self._selected_cinema_id} ({names[0]})")
             
             # Populate combobox if it exists (for admin/manager)
             if hasattr(self, '_cinema_cb'):
@@ -473,6 +485,7 @@ class FilmListingWindow:
                 self._refresh_films()
                 
         except Exception as exc:
+            print(f"[DEBUG] FilmListingWindow._load_cinemas ERROR: {exc}")
             messagebox.showerror("Database Error", str(exc), parent=self._tk)
 
     def _refresh_films(self) -> None:
@@ -482,17 +495,22 @@ class FilmListingWindow:
         This is the only method that hits the database. All subsequent filtering
         is done client-side via _apply_filters() without a DB round-trip.
         """
+        print(f"[DEBUG] FilmListingWindow._refresh_films called, cinema_id={self._selected_cinema_id}")
         self._all_films.clear()
 
         if self._selected_cinema_id is None:
+            print(f"[DEBUG] _selected_cinema_id is None, returning")
             return
 
         date_str = self._current_date.isoformat()
+        print(f"[DEBUG] Calling Showing.get_by_cinema_date({self._selected_cinema_id}, {date_str})")
         try:
             showings = Showing.get_by_cinema_date(
                 self._selected_cinema_id, date_str
             )
+            print(f"[DEBUG] Got {len(showings)} showings")
         except Exception as exc:
+            print(f"[DEBUG] ERROR in get_by_cinema_date: {exc}")
             messagebox.showerror("Error", str(exc), parent=self._tk)
             return
 
@@ -501,6 +519,7 @@ class FilmListingWindow:
         for sh in showings:
             film_showings.setdefault(sh.film_id, []).append(sh)
 
+        print(f"[DEBUG] Grouped into {len(film_showings)} films")
         for film_id, film_shows in film_showings.items():
             try:
                 film = Film.get_by_id(film_id)
@@ -508,6 +527,7 @@ class FilmListingWindow:
             except Exception:
                 continue
 
+        print(f"[DEBUG] _all_films now has {len(self._all_films)} entries")
         # Reset filter widgets to 'All' without triggering another refresh
         # (we only reset on date/cinema change, not on filter change)
         self._apply_filters()

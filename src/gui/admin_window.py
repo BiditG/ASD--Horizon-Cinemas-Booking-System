@@ -30,6 +30,7 @@ from src.utils.rbac import require_role
 @require_role('admin')
 class AdminWindow:
     def __init__(self, root: tk.Tk) -> None:
+        print("[DEBUG] AdminWindow.__init__ called")
         self.root = root
         
         session = SessionManager.get_instance()
@@ -40,7 +41,9 @@ class AdminWindow:
         self.root.geometry("1100x750")
         
         self._build_topbar()
+        print("[DEBUG] AdminWindow._build_topbar done")
         self._build_notebook()
+        print("[DEBUG] AdminWindow._build_notebook done")
         
     def _build_topbar(self):
         bar = tk.Frame(self.root, bg=BG2, pady=10, padx=20)
@@ -58,6 +61,7 @@ class AdminWindow:
             _logout_and_return(self.root)
 
     def _build_notebook(self):
+        print("[DEBUG] AdminWindow._build_notebook called")
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TNotebook", background=BG, borderwidth=0)
@@ -69,12 +73,20 @@ class AdminWindow:
         style.map("Treeview", background=[("selected", ACCENT)], foreground=[("selected", FG)])
         style.configure("Treeview.Heading", background=BG2, foreground=FG, font=("Segoe UI", 10, "bold"))
         style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=FG, arrowcolor=FG)
+        style.map("TCombobox",
+              fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
+              foreground=[("readonly", FG), ("disabled", FG), ("focus", FG), ("active", FG)])
+        self.root.option_add('*TCombobox*Listbox.background', BG2, 100)
+        self.root.option_add('*TCombobox*Listbox.foreground', FG, 100)
+        self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
+        self.root.option_add('*TCombobox*Listbox.selectForeground', FG, 100)
         
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True, padx=20, pady=20)
         
         self.tab_films = tk.Frame(self.notebook, bg=BG)
         self.tab_showings = tk.Frame(self.notebook, bg=BG)
+        self.tab_bookings = tk.Frame(self.notebook, bg=BG)
         self.tab_reports = tk.Frame(self.notebook, bg=BG)
         self.tab_chart = tk.Frame(self.notebook, bg=BG)
         self.tab_revenue = tk.Frame(self.notebook, bg=BG)
@@ -84,6 +96,7 @@ class AdminWindow:
 
         self.notebook.add(self.tab_films,   text="Films")
         self.notebook.add(self.tab_showings, text="Showings")
+        self.notebook.add(self.tab_bookings, text="📅 Bookings")
         self.notebook.add(self.tab_reports,  text="Reports")
         self.notebook.add(self.tab_chart,    text="📊 Revenue Chart")
         self.notebook.add(self.tab_revenue,  text="📅 Monthly Revenue")
@@ -93,6 +106,7 @@ class AdminWindow:
 
         self._build_films_tab()
         self._build_showings_tab()
+        self._build_bookings_tab()
         self._build_reports_tab()
         self._build_chart_tab()
         self._build_revenue_tab()
@@ -102,6 +116,7 @@ class AdminWindow:
         
     # --- FILMS TAB ---
     def _build_films_tab(self):
+        print("[DEBUG] AdminWindow._build_films_tab called")
         top = tk.Frame(self.tab_films, bg=BG, pady=10)
         top.pack(fill="x")
         
@@ -134,7 +149,9 @@ class AdminWindow:
         try:
             conn = get_connection()
             cursor = conn.execute("SELECT film_id, title, genre, age_rating, duration_mins, is_active FROM films ORDER BY title")
-            for row in cursor.fetchall():
+            rows = cursor.fetchall()
+            print(f"[DEBUG] AdminWindow._refresh_films fetched {len(rows)} rows")
+            for row in rows:
                 active_str = "Yes" if row["is_active"] else "No"
                 self.films_tree.insert("", "end", values=(row["film_id"], row["title"], row["genre"], row["age_rating"], f"{row['duration_mins']}m", active_str))
         except Exception as e:
@@ -302,6 +319,7 @@ class AdminWindow:
 
     # --- SHOWINGS TAB ---
     def _build_showings_tab(self):
+        print("[DEBUG] AdminWindow._build_showings_tab called")
         top = tk.Frame(self.tab_showings, bg=BG, pady=10)
         top.pack(fill="x")
         
@@ -333,19 +351,20 @@ class AdminWindow:
             self.shows_tree.delete(row)
         try:
             conn = get_connection()
-            q = '''SELECT s.showing_id, f.title, c.cinema_name, s.screen_id, s.show_date, s.show_time, s.show_type, s.seats_remaining, s.is_cancelled
+            q = '''SELECT s.showing_id, f.title, c.cinema_name, s.screen_id, s.show_date, s.show_time, s.show_type, s.seats_remaining
                    FROM showings s
                    JOIN films f ON s.film_id = f.film_id
                    JOIN screens sc ON s.screen_id = sc.screen_id
                    JOIN cinemas c ON sc.cinema_id = c.cinema_id
                    ORDER BY s.show_date DESC, s.show_time DESC
                    LIMIT 200''' # limit to avoid hanging
-            for row in conn.execute(q).fetchall():
-                status = "Cancelled" if row["is_cancelled"] else "Active"
+            rows = conn.execute(q).fetchall()
+            print(f"[DEBUG] AdminWindow._refresh_showings fetched {len(rows)} rows")
+            for row in rows:
                 self.shows_tree.insert("", "end", values=(
                     row["showing_id"], row["title"], row["cinema_name"], 
                     row["screen_id"], row["show_date"], row["show_time"], 
-                    row["show_type"].capitalize(), row["seats_remaining"], status
+                    row["show_type"].capitalize(), row["seats_remaining"], "Active"
                 ))
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -492,14 +511,572 @@ class AdminWindow:
             return
             
         if messagebox.askyesno("Confirm Cancel", f"Are you sure you want to cancel showing ID {sid}?\nActive bookings may need refunds."):
-            try:
-                conn = get_connection()
-                conn.execute("UPDATE showings SET is_cancelled=1 WHERE showing_id=?", (sid,))
-                conn.commit()
-                self._refresh_showings()
-                messagebox.showinfo("Success", "Showing cancelled.")
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
+            messagebox.showinfo("Info", "Showing cancellation is not supported by the current database schema.")
+
+    # --- BOOKINGS TAB ---
+    def _build_bookings_tab(self):
+        """Display all bookings across the cinema network."""
+        top = tk.Frame(self.tab_bookings, bg=BG, pady=10)
+        top.pack(fill="x", padx=10)
+        
+        tk.Label(top, text="Filter by Status:", bg=BG, fg=FG, font=("Segoe UI", 10)).pack(side="left", padx=5)
+        self.bookings_status_var = tk.StringVar(value="All")
+        status_cb = ttk.Combobox(top, textvariable=self.bookings_status_var, 
+                                 values=["All", "Active", "Cancelled"], state="readonly", width=15)
+        status_cb.pack(side="left", padx=5)
+        status_cb.bind("<<ComboboxSelected>>", lambda e: self._refresh_bookings())
+        
+        tk.Button(top, text="↻ Refresh", bg=BG2, fg=FG, command=self._refresh_bookings).pack(side="left", padx=5)
+        tk.Button(top, text="➕ Create Booking", bg=SUCCESS, fg=FG, command=self._open_booking).pack(side="left", padx=5)
+        tk.Button(top, text="📥 Export CSV", bg=SUCCESS, fg=FG, command=self._export_bookings_csv).pack(side="right", padx=5)
+        tk.Button(top, text="🔍 Details", bg=ACCENT, fg=FG, command=self._view_booking_details).pack(side="right", padx=5)
+        
+        cols = ("ID", "Ref", "Customer", "Film", "Cinema", "Date", "Time", "Tickets", "Total (£)", "Status", "Booked By")
+        self.bookings_tree = ttk.Treeview(self.tab_bookings, columns=cols, show="headings", height=18)
+        
+        for c in cols:
+            self.bookings_tree.heading(c, text=c)
+            self.bookings_tree.column(c, anchor="center")
+        
+        # Set column widths
+        self.bookings_tree.column("ID", width=50)
+        self.bookings_tree.column("Ref", width=120)
+        self.bookings_tree.column("Customer", width=120)
+        self.bookings_tree.column("Film", width=150)
+        self.bookings_tree.column("Cinema", width=100)
+        self.bookings_tree.column("Date", width=90)
+        self.bookings_tree.column("Time", width=60)
+        self.bookings_tree.column("Tickets", width=60)
+        self.bookings_tree.column("Total (£)", width=80)
+        self.bookings_tree.column("Status", width=80)
+        self.bookings_tree.column("Booked By", width=100)
+        
+        # Scrollbar
+        sb = ttk.Scrollbar(self.tab_bookings, orient="vertical", command=self.bookings_tree.yview)
+        self.bookings_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y", padx=10)
+        self.bookings_tree.pack(fill="both", expand=True, pady=10, padx=10)
+        
+        self._refresh_bookings()
+        
+    def _refresh_bookings(self):
+        """Populate bookings treeview with all bookings."""
+        for row in self.bookings_tree.get_children():
+            self.bookings_tree.delete(row)
+        
+        try:
+            conn = get_connection()
+            status_filter = self.bookings_status_var.get()
+            
+            # Build query based on status filter
+            if status_filter == "All":
+                query = """
+                    SELECT b.booking_id, b.booking_ref, b.customer_name, f.title, c.cinema_name,
+                           sh.show_date, sh.show_time, COUNT(t.ticket_id) as ticket_count,
+                           b.total_cost, b.booking_status, u.full_name
+                    FROM bookings b
+                    JOIN showings sh ON b.showing_id = sh.showing_id
+                    JOIN screens sc ON sh.screen_id = sc.screen_id
+                    JOIN cinemas c ON sc.cinema_id = c.cinema_id
+                    JOIN films f ON sh.film_id = f.film_id
+                    JOIN users u ON b.staff_id = u.user_id
+                    LEFT JOIN tickets t ON b.booking_id = t.booking_id
+                    GROUP BY b.booking_id
+                    ORDER BY sh.show_date DESC, sh.show_time DESC
+                    LIMIT 500
+                """
+            else:
+                query = """
+                    SELECT b.booking_id, b.booking_ref, b.customer_name, f.title, c.cinema_name,
+                           sh.show_date, sh.show_time, COUNT(t.ticket_id) as ticket_count,
+                           b.total_cost, b.booking_status, u.full_name
+                    FROM bookings b
+                    JOIN showings sh ON b.showing_id = sh.showing_id
+                    JOIN screens sc ON sh.screen_id = sc.screen_id
+                    JOIN cinemas c ON sc.cinema_id = c.cinema_id
+                    JOIN films f ON sh.film_id = f.film_id
+                    JOIN users u ON b.staff_id = u.user_id
+                    LEFT JOIN tickets t ON b.booking_id = t.booking_id
+                    WHERE b.booking_status = ?
+                    GROUP BY b.booking_id
+                    ORDER BY sh.show_date DESC, sh.show_time DESC
+                    LIMIT 500
+                """
+                query_params = (status_filter,)
+            
+            rows = conn.execute(query, query_params if status_filter != "All" else ()).fetchall()
+            
+            for row in rows:
+                self.bookings_tree.insert("", "end", values=(
+                    row["booking_id"],
+                    row["booking_ref"],
+                    row["customer_name"][:20] if row["customer_name"] else "N/A",
+                    row["title"][:25] if row["title"] else "N/A",
+                    row["cinema_name"][:20] if row["cinema_name"] else "N/A",
+                    row["show_date"],
+                    row["show_time"],
+                    row["ticket_count"],
+                    f"£{row['total_cost']:.2f}",
+                    row["booking_status"],
+                    row["full_name"][:15] if row["full_name"] else "N/A"
+                ))
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load bookings: {e}")
+
+    def _view_booking_details(self):
+        """Display details of selected booking."""
+        sel = self.bookings_tree.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Select a booking to view details.")
+            return
+        
+        booking_id = self.bookings_tree.item(sel[0])["values"][0]
+        
+        try:
+            conn = get_connection()
+            booking = conn.execute("""
+                SELECT b.*, sh.show_date, sh.show_time, f.title, c.cinema_name, sc.screen_number
+                FROM bookings b
+                JOIN showings sh ON b.showing_id = sh.showing_id
+                JOIN screens sc ON sh.screen_id = sc.screen_id
+                JOIN cinemas c ON sc.cinema_id = c.cinema_id
+                JOIN films f ON sh.film_id = f.film_id
+                WHERE b.booking_id = ?
+            """, (booking_id,)).fetchone()
+            
+            if not booking:
+                messagebox.showerror("Error", "Booking not found.")
+                return
+            
+            tickets = conn.execute("""
+                SELECT seat_number, ticket_type, unit_price
+                FROM tickets
+                WHERE booking_id = ?
+                ORDER BY seat_number
+            """, (booking_id,)).fetchall()
+            
+            # Create details window
+            win = tk.Toplevel(self.root)
+            win.title(f"Booking Details - {booking['booking_ref']}")
+            win.geometry("600x500")
+            win.configure(bg=BG)
+            
+            # Header
+            header = tk.Frame(win, bg=BG2, pady=15)
+            header.pack(fill="x")
+            tk.Label(header, text=f"Booking Ref: {booking['booking_ref']}", 
+                    font=("Segoe UI", 12, "bold"), bg=BG2, fg=FG).pack(anchor="w", padx=20)
+            
+            # Details frame
+            details = tk.Frame(win, bg=BG, padx=20, pady=15)
+            details.pack(fill="x")
+            
+            info_text = f"""
+Customer: {booking['customer_name']}
+Email: {booking['customer_email'] or 'N/A'}
+
+Film: {booking['title']}
+Cinema: {booking['cinema_name']}
+Screen: {booking['screen_number']}
+Date: {booking['show_date']} at {booking['show_time']}
+
+Total Cost: £{booking['total_cost']:.2f}
+Status: {booking['booking_status']}
+Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
+            """.strip()
+            
+            tk.Label(details, text=info_text, bg=BG, fg=FG, font=("Segoe UI", 10), 
+                    justify="left", anchor="nw").pack(fill="x")
+            
+            # Tickets frame
+            tickets_frame = tk.Frame(win, bg=BG2, padx=20, pady=15)
+            tickets_frame.pack(fill="x")
+            tk.Label(tickets_frame, text="Tickets:", font=("Segoe UI", 11, "bold"), 
+                    bg=BG2, fg=FG).pack(anchor="w")
+            
+            tickets_text = "\n".join([
+                f"  • {t['seat_number']:<8} {t['ticket_type']:<15} £{t['unit_price']:.2f}"
+                for t in tickets
+            ]) or "  No tickets"
+            
+            tk.Label(tickets_frame, text=tickets_text, bg=BG2, fg=TEXT2, font=("Courier", 9),
+                    justify="left", anchor="nw").pack(fill="x", pady=10)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load booking details: {e}")
+
+    def _export_bookings_csv(self):
+        """Export all bookings to CSV."""
+        try:
+            conn = get_connection()
+            status_filter = self.bookings_status_var.get()
+            
+            if status_filter == "All":
+                rows = conn.execute("""
+                    SELECT b.booking_id, b.booking_ref, b.customer_name, f.title, c.cinema_name,
+                           sh.show_date, sh.show_time, COUNT(t.ticket_id) as ticket_count,
+                           b.total_cost, b.booking_status, u.full_name
+                    FROM bookings b
+                    JOIN showings sh ON b.showing_id = sh.showing_id
+                    JOIN screens sc ON sh.screen_id = sc.screen_id
+                    JOIN cinemas c ON sc.cinema_id = c.cinema_id
+                    JOIN films f ON sh.film_id = f.film_id
+                    JOIN users u ON b.staff_id = u.user_id
+                    LEFT JOIN tickets t ON b.booking_id = t.booking_id
+                    GROUP BY b.booking_id
+                    ORDER BY sh.show_date DESC
+                """).fetchall()
+            else:
+                rows = conn.execute("""
+                    SELECT b.booking_id, b.booking_ref, b.customer_name, f.title, c.cinema_name,
+                           sh.show_date, sh.show_time, COUNT(t.ticket_id) as ticket_count,
+                           b.total_cost, b.booking_status, u.full_name
+                    FROM bookings b
+                    JOIN showings sh ON b.showing_id = sh.showing_id
+                    JOIN screens sc ON sh.screen_id = sc.screen_id
+                    JOIN cinemas c ON sc.cinema_id = c.cinema_id
+                    JOIN films f ON sh.film_id = f.film_id
+                    JOIN users u ON b.staff_id = u.user_id
+                    LEFT JOIN tickets t ON b.booking_id = t.booking_id
+                    WHERE b.booking_status = ?
+                    GROUP BY b.booking_id
+                    ORDER BY sh.show_date DESC
+                """, (status_filter,)).fetchall()
+            
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv")],
+                initialfile=f"bookings_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            )
+            if not filepath:
+                return
+            
+            with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = ["Booking ID", "Ref", "Customer", "Film", "Cinema", "Date", "Time", 
+                            "Tickets", "Total (£)", "Status", "Booked By"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for row in rows:
+                    writer.writerow({
+                        "Booking ID": row["booking_id"],
+                        "Ref": row["booking_ref"],
+                        "Customer": row["customer_name"],
+                        "Film": row["title"],
+                        "Cinema": row["cinema_name"],
+                        "Date": row["show_date"],
+                        "Time": row["show_time"],
+                        "Tickets": row["ticket_count"],
+                        "Total (£)": f"£{row['total_cost']:.2f}",
+                        "Status": row["booking_status"],
+                        "Booked By": row["full_name"]
+                    })
+            
+            messagebox.showinfo("Success", f"Bookings exported to {filepath}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export bookings: {e}")
+
+    # --- CREATE BOOKING TAB ---
+    def _build_create_booking_tab(self):
+        """Admin interface to create bookings for any cinema."""
+        # --- Left Panel: Selection and Entry ---
+        left_panel = tk.Frame(self.tab_create_booking, bg=BG, width=400)
+        left_panel.pack(side="left", fill="both", padx=15, pady=15)
+        
+        # Cinema selection
+        tk.Label(left_panel, text="Select Cinema:", bg=BG, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        self.cb_cinema_var = tk.StringVar()
+        self.cb_cinema_cb = ttk.Combobox(left_panel, textvariable=self.cb_cinema_var, state="readonly", font=("Segoe UI", 10))
+        self.cb_cinema_cb.pack(fill="x", pady=(0, 15))
+        self.cb_cinema_cb.bind("<<ComboboxSelected>>", lambda e: self._update_cb_dates())
+        
+        # Date selection
+        tk.Label(left_panel, text="Select Date:", bg=BG, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        self.cb_date_var = tk.StringVar()
+        self.cb_date_cb = ttk.Combobox(left_panel, textvariable=self.cb_date_var, state="readonly", font=("Segoe UI", 10))
+        self.cb_date_cb.pack(fill="x", pady=(0, 15))
+        self.cb_date_cb.bind("<<ComboboxSelected>>", lambda e: self._update_cb_showings())
+        
+        # Showing selection
+        tk.Label(left_panel, text="Select Showing:", bg=BG, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        self.cb_showing_var = tk.StringVar()
+        self.cb_showing_cb = ttk.Combobox(left_panel, textvariable=self.cb_showing_var, state="readonly", font=("Segoe UI", 10))
+        self.cb_showing_cb.pack(fill="x", pady=(0, 15))
+        self.cb_showing_cb.bind("<<ComboboxSelected>>", lambda e: self._update_cb_available_seats())
+        
+        # Customer info
+        tk.Label(left_panel, text="Customer Name:", bg=BG, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        self.cb_customer_name = tk.Entry(left_panel, font=("Segoe UI", 10))
+        self.cb_customer_name.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(left_panel, text="Customer Email:", bg=BG, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        self.cb_customer_email = tk.Entry(left_panel, font=("Segoe UI", 10))
+        self.cb_customer_email.pack(fill="x", pady=(0, 15))
+        
+        # Ticket count
+        tk.Label(left_panel, text="Number of Tickets:", bg=BG, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        self.cb_ticket_count = ttk.Spinbox(left_panel, from_=1, to=20, font=("Segoe UI", 10))
+        self.cb_ticket_count.set(1)
+        self.cb_ticket_count.pack(fill="x", pady=(0, 15))
+        self.cb_ticket_count.bind("<<Change>>", lambda e: self._update_cb_available_seats())
+        
+        # Seat selection
+        tk.Label(left_panel, text="Select Seats (Available):", bg=BG, fg=FG, font=("Segoe UI", 11, "bold")).pack(anchor="w", pady=(0, 5))
+        self.cb_seats_var = tk.StringVar()
+        self.cb_seats_text = tk.Text(left_panel, height=6, font=("Courier", 9), bg=BG2, fg=FG)
+        self.cb_seats_text.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(left_panel, text="Enter seat numbers (e.g., A1,A2,B1):", bg=BG, fg=TEXT2, font=("Segoe UI", 9)).pack(anchor="w", pady=(0, 5))
+        self.cb_selected_seats = tk.Entry(left_panel, font=("Segoe UI", 10))
+        self.cb_selected_seats.pack(fill="x", pady=(0, 20))
+        
+        # Create booking button
+        tk.Button(left_panel, text="✓ Create Booking", bg=SUCCESS, fg=FG, font=("Segoe UI", 11, "bold"), 
+                 command=self._create_booking_action).pack(fill="x", pady=10)
+        
+        # Load cinemas
+        self._load_cb_cinemas()
+    
+    def _load_cb_cinemas(self):
+        """Load all cinemas into dropdown."""
+        try:
+            conn = get_connection()
+            cinemas = conn.execute("SELECT cinema_id, cinema_name FROM cinemas ORDER BY cinema_name").fetchall()
+            cinema_opts = [f"{c['cinema_id']} - {c['cinema_name']}" for c in cinemas]
+            self.cb_cinema_cb['values'] = cinema_opts
+            if cinema_opts:
+                self.cb_cinema_cb.current(0)
+                self._update_cb_dates()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load cinemas: {e}")
+    
+    def _update_cb_dates(self):
+        """Update dates based on selected cinema."""
+        cinema_str = self.cb_cinema_var.get()
+        if not cinema_str:
+            return
+        
+        try:
+            cinema_id = int(cinema_str.split(" - ")[0])
+            conn = get_connection()
+            
+            # Get distinct dates for this cinema with showings in the future (and today)
+            today = datetime.date.today().isoformat()
+            dates = conn.execute("""
+                SELECT DISTINCT sh.show_date
+                FROM showings sh
+                JOIN screens sc ON sh.screen_id = sc.screen_id
+                WHERE sc.cinema_id = ? AND sh.show_date >= ?
+                ORDER BY sh.show_date
+                LIMIT 30
+            """, (cinema_id, today)).fetchall()
+            
+            date_opts = [d['show_date'] for d in dates]
+            self.cb_date_cb['values'] = date_opts
+            if date_opts:
+                self.cb_date_cb.current(0)
+                self._update_cb_showings()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load dates: {e}")
+    
+    def _update_cb_showings(self):
+        """Update showings based on cinema and date."""
+        cinema_str = self.cb_cinema_var.get()
+        date_str = self.cb_date_var.get()
+        
+        if not cinema_str or not date_str:
+            return
+        
+        try:
+            cinema_id = int(cinema_str.split(" - ")[0])
+            conn = get_connection()
+            
+            showings = conn.execute("""
+                SELECT sh.showing_id, f.title, sh.show_time, sh.show_type, sh.seats_remaining
+                FROM showings sh
+                JOIN screens sc ON sh.screen_id = sc.screen_id
+                JOIN films f ON sh.film_id = f.film_id
+                WHERE sc.cinema_id = ? AND sh.show_date = ?
+                ORDER BY sh.show_time
+            """, (cinema_id, date_str)).fetchall()
+            
+            showing_opts = [f"{s['showing_id']} - {s['title'][:30]} {s['show_time']} ({s['show_type']}) - {s['seats_remaining']} seats" 
+                          for s in showings]
+            self.cb_showing_cb['values'] = showing_opts
+            if showing_opts:
+                self.cb_showing_cb.current(0)
+                self._update_cb_available_seats()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load showings: {e}")
+    
+    def _update_cb_available_seats(self):
+        """Display available seats for the selected showing."""
+        showing_str = self.cb_showing_var.get()
+        if not showing_str:
+            self.cb_seats_text.delete("1.0", tk.END)
+            return
+        
+        try:
+            showing_id = int(showing_str.split(" - ")[0])
+            ticket_count = int(self.cb_ticket_count.get() or 1)
+            
+            conn = get_connection()
+            
+            # Get booked seats
+            booked = conn.execute("""
+                SELECT seat_number FROM tickets
+                WHERE booking_id IN (
+                    SELECT booking_id FROM bookings
+                    WHERE showing_id = ? AND booking_status != 'Cancelled'
+                )
+            """, (showing_id,)).fetchall()
+            
+            booked_seats = {b['seat_number'] for b in booked}
+            
+            # Get screen capacity
+            screen = conn.execute("""
+                SELECT s.total_capacity FROM screens s
+                JOIN showings sh ON sh.screen_id = s.screen_id
+                WHERE sh.showing_id = ?
+            """, (showing_id,)).fetchone()
+            
+            if not screen:
+                self.cb_seats_text.delete("1.0", tk.END)
+                return
+            
+            capacity = screen['total_capacity']
+            
+            # Generate available seats (simple A1, A2, ... format)
+            all_seats = []
+            for i in range(capacity):
+                row = chr(65 + (i // 10))  # A, B, C, ...
+                col = (i % 10) + 1
+                seat = f"{row}{col}"
+                all_seats.append(seat)
+            
+            available = [s for s in all_seats if s not in booked_seats]
+            
+            # Display available seats (first 40 shown)
+            seat_display = "Available: " + ", ".join(available[:40])
+            if len(available) > 40:
+                seat_display += f"\n... and {len(available) - 40} more"
+            
+            self.cb_seats_text.delete("1.0", tk.END)
+            self.cb_seats_text.insert("1.0", seat_display)
+            
+        except Exception as e:
+            self.cb_seats_text.delete("1.0", tk.END)
+            self.cb_seats_text.insert("1.0", f"Error: {e}")
+    
+    def _create_booking_action(self):
+        """Create booking with entered details."""
+        cinema_str = self.cb_cinema_var.get()
+        showing_str = self.cb_showing_var.get()
+        customer_name = self.cb_customer_name.get().strip()
+        customer_email = self.cb_customer_email.get().strip()
+        seats_str = self.cb_selected_seats.get().strip()
+        
+        if not all([cinema_str, showing_str, customer_name, seats_str]):
+            messagebox.showwarning("Validation", "Please fill in all required fields and select seats.")
+            return
+        
+        try:
+            showing_id = int(showing_str.split(" - ")[0])
+            seats = [s.strip().upper() for s in seats_str.split(",")]
+            
+            if len(seats) == 0:
+                messagebox.showwarning("Validation", "Please enter at least one seat.")
+                return
+            
+            conn = get_connection()
+            
+            # Validate seats exist and are available
+            booked = conn.execute("""
+                SELECT seat_number FROM tickets
+                WHERE booking_id IN (
+                    SELECT booking_id FROM bookings
+                    WHERE showing_id = ? AND booking_status != 'Cancelled'
+                )
+            """, (showing_id,)).fetchall()
+            
+            booked_seats = {b['seat_number'] for b in booked}
+            
+            for seat in seats:
+                if seat in booked_seats:
+                    messagebox.showerror("Error", f"Seat {seat} is already booked.")
+                    return
+            
+            # Get showing details for pricing
+            showing = conn.execute("""
+                SELECT sh.film_id, sh.screen_id, sh.show_date, sh.show_type, f.title
+                FROM showings sh
+                JOIN films f ON sh.film_id = f.film_id
+                WHERE sh.showing_id = ?
+            """, (showing_id,)).fetchone()
+            
+            # Get price
+            screen = conn.execute("""
+                SELECT cinema_id FROM screens WHERE screen_id = ?
+            """, (showing['screen_id'],)).fetchone()
+            
+            cinema = conn.execute("""
+                SELECT city_id FROM cinemas WHERE cinema_id = ?
+            """, (screen['cinema_id'],)).fetchone()
+            
+            price = conn.execute("""
+                SELECT lower_hall_price FROM prices
+                WHERE city_id = ? AND show_type = ?
+                ORDER BY effective_from DESC LIMIT 1
+            """, (cinema['city_id'], showing['show_type'])).fetchone()
+            
+            unit_price = price['lower_hall_price'] if price else 5.0
+            total_cost = unit_price * len(seats)
+            
+            # Create booking reference
+            booking_ref = f"HCBS-{datetime.date.today().isoformat().replace('-', '')}-{datetime.datetime.now().strftime('%H%M%S')}"
+            
+            # Insert booking
+            conn.execute("""
+                INSERT INTO bookings
+                (showing_id, booking_ref, customer_name, customer_email, total_cost, booking_status, booked_by_agent, staff_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (showing_id, booking_ref, customer_name, customer_email, total_cost, "Active", 1, self.user.user_id))
+            
+            booking_id = conn.execute("SELECT last_insert_rowid() as id").fetchone()['id']
+            
+            # Insert tickets
+            for seat in seats:
+                conn.execute("""
+                    INSERT INTO tickets (booking_id, seat_number, ticket_type, unit_price)
+                    VALUES (?, ?, ?, ?)
+                """, (booking_id, seat, "lower_hall", unit_price))
+            
+            # Update seats_remaining
+            conn.execute("""
+                UPDATE showings
+                SET seats_remaining = seats_remaining - ?
+                WHERE showing_id = ?
+            """, (len(seats), showing_id))
+            
+            conn.commit()
+            
+            messagebox.showinfo("Success", 
+                f"Booking created!\n\n"
+                f"Booking Ref: {booking_ref}\n"
+                f"Customer: {customer_name}\n"
+                f"Film: {showing['title']}\n"
+                f"Seats: {', '.join(seats)}\n"
+                f"Total: £{total_cost:.2f}")
+            
+            # Clear form
+            self.cb_customer_name.delete(0, tk.END)
+            self.cb_customer_email.delete(0, tk.END)
+            self.cb_selected_seats.delete(0, tk.END)
+            self.cb_ticket_count.set(1)
+            self._refresh_bookings()  # Refresh bookings tab
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create booking: {e}")
 
     # --- MONTHLY REVENUE TAB ---
     def _build_revenue_tab(self):
@@ -876,6 +1453,14 @@ class AdminWindow:
     def _logout(self):
         from src.gui.login_window import _logout_and_return
         _logout_and_return(self.root)
+
+    def _open_booking(self):
+        """Open the full staff booking window (skips payment for admins)."""
+        try:
+            from src.gui.booking_window import BookingWindow
+            BookingWindow(tk.Toplevel(self.root))
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open booking window: {e}")
 
     def _build_waitlist_tab(self):
         top = tk.Frame(self.tab_waitlist, bg=BG, pady=10)
