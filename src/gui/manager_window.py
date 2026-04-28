@@ -60,7 +60,11 @@ class ManagerWindow:
         
         tk.Button(btn_frame, text="📊 Live Dashboard", bg="#0f766e", fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", activebackground="#115e59", command=self._open_dashboard).pack(side="left", padx=10)
         tk.Button(btn_frame, text="Switch to Admin View", bg=ACCENT, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_admin).pack(side="left", padx=10)
+<<<<<<< HEAD
         tk.Button(btn_frame, text="Close", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", activebackground=BG2, command=self.root.destroy).pack(side="left")
+=======
+        tk.Button(btn_frame, text="Logout", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._logout).pack(side="left")
+>>>>>>> 7c5554d7012ced10fe76507575996cece775083e
         
         # Notebook
         style = ttk.Style()
@@ -97,6 +101,11 @@ class ManagerWindow:
     def _open_dashboard(self):
         from src.gui.dashboard_window import DashboardWindow
         DashboardWindow(tk.Toplevel(self.root))
+
+    def _logout(self):
+        if messagebox.askyesno("Confirm Logout", "Are you sure you want to log out?"):
+            from src.gui.login_window import _logout_and_return
+            _logout_and_return(self.root)
 
     # ---- TAB 1: ADD CINEMA ----
     def _build_cinema_tab(self):
@@ -135,9 +144,10 @@ class ManagerWindow:
         tk.Button(card, text="Create Cinema", bg=SUCCESS, fg=TEXT, font=FONT_BTN, relief="flat", padx=20, pady=10, cursor="hand2", command=self._submit_cinema).grid(row=6, column=0, columnspan=2, pady=20)
 
     def _submit_cinema(self):
-        city = self.cinema_city_cb.get().strip()
-        name = self.cinema_name_ent.get().strip()
-        loc = self.cinema_loc_ent.get().strip()
+        from src.utils.input_validator import InputValidator
+        city = InputValidator.sanitise_text(self.cinema_city_cb.get(), 100)
+        name = InputValidator.sanitise_text(self.cinema_name_ent.get(), 100)
+        loc = InputValidator.sanitise_text(self.cinema_loc_ent.get(), 200)
         try:
             screens = int(self.cinema_screens_spin.get())
             capacity = int(self.cinema_cap_spin.get())
@@ -302,9 +312,8 @@ class ManagerWindow:
         sid = self._screens[s_idx]["screen_id"]
         
         date_str = self.list_date_ent.get().strip()
-        try:
-            datetime.datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
+        from src.utils.input_validator import InputValidator
+        if not InputValidator.validate_date(date_str):
             messagebox.showerror("Error", "Invalid Date format. Use YYYY-MM-DD.")
             return
             

@@ -18,7 +18,10 @@ import sqlite3
 import threading
 import tkinter as tk
 from tkinter import font as tkfont
+from tkinter import messagebox
 from typing import Optional
+import datetime
+import time
 
 # ---------------------------------------------------------------------------
 # Resolve the path to hcbs.db relative to this file's location so the app
@@ -98,6 +101,10 @@ class SessionManager:
             cls._instance = super().__new__(cls)
             cls._instance._current_user = None
             cls._instance._db_connection = None
+            cls._instance._last_activity = None
+            cls._instance._active_root = None
+            cls._instance._timeout_thread = threading.Thread(target=cls._instance._check_timeout_loop, daemon=True)
+            cls._instance._timeout_thread.start()
         return cls._instance
 
     @classmethod
@@ -159,6 +166,40 @@ class SessionManager:
         if self._current_user:
             self._current_user.logout()
         self._current_user = None
+        self._last_activity = None
+
+    def update_activity(self, event=None) -> None:
+        """Update the last activity timestamp on user interaction."""
+        self._last_activity = datetime.datetime.now()
+
+    def register_root(self, root: tk.Tk) -> None:
+        """Register the active Tkinter root window and bind interaction events."""
+        self._active_root = root
+        self.update_activity()
+        
+        # Bind events to update activity
+        root.bind_all("<Any-KeyPress>", self.update_activity)
+        root.bind_all("<Any-Button>", self.update_activity)
+        root.bind_all("<Motion>", self.update_activity)
+
+    def _check_timeout_loop(self) -> None:
+        """Background daemon thread checking for 15 minutes of inactivity."""
+        while True:
+            time.sleep(30)
+            if self._current_user and self._last_activity:
+                inactive_duration = datetime.datetime.now() - self._last_activity
+                if inactive_duration > datetime.timedelta(minutes=15):
+                    if self._active_root:
+                        # Schedule on main thread to prevent cross-thread UI updates
+                        self._active_root.after(0, self._trigger_auto_logout)
+
+    def _trigger_auto_logout(self) -> None:
+        """Executed on the main thread to perform auto-logout."""
+        if not self._current_user:
+            return
+            
+        messagebox.showinfo("Session Expired", "Your session has expired due to inactivity. Please log in again.", parent=self._active_root)
+        _logout_and_return(self._active_root)
 
 
 # ===========================================================================
@@ -555,6 +596,7 @@ class LoginWindow:
         self.root.destroy()
 
         new_root = tk.Tk()
+        self.session.register_root(new_root)
         if user.is_manager:
             _get_manager_window()(new_root)
         elif user.is_admin:

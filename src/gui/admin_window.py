@@ -51,6 +51,11 @@ class AdminWindow:
         tk.Button(bar, text="Cancel Booking", bg="#b91c1c", fg=FG, relief="flat", padx=10, command=self._open_cancellation).pack(side="right", padx=5)
         tk.Button(bar, text="📊 Live Dashboard", bg="#0f766e", fg=FG, relief="flat", padx=10, command=self._open_dashboard).pack(side="right", padx=5)
 
+    def _logout(self):
+        if messagebox.askyesno("Confirm Logout", "Are you sure you want to log out?"):
+            from src.gui.login_window import _logout_and_return
+            _logout_and_return(self.root)
+
     def _build_notebook(self):
         style = ttk.Style()
         style.theme_use("clam")
@@ -246,14 +251,15 @@ class AdminWindow:
 
         def save():
             try:
-                t = inputs["Title"].get().strip()
+                from src.utils.input_validator import InputValidator
+                t = InputValidator.sanitise_text(inputs["Title"].get(), 100)
                 g = inputs["Genre"].get()
                 a = inputs["Age Rating"].get()
                 d_str = inputs["Duration (mins)"].get().strip()
                 d = int(d_str) if d_str.isdigit() else 0
-                desc = inputs["Description"].get("1.0", "end-1c").strip()
-                c = inputs["Cast Members"].get().strip()
-                p = inputs["Poster Path"].get().strip()
+                desc = InputValidator.sanitise_text(inputs["Description"].get("1.0", "end-1c"), 500)
+                c = InputValidator.sanitise_text(inputs["Cast Members"].get(), 200)
+                p = InputValidator.sanitise_text(inputs["Poster Path"].get(), 200)
                 
                 if not t or d <= 0:
                     messagebox.showwarning("Validation Error", "Valid title and duration (>0) are required.")
@@ -406,7 +412,9 @@ class AdminWindow:
                 stype = type_map.get(t, "evening")
                 
                 # Check valid date
-                datetime.date.fromisoformat(d)
+                from src.utils.input_validator import InputValidator
+                if not InputValidator.validate_date(d):
+                    raise ValueError("Invalid date format. Use YYYY-MM-DD.")
                 
                 Showing.create(cinema_id=c_id, screen_id=sc_id, film_id=f_id, date=d, show_type=stype)
                 win.destroy()
