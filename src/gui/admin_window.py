@@ -23,6 +23,7 @@ TEXT2 = "#a7b4c8"
 SUCCESS = "#22c55e"
 DANGER = "#ef4444"
 WARNING = "#f59e0b"
+BORDER = "#26344a"
 
 from src.utils.rbac import require_role
 
