@@ -10,13 +10,24 @@ from src.utils.rbac import require_role
 
 @require_role('staff')
 class CancellationWindow:
-    def __init__(self, root: tk.Toplevel):
+    def __init__(
+        self,
+        root: tk.Widget,
+        embedded: bool = False,
+        shell: object | None = None,
+    ) -> None:
         self.root = root
-        self.root.title("HCBS — Cancel Booking")
-        self.root.geometry("600x550")
-        self.root.configure(bg="#0f172a")
-        self.root.grab_set()
-        
+        self.shell = shell
+        self._embedded = embedded
+
+        if not embedded:
+            self.root.title("HCBS — Cancel Booking")
+            self.root.geometry("600x550")
+            self.root.configure(bg="#0f172a")
+            self.root.grab_set()
+        else:
+            self.root.configure(bg="#0f172a")
+
         self.current_booking = None
         self._build_ui()
         
@@ -48,9 +59,15 @@ class CancellationWindow:
         btn_frame = tk.Frame(self.root, bg="#0f172a", pady=20)
         btn_frame.pack(side="bottom", fill="x")
         
-        tk.Button(btn_frame, text="Go Back", bg="#334155", fg="white", font=("Helvetica", 12, "bold"), command=self.root.destroy).pack(side="left", padx=40)
+        tk.Button(btn_frame, text="Go Back", bg="#334155", fg="white", font=("Helvetica", 12, "bold"), command=self._on_go_back).pack(side="left", padx=40)
         self.cancel_btn = tk.Button(btn_frame, text="Confirm Cancellation", bg="#dc2626", fg="white", font=("Helvetica", 12, "bold"), state="disabled", command=self._confirm_cancellation)
         self.cancel_btn.pack(side="right", padx=40)
+
+    def _on_go_back(self) -> None:
+        if self.shell is not None:
+            self.shell.select_now_tab()
+        else:
+            self.root.destroy()
 
     def _find_booking(self):
         ref = self.ref_entry.get().strip()
@@ -151,6 +168,11 @@ class CancellationWindow:
                 print(f"Waitlist processing error: {e}")
             
             messagebox.showinfo("Success", f"Booking {ref} cancelled successfully.\nRefund amount: £{res['refund_amount']:.2f}")
-            self.root.destroy()
+            if self.shell is not None:
+                self.ref_entry.delete(0, tk.END)
+                self._clear_details()
+                self.shell.select_now_tab()
+            else:
+                self.root.destroy()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to cancel booking: {e}")

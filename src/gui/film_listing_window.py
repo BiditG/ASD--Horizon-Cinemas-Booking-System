@@ -12,6 +12,7 @@ Description : Displays films and showings for a selected cinema and date.
 
 import tkinter as tk
 from tkinter import ttk, messagebox
+import calendar
 import datetime
 import os
 
@@ -70,14 +71,29 @@ class FilmListingWindow:
 
     Parameters
     ----------
-    root : tk.Tk | tk.Toplevel
-        The parent Tkinter window.
+    parent : tk.Widget
+        Root window (standalone) or a frame inside :class:`StaffShellWindow`.
+
+    embedded : bool
+        When True, skip the duplicate top bar (shell provides one) and use compact rows.
+
+    shell
+        Optional :class:`StaffShellWindow` for tab navigation (e.g. jump to booking).
     """
 
-    def __init__(self, root: tk.Tk) -> None:
-        self.root    = root
+    def __init__(
+        self,
+        parent: tk.Widget,
+        *,
+        embedded: bool = False,
+        shell: object | None = None,
+    ) -> None:
+        self.content = parent
+        self._tk = parent.winfo_toplevel()
+        self.shell = shell
+        self._embedded = embedded
         self.session = SessionManager.get_instance()
-        self.user    = self.session.get_current_user()
+        self.user = self.session.get_current_user()
 
         self._current_date = datetime.date.today()
         self._cinemas: list[Cinema] = []
@@ -93,24 +109,35 @@ class FilmListingWindow:
         self._genre_var     = tk.StringVar(value="All")
         self._rating_var    = tk.StringVar(value="All")
 
-        self._configure_root()
+        if embedded:
+            self._r = {"ctrl": 0, "search": 1, "film": 2, "status": 3}
+        else:
+            self._r = {"top": 0, "ctrl": 1, "search": 2, "film": 3, "status": 4}
+
+        if not embedded:
+            self._configure_root()
+        else:
+            self.content.columnconfigure(0, weight=1)
+            self.content.rowconfigure(self._r["film"], weight=1)
+
         self._build_ui()
         self._load_cinemas()
 
     # ── Window setup ─────────────────────────────────────────────────────────
 
     def _configure_root(self) -> None:
-        self.root.title("HCBS — Now Showing")
-        self.root.minsize(1024, 768)
-        self.root.configure(bg=BG)
-        self.root.resizable(True, True)
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(1, weight=1)
+        self.content.title("HCBS — Now Showing")
+        self.content.minsize(1024, 768)
+        self.content.configure(bg=BG)
+        self.content.resizable(True, True)
+        self.content.columnconfigure(0, weight=1)
+        self.content.rowconfigure(self._r["film"], weight=1)
 
     # ── UI construction ───────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:
-        self._build_topbar()
+        if not self._embedded:
+            self._build_topbar()
         self._build_controls()
         self._build_search_bar()
         self._build_film_area()
@@ -118,8 +145,8 @@ class FilmListingWindow:
 
     def _build_topbar(self) -> None:
         """Top navigation bar with title and logout."""
-        bar = tk.Frame(self.root, bg=BG2, pady=10)
-        bar.grid(row=0, column=0, sticky="ew")
+        bar = tk.Frame(self.content, bg=BG2, pady=10)
+        bar.grid(row=self._r["top"], column=0, sticky="ew")
         bar.columnconfigure(1, weight=1)
 
         tk.Label(bar, text="🎬", font=(FF, 20), bg=BG2, fg=ACCENT
@@ -165,15 +192,16 @@ class FilmListingWindow:
             mgr_btn.grid(row=0, column=col, padx=(0, 16))
             col += 1
 
-        # Cancel Booking
-        cancel_btn = tk.Button(
-            bar, text="Cancel Booking", font=FONT_BTN,
-            bg="#dc2626", fg=TEXT, activebackground="#b91c1c",
-            relief="flat", cursor="hand2", padx=14, pady=4,
-            command=self._open_cancellation
-        )
-        cancel_btn.grid(row=0, column=col, padx=(0, 16))
-        col += 1
+        # Cancel Booking (shell uses a tab; keep button for standalone window only)
+        if not self._embedded:
+            cancel_btn = tk.Button(
+                bar, text="Cancel Booking", font=FONT_BTN,
+                bg="#dc2626", fg=TEXT, activebackground="#b91c1c",
+                relief="flat", cursor="hand2", padx=14, pady=4,
+                command=self._open_cancellation
+            )
+            cancel_btn.grid(row=0, column=col, padx=(0, 16))
+            col += 1
 
         # Help Chatbot
         help_btn = tk.Button(
@@ -196,33 +224,36 @@ class FilmListingWindow:
 
     def _open_admin(self) -> None:
         from src.gui.admin_window import AdminWindow
-        AdminWindow(tk.Toplevel(self.root))
+        AdminWindow(tk.Toplevel(self._tk))
 
     def _open_manager(self) -> None:
         from src.gui.manager_window import ManagerWindow
-        ManagerWindow(tk.Toplevel(self.root))
+        ManagerWindow(tk.Toplevel(self._tk))
 
     def _open_dashboard(self) -> None:
         from src.gui.dashboard_window import DashboardWindow
-        DashboardWindow(tk.Toplevel(self.root))
+        DashboardWindow(tk.Toplevel(self._tk))
 
     def _open_cancellation(self) -> None:
+        if self.shell is not None:
+            self.shell.select_cancel_tab()
+            return
         from src.gui.cancellation_window import CancellationWindow
-        CancellationWindow(tk.Toplevel(self.root))
+        CancellationWindow(tk.Toplevel(self._tk))
 
     def _open_chatbot(self) -> None:
         if not hasattr(self, "chatbot_window") or not self.chatbot_window.winfo_exists():
             from src.gui.chatbot_widget import ChatbotWidget
-            self.chatbot_window = ChatbotWidget(self.root)
+            self.chatbot_window = ChatbotWidget(self._tk)
         else:
             self.chatbot_window.show_widget()
 
 
     def _build_controls(self) -> None:
         """Date navigator + cinema selector row."""
-        ctrl = tk.Frame(self.root, bg=BG, pady=12)
-        ctrl.grid(row=1, column=0, sticky="ew", padx=20)
-        ctrl.columnconfigure(3, weight=1)
+        ctrl = tk.Frame(self.content, bg=BG, pady=12)
+        ctrl.grid(row=self._r["ctrl"], column=0, sticky="ew", padx=20)
+        ctrl.columnconfigure(4, weight=1)
 
         # ── Previous / Next day ───────────────────────────────────────────────
         prev_btn = tk.Button(
@@ -235,7 +266,7 @@ class FilmListingWindow:
 
         self._date_lbl = tk.Label(
             ctrl, text=self._fmt_date(), font=FONT_H2,
-            bg=BG, fg=TEXT, width=22, anchor="center"
+            bg=BG, fg=TEXT, width=24, anchor="center"
         )
         self._date_lbl.grid(row=0, column=1)
 
@@ -245,11 +276,19 @@ class FilmListingWindow:
             cursor="hand2", padx=12, pady=6,
             command=self._next_day
         )
-        next_btn.grid(row=0, column=2, padx=(8, 24))
+        next_btn.grid(row=0, column=2, padx=(8, 8))
+
+        pick_btn = tk.Button(
+            ctrl, text="📅  Pick date…", font=FONT_BTN,
+            bg=ACCENT, fg=TEXT, activebackground=ACCENT_HVR, relief="flat",
+            cursor="hand2", padx=12, pady=6,
+            command=self._open_date_calendar,
+        )
+        pick_btn.grid(row=0, column=3, padx=(0, 24))
 
         # ── Cinema selector ───────────────────────────────────────────────────
         tk.Label(ctrl, text="Cinema:", font=FONT_LABEL,
-                 bg=BG, fg=TEXT2).grid(row=0, column=3, sticky="e")
+                 bg=BG, fg=TEXT2).grid(row=0, column=4, sticky="e")
 
         self._cinema_var = tk.StringVar()
         
@@ -265,12 +304,12 @@ class FilmListingWindow:
                 state="readonly", font=FONT_BODY, width=34,
                 style="HCBS.TCombobox"
             )
-            self._cinema_cb.grid(row=0, column=4, padx=(8, 0))
+            self._cinema_cb.grid(row=0, column=5, padx=(8, 0))
             self._cinema_cb.bind("<<ComboboxSelected>>", self._on_cinema_change)
         else:
             # Staff: Show static label
             tk.Label(ctrl, textvariable=self._cinema_var, font=FONT_LABEL,
-                     bg=BG, fg=TEXT).grid(row=0, column=4, padx=(8, 0), sticky="w")
+                     bg=BG, fg=TEXT).grid(row=0, column=5, padx=(8, 0), sticky="w")
 
     def _build_search_bar(self) -> None:
         """
@@ -287,8 +326,8 @@ class FilmListingWindow:
                    "Drama", "Horror", "Romance", "Sci-Fi", "Thriller"]
         RATINGS = ["All", "U", "PG", "12", "12A", "15", "18"]
 
-        bar = tk.Frame(self.root, bg=BG2, pady=10)
-        bar.grid(row=2, column=0, sticky="ew", padx=0)
+        bar = tk.Frame(self.content, bg=BG2, pady=10)
+        bar.grid(row=self._r["search"], column=0, sticky="ew", padx=0)
         bar.columnconfigure(1, weight=1)   # search field expands
 
         # ── Search label + entry ──────────────────────────────────────────────
@@ -349,11 +388,16 @@ class FilmListingWindow:
 
     def _build_film_area(self) -> None:
         """Scrollable canvas that holds all film cards."""
-        wrapper = tk.Frame(self.root, bg=BG)
-        wrapper.grid(row=3, column=0, sticky="nsew", padx=20, pady=(8, 0))
+        wrapper = tk.Frame(self.content, bg=BG)
+        wrapper.grid(
+            row=self._r["film"],
+            column=0,
+            sticky="nsew",
+            padx=20,
+            pady=(8, 0),
+        )
         wrapper.columnconfigure(0, weight=1)
         wrapper.rowconfigure(0, weight=1)
-        self.root.rowconfigure(3, weight=1)
 
         self._canvas = tk.Canvas(wrapper, bg=BG, highlightthickness=0)
         self._canvas.grid(row=0, column=0, sticky="nsew")
@@ -378,8 +422,8 @@ class FilmListingWindow:
 
     def _build_statusbar(self) -> None:
         """Bottom status bar."""
-        bar = tk.Frame(self.root, bg=BG2, pady=6)
-        bar.grid(row=4, column=0, sticky="ew")
+        bar = tk.Frame(self.content, bg=BG2, pady=6)
+        bar.grid(row=self._r["status"], column=0, sticky="ew")
         bar.columnconfigure(0, weight=1)
 
         self._status_lbl = tk.Label(
@@ -429,7 +473,7 @@ class FilmListingWindow:
                 self._refresh_films()
                 
         except Exception as exc:
-            messagebox.showerror("Database Error", str(exc), parent=self.root)
+            messagebox.showerror("Database Error", str(exc), parent=self._tk)
 
     def _refresh_films(self) -> None:
         """
@@ -449,7 +493,7 @@ class FilmListingWindow:
                 self._selected_cinema_id, date_str
             )
         except Exception as exc:
-            messagebox.showerror("Error", str(exc), parent=self.root)
+            messagebox.showerror("Error", str(exc), parent=self._tk)
             return
 
         # Group showings by film_id, fetch Film objects
@@ -695,21 +739,146 @@ class FilmListingWindow:
             self._selected_cinema_id = self._cinemas[idx].cinema_id
             self._refresh_films()
 
-    def _prev_day(self) -> None:
-        self._current_date -= datetime.timedelta(days=1)
+    def _set_listing_date(self, d: datetime.date) -> None:
+        """Update the visible date and reload showings for that day."""
+        self._current_date = d
         self._date_lbl.config(text=self._fmt_date())
         self._refresh_films()
 
+    def _open_date_calendar(self) -> None:
+        """Popup month grid to jump to any day (no extra packages)."""
+        win = tk.Toplevel(self._tk)
+        win.title("Pick a date")
+        win.configure(bg=BG)
+        win.transient(self._tk)
+        win.grab_set()
+        view = {"y": self._current_date.year, "m": self._current_date.month}
+
+        header = tk.Label(win, text="", font=FONT_H2, bg=BG, fg=TEXT)
+        header.pack(pady=(12, 4))
+
+        nav = tk.Frame(win, bg=BG)
+        nav.pack()
+        tk.Button(
+            nav, text="◀  Month", font=FONT_BTN, bg=BG2, fg=TEXT,
+            relief="flat", padx=10, pady=4, cursor="hand2",
+            command=lambda: self._cal_shift_month(view, -1, grid_fr, header, win),
+        ).pack(side=tk.LEFT, padx=4)
+        tk.Button(
+            nav, text="Today", font=FONT_BTN, bg=BG2, fg=TEXT,
+            relief="flat", padx=10, pady=4, cursor="hand2",
+            command=lambda: self._cal_go_today(view, grid_fr, header),
+        ).pack(side=tk.LEFT, padx=12)
+        tk.Button(
+            nav, text="Month  ▶", font=FONT_BTN, bg=BG2, fg=TEXT,
+            relief="flat", padx=10, pady=4, cursor="hand2",
+            command=lambda: self._cal_shift_month(view, 1, grid_fr, header, win),
+        ).pack(side=tk.LEFT, padx=4)
+
+        grid_fr = tk.Frame(win, bg=BG)
+        grid_fr.pack(padx=14, pady=12)
+
+        def rebuild() -> None:
+            for w in grid_fr.winfo_children():
+                w.destroy()
+            y, m = view["y"], view["m"]
+            header.config(text=f"{calendar.month_name[m]} {y}")
+            weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            for c, wd in enumerate(weekdays):
+                tk.Label(
+                    grid_fr, text=wd, font=FONT_SMALL, bg=BG, fg=TEXT2, width=5
+                ).grid(row=0, column=c, padx=1, pady=(0, 4))
+            today = datetime.date.today()
+            for r, week in enumerate(calendar.monthcalendar(y, m), start=1):
+                for c, day in enumerate(week):
+                    if day == 0:
+                        tk.Label(grid_fr, text="", bg=BG, width=5).grid(
+                            row=r, column=c, padx=1, pady=1
+                        )
+                        continue
+
+                    def pick(
+                        _win=win,
+                        yy=y,
+                        mm=m,
+                        dd=day,
+                    ) -> None:
+                        try:
+                            chosen = datetime.date(yy, mm, dd)
+                        except ValueError:
+                            return
+                        self._set_listing_date(chosen)
+                        _win.destroy()
+
+                    btn = tk.Button(
+                        grid_fr,
+                        text=str(day),
+                        font=FONT_BODY,
+                        width=4,
+                        relief="flat",
+                        cursor="hand2",
+                        command=pick,
+                    )
+                    is_today = (y, m, day) == (today.year, today.month, today.day)
+                    is_sel = (y, m, day) == (
+                        self._current_date.year,
+                        self._current_date.month,
+                        self._current_date.day,
+                    )
+                    if is_sel:
+                        btn.config(bg=SUCCESS, fg=TEXT, activebackground=SUCCESS_HVR)
+                    elif is_today:
+                        btn.config(bg=ACCENT, fg=TEXT, activebackground=ACCENT_HVR)
+                    else:
+                        btn.config(bg=BG2, fg=TEXT, activebackground=ACCENT)
+                    btn.grid(row=r, column=c, padx=1, pady=1)
+
+        win._rebuild_cal = rebuild  # type: ignore[attr-defined]
+        rebuild()
+
+        tk.Button(
+            win, text="Close", font=FONT_BTN, bg=BG2, fg=TEXT,
+            relief="flat", padx=16, pady=6, cursor="hand2", command=win.destroy,
+        ).pack(pady=(4, 14))
+
+    def _cal_shift_month(
+        self,
+        view: dict,
+        delta: int,
+        grid_fr: tk.Frame,
+        header: tk.Label,
+        win: tk.Toplevel,
+    ) -> None:
+        m = view["m"] + delta
+        y = view["y"]
+        while m < 1:
+            m += 12
+            y -= 1
+        while m > 12:
+            m -= 12
+            y += 1
+        view["y"], view["m"] = y, m
+        win._rebuild_cal()  # type: ignore[attr-defined]
+
+    def _cal_go_today(self, view: dict, grid_fr: tk.Frame, header: tk.Label) -> None:
+        t = datetime.date.today()
+        view["y"], view["m"] = t.year, t.month
+        grid_fr.winfo_toplevel()._rebuild_cal()  # type: ignore[attr-defined]
+
+    def _prev_day(self) -> None:
+        self._set_listing_date(self._current_date - datetime.timedelta(days=1))
+
     def _next_day(self) -> None:
-        self._current_date += datetime.timedelta(days=1)
-        self._date_lbl.config(text=self._fmt_date())
-        self._refresh_films()
+        self._set_listing_date(self._current_date + datetime.timedelta(days=1))
 
     def _open_booking(self, showing: Showing) -> None:
         """Open the BookingWindow for the selected showing."""
         try:
+            if self.shell is not None:
+                self.shell.open_booking_with_showing(showing.showing_id)
+                return
             from src.gui.booking_window import BookingWindow
-            top = tk.Toplevel(self.root)
+            top = tk.Toplevel(self._tk)
             BookingWindow(top, showing_id=showing.showing_id)
         except ImportError:
             # BookingWindow not yet implemented — show placeholder
@@ -719,20 +888,23 @@ class FilmListingWindow:
                 f"Date: {showing.show_date}  Time: {showing.show_time}\n"
                 f"Seats Available: {showing.seats_remaining}\n\n"
                 f"BookingWindow coming soon.",
-                parent=self.root
+                parent=self._tk
             )
 
     def _open_booking_by_id(self, showing_id: int) -> None:
         try:
+            if self.shell is not None:
+                self.shell.open_booking_with_showing(showing_id)
+                return
             from src.gui.booking_window import BookingWindow
-            top = tk.Toplevel(self.root)
+            top = tk.Toplevel(self._tk)
             BookingWindow(top, showing_id=showing_id)
         except ImportError:
             messagebox.showinfo("Error", "BookingWindow not yet implemented.")
 
     def _logout(self) -> None:
         from src.gui.login_window import _logout_and_return
-        _logout_and_return(self.root)
+        _logout_and_return(self._tk)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

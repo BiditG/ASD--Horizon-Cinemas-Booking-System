@@ -87,13 +87,24 @@ from src.utils.rbac import require_role
 
 @require_role('staff')
 class BookingWindow:
-    def __init__(self, root: tk.Toplevel, showing_id: int = None) -> None:
+    def __init__(
+        self,
+        root: tk.Widget,
+        showing_id: int | None = None,
+        *,
+        embedded: bool = False,
+        shell: object | None = None,
+    ) -> None:
         self.root = root
+        self._tl = root.winfo_toplevel()
+        self._embedded = embedded
+        self.shell = shell
         self.session = SessionManager.get_instance()
         self.user = self.session.get_current_user()
-        
-        self.root.title("HCBS — New Booking")
-        self.root.minsize(1050, 720)
+
+        if not embedded:
+            self.root.title("HCBS — New Booking")
+            self.root.minsize(1050, 720)
         self.root.configure(bg=BG)
         
         # State variables
@@ -107,6 +118,17 @@ class BookingWindow:
         self._build_ui()
         self._initialise_data()
 
+    def load_showing_prefill(self, showing_id: int) -> None:
+        """Used from the staff shell: open New booking with a showing pre-selected."""
+        self._showing_id_param = showing_id
+        self._initialise_data()
+
+    def _main_menu_click(self) -> None:
+        if self.shell is not None:
+            self.shell.select_now_tab()
+        else:
+            self._tl.destroy()
+
     def _configure_styles(self) -> None:
         style = ttk.Style()
         style.theme_use('clam')
@@ -114,7 +136,7 @@ class BookingWindow:
                         foreground=TEXT, selectbackground=ACCENT, arrowcolor=TEXT)
                         
         # Fix dropdown list visibility (Tkinter Combobox bug where dropdown inherits foreground but not background)
-        app_root = self.root._root()
+        app_root = self._tl._root()
         app_root.option_add('*TCombobox*Listbox.background', BG2)
         app_root.option_add('*TCombobox*Listbox.foreground', TEXT)
         app_root.option_add('*TCombobox*Listbox.selectBackground', ACCENT)
@@ -256,9 +278,9 @@ class BookingWindow:
                                   cursor="hand2", state="disabled", command=self._process_booking)
         self.book_btn.pack(side="right")
         
-        tk.Button(act_frame, text="Main Menu", font=FONT_BTN, bg=BG2, fg=TEXT, 
-                  activebackground=BG_CARD, relief="flat", padx=20, pady=10, 
-                  cursor="hand2", command=self.root.destroy).pack(side="left")
+        tk.Button(act_frame, text="Main Menu", font=FONT_BTN, bg=BG2, fg=TEXT,
+                  activebackground=BG_CARD, relief="flat", padx=20, pady=10,
+                  cursor="hand2", command=self._main_menu_click).pack(side="left")
         
         tk.Button(act_frame, text="🏅 Check Loyalty", font=FONT_BTN, bg="#92400e", fg=TEXT,
                   activebackground="#78350f", relief="flat", padx=14, pady=10,
@@ -620,13 +642,13 @@ class BookingWindow:
                 }
                 from src.gui.payment_window import PaymentWindow
                 PaymentWindow(
-                    self.root,
+                    self._tl,
                     total_amount=self.confirmed_price["total_price"],
                     booking_data=booking_data,
                     on_payment_success=self._on_payment_success
                 )
                 
-            SeatMapWindow(self.root, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
+            SeatMapWindow(self._tl, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start booking process: {e}")
 
@@ -812,13 +834,13 @@ class BookingWindow:
         email = self.cust_email_ent.get().strip()
         if not email:
             from tkinter import messagebox
-            messagebox.showwarning("No Email", "Enter a customer email first.", parent=self.root)
+            messagebox.showwarning("No Email", "Enter a customer email first.", parent=self._tl)
             return
         
         from src.utils.loyalty_manager import get_account, TIER_COLOURS
         acct = get_account(email)
         
-        pop = tk.Toplevel(self.root)
+        pop = tk.Toplevel(self._tl)
         pop.title("Loyalty Account")
         pop.geometry("420x380")
         pop.configure(bg=BG)
@@ -863,13 +885,13 @@ class BookingWindow:
         email = self.cust_email_ent.get().strip()
         if not email:
             from tkinter import messagebox
-            messagebox.showwarning("No Email", "Enter a customer email first.", parent=self.root)
+            messagebox.showwarning("No Email", "Enter a customer email first.", parent=self._tl)
             return
         
         from src.utils.loyalty_manager import get_account, TIER_COLOURS
         acct = get_account(email)
         
-        pop = tk.Toplevel(self.root)
+        pop = tk.Toplevel(self._tl)
         pop.title("Loyalty Account")
         pop.geometry("420x380")
         pop.configure(bg=BG)
