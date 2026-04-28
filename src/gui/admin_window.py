@@ -15,14 +15,14 @@ matplotlib.use("TkAgg")
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-BG = "#0f172a"
-BG2 = "#1e293b"
-ACCENT = "#1e40af"
+BG = "#0b1220"
+BG2 = "#111b2e"
+ACCENT = "#4f8cff"
 FG = "#f8fafc"
-TEXT2 = "#94a3b8"
-SUCCESS = "#16a34a"
-DANGER = "#dc2626"
-WARNING = "#ca8a04"
+TEXT2 = "#a7b4c8"
+SUCCESS = "#22c55e"
+DANGER = "#ef4444"
+WARNING = "#f59e0b"
 
 from src.utils.rbac import require_role
 
@@ -45,7 +45,7 @@ class AdminWindow:
         bar = tk.Frame(self.root, bg=BG2, pady=10, padx=20)
         bar.pack(fill="x", side="top")
         
-        tk.Label(bar, text=f"🎬 Admin Dashboard — {self.user.full_name}", font=("Helvetica", 16, "bold"), bg=BG2, fg=FG).pack(side="left")
+        tk.Label(bar, text=f"🎬 Admin Dashboard — {self.user.full_name}", font=("Segoe UI", 16, "bold"), bg=BG2, fg=FG).pack(side="left")
         
         tk.Button(bar, text="Logout", bg=DANGER, fg=FG, relief="flat", padx=10, command=self._logout).pack(side="right", padx=5)
         tk.Button(bar, text="Cancel Booking", bg="#b91c1c", fg=FG, relief="flat", padx=10, command=self._open_cancellation).pack(side="right", padx=5)
@@ -53,15 +53,16 @@ class AdminWindow:
 
     def _build_notebook(self):
         style = ttk.Style()
-        style.theme_use("default")
+        style.theme_use("clam")
         style.configure("TNotebook", background=BG, borderwidth=0)
-        style.configure("TNotebook.Tab", background=BG2, foreground=FG, padding=[15, 8], font=("Helvetica", 11))
-        style.map("TNotebook.Tab", background=[("selected", ACCENT)])
+        style.configure("TNotebook.Tab", background=BG2, foreground=FG, padding=[16, 10], font=("Segoe UI", 11, "bold"))
+        style.map("TNotebook.Tab", background=[("selected", ACCENT)], foreground=[("selected", FG)])
         
         # Customize treeview style
-        style.configure("Treeview", background=BG, foreground=FG, fieldbackground=BG, rowheight=25)
-        style.map("Treeview", background=[("selected", ACCENT)])
-        style.configure("Treeview.Heading", background=BG2, foreground=FG, font=("Helvetica", 10, "bold"))
+        style.configure("Treeview", background=BG2, foreground=FG, fieldbackground=BG2, rowheight=28, borderwidth=0)
+        style.map("Treeview", background=[("selected", ACCENT)], foreground=[("selected", FG)])
+        style.configure("Treeview.Heading", background=BG2, foreground=FG, font=("Segoe UI", 10, "bold"))
+        style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=FG, arrowcolor=FG)
         
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill="both", expand=True, padx=20, pady=20)
@@ -167,12 +168,12 @@ class AdminWindow:
         inputs = {}
         for idx, field in enumerate(fields):
             name, ftype = field[0], field[1]
-            tk.Label(win, text=name + ":", bg=BG, fg=TEXT2, font=("Helvetica", 10)).grid(row=idx, column=0, pady=10, padx=15, sticky="e")
+            tk.Label(win, text=name + ":", bg=BG, fg=TEXT2, font=("Segoe UI", 10)).grid(row=idx, column=0, pady=10, padx=15, sticky="e")
 
             if ftype == "poster":
                 pf = tk.Frame(win, bg=BG)
                 pf.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
-                w = tk.Entry(pf, width=34, font=("Helvetica", 10))
+                w = tk.Entry(pf, width=34, font=("Segoe UI", 10))
                 w.pack(side=tk.LEFT)
                 inputs[name] = w
 
@@ -213,7 +214,7 @@ class AdminWindow:
                     command=browse_poster,
                 ).pack(side=tk.LEFT, padx=(8, 0))
             elif ftype == "entry":
-                w = tk.Entry(win, width=40, font=("Helvetica", 10))
+                w = tk.Entry(win, width=40, font=("Segoe UI", 10))
                 w.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
                 inputs[name] = w
             elif ftype == "combo":
@@ -223,7 +224,7 @@ class AdminWindow:
                     w.current(0)
                 inputs[name] = w
             elif ftype == "text":
-                w = tk.Text(win, width=40, height=4, font=("Helvetica", 10))
+                w = tk.Text(win, width=40, height=4, font=("Segoe UI", 10))
                 w.grid(row=idx, column=1, pady=10, padx=10, sticky="w")
                 inputs[name] = w
                 
@@ -268,7 +269,7 @@ class AdminWindow:
             except Exception as e:
                 messagebox.showerror("Error", str(e))
                 
-        tk.Button(win, text="Save Film", bg=SUCCESS, fg=FG, font=("Helvetica", 11, "bold"), command=save).grid(row=len(fields), column=1, pady=20, sticky="e", padx=10)
+        tk.Button(win, text="Save Film", bg=SUCCESS, fg=FG, font=("Segoe UI", 11, "bold"), command=save).grid(row=len(fields), column=1, pady=20, sticky="e", padx=10)
 
     def _remove_film(self):
         sel = self.films_tree.selection()
@@ -416,7 +417,7 @@ class AdminWindow:
             except Exception as e:
                 messagebox.showerror("Error", str(e))
                 
-        tk.Button(win, text="Create Showing", bg=SUCCESS, fg=FG, font=("Helvetica", 10, "bold"), command=save).grid(row=5, column=1, pady=20, sticky="e")
+        tk.Button(win, text="Create Showing", bg=SUCCESS, fg=FG, font=("Segoe UI", 10, "bold"), command=save).grid(row=5, column=1, pady=20, sticky="e")
 
     def _open_edit_showing(self):
         sel = self.shows_tree.selection()
@@ -446,7 +447,7 @@ class AdminWindow:
         s_ent.grid(row=0, column=1)
         
         tk.Label(win, text="New Time:", bg=BG, fg=TEXT2).grid(row=1, column=0, pady=15, padx=15, sticky="e")
-        t_cb = ttk.Combobox(win, values=["10:00", "14:30", "19:00"], state="readonly")
+        t_cb = ttk.Combobox(win, values=["10:00", "14:30", "19:00"], state="readonly", font=("Segoe UI", 10))
         t_cb.set(showing["show_time"])
         t_cb.grid(row=1, column=1)
         
@@ -523,23 +524,23 @@ class AdminWindow:
         ctrl.pack(fill="x")
 
         tk.Label(ctrl, text="Time Period:", bg=BG2, fg=FG,
-                 font=("Helvetica", 10, "bold")).pack(side="left", padx=(0, 8))
+             font=("Segoe UI", 10, "bold")).pack(side="left", padx=(0, 8))
 
         self._chart_period = tk.StringVar(value="month")
         for label, val in [("This Week", "week"), ("This Month", "month"), ("All Time", "all")]:
             tk.Radiobutton(
                 ctrl, text=label, variable=self._chart_period, value=val,
                 bg=BG2, fg=FG, selectcolor=ACCENT, activebackground=BG2,
-                activeforeground=FG, font=("Helvetica", 10),
+                activeforeground=FG, font=("Segoe UI", 10),
                 command=self._refresh_revenue_chart
             ).pack(side="left", padx=4)
 
         tk.Label(ctrl, text="Cinema:", bg=BG2, fg=FG,
-                 font=("Helvetica", 10, "bold")).pack(side="left", padx=(20, 6))
+             font=("Segoe UI", 10, "bold")).pack(side="left", padx=(20, 6))
         self._chart_cinema_var = tk.StringVar()
         self._chart_cinema_cb = ttk.Combobox(
             ctrl, textvariable=self._chart_cinema_var,
-            state="readonly", font=("Helvetica", 10), width=22
+            state="readonly", font=("Segoe UI", 10), width=22
         )
         self._chart_cinema_cb.pack(side="left")
         self._chart_cinema_cb.bind("<<ComboboxSelected>>",
@@ -547,13 +548,13 @@ class AdminWindow:
 
         tk.Button(
             ctrl, text="📥 Export CSV", bg=SUCCESS, fg=FG,
-            font=("Helvetica", 10, "bold"), relief="flat", cursor="hand2",
+            font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2",
             padx=12, pady=4, command=self._export_chart_csv
         ).pack(side="right", padx=8)
 
         tk.Button(
             ctrl, text="↻ Refresh", bg=BG, fg=FG,
-            font=("Helvetica", 10, "bold"), relief="flat", cursor="hand2",
+            font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2",
             padx=12, pady=4, command=self._refresh_revenue_chart
         ).pack(side="right", padx=4)
 
@@ -561,7 +562,7 @@ class AdminWindow:
         chart_frame = tk.Frame(self.tab_chart, bg=BG)
         chart_frame.pack(fill="both", expand=True, padx=16, pady=12)
 
-        self._rev_figure = Figure(figsize=(9, 5.5), dpi=100, facecolor=BG)
+        self._rev_figure = Figure(figsize=(9, 5.5), dpi=144, facecolor=BG)
         self._rev_ax = self._rev_figure.add_subplot(111)
         self._rev_ax.set_facecolor(BG2)
 
@@ -570,7 +571,7 @@ class AdminWindow:
 
         # ── Status label ──────────────────────────────────────────────────
         self._chart_status = tk.Label(
-            self.tab_chart, text="", bg=BG, fg="#94a3b8", font=("Helvetica", 9)
+            self.tab_chart, text="", bg=BG, fg="#a7b4c8", font=("Segoe UI", 9)
         )
         self._chart_status.pack(anchor="e", padx=16, pady=(0, 6))
 
@@ -655,14 +656,14 @@ class AdminWindow:
         self._rev_figure.set_facecolor(BG)
 
         for spine in ax.spines.values():
-            spine.set_color("#334155")
-        ax.tick_params(colors="#94a3b8")
-        ax.xaxis.label.set_color("#94a3b8")
-        ax.yaxis.label.set_color("#94a3b8")
+            spine.set_color(BORDER)
+        ax.tick_params(colors=TEXT2)
+        ax.xaxis.label.set_color(TEXT2)
+        ax.yaxis.label.set_color(TEXT2)
 
         if not self._chart_data:
-            ax.text(0.5, 0.5, "No revenue data for this period.",
-                    ha="center", va="center", color="#94a3b8",
+                ax.text(0.5, 0.5, "No revenue data for this period.",
+                    ha="center", va="center", color=TEXT2,
                     fontsize=12, transform=ax.transAxes)
         else:
             titles  = [d["film_title"] for d in self._chart_data]
@@ -681,20 +682,20 @@ class AdminWindow:
                     bar.get_y() + bar.get_height() / 2,
                     f"£{val:,.0f}",
                     va="center", ha="left",
-                    color="#f8fafc", fontsize=9
+                    color=FG, fontsize=9
                 )
 
-            ax.set_xlabel("Revenue (£)", color="#94a3b8")
+            ax.set_xlabel("Revenue (£)", color=TEXT2)
             ax.xaxis.set_major_formatter(
                 matplotlib.ticker.FuncFormatter(lambda x, _: f"£{x:,.0f}")
             )
-            ax.tick_params(axis="y", labelsize=9, colors="#f8fafc")
-            ax.tick_params(axis="x", labelsize=8, colors="#94a3b8")
+            ax.tick_params(axis="y", labelsize=9, colors=FG)
+            ax.tick_params(axis="x", labelsize=8, colors=TEXT2)
 
         cinema_label = cinema_name if cinema_name and cinema_name != "All Cinemas" else "All Cinemas"
         ax.set_title(
             f"Top 10 Films by Revenue — {period_label} · {cinema_label}",
-            color="#f8fafc", fontsize=11, pad=10
+            color=FG, fontsize=11, pad=10
         )
 
         self._rev_figure.tight_layout()
@@ -733,7 +734,7 @@ class AdminWindow:
         top = tk.Frame(self.tab_reports, bg=BG, pady=15)
         top.pack(fill="x")
         
-        tk.Label(top, text="Select Report:", bg=BG, fg=TEXT2, font=("Helvetica", 11)).pack(side="left", padx=10)
+        tk.Label(top, text="Select Report:", bg=BG, fg=TEXT2, font=("Segoe UI", 11)).pack(side="left", padx=10)
         
         self.report_var = tk.StringVar(value="Bookings per Listing")
         rep_cb = ttk.Combobox(top, textvariable=self.report_var, values=[
@@ -741,11 +742,11 @@ class AdminWindow:
             "Monthly Revenue", 
             "Top Revenue Film", 
             "Staff Leaderboard"
-        ], state="readonly", width=30, font=("Helvetica", 11))
+        ], state="readonly", width=30, font=("Segoe UI", 11))
         rep_cb.pack(side="left", padx=5)
         
-        tk.Button(top, text="📊 Generate", bg=ACCENT, fg=FG, font=("Helvetica", 10, "bold"), command=self._generate_report).pack(side="left", padx=15)
-        tk.Button(top, text="📥 CSV Export", bg=SUCCESS, fg=FG, font=("Helvetica", 10, "bold"), command=self._export_csv).pack(side="right", padx=15)
+        tk.Button(top, text="📊 Generate", bg=ACCENT, fg=FG, font=("Segoe UI", 10, "bold"), command=self._generate_report).pack(side="left", padx=15)
+        tk.Button(top, text="📥 CSV Export", bg=SUCCESS, fg=FG, font=("Segoe UI", 10, "bold"), command=self._export_csv).pack(side="right", padx=15)
         
         self.rep_tree = ttk.Treeview(self.tab_reports, show="headings", height=20)
         
@@ -872,7 +873,7 @@ class AdminWindow:
         top.pack(fill="x")
         
         tk.Label(top, text="Showing ID:", bg=BG, fg=FG).pack(side="left", padx=5)
-        self.waitlist_showing_ent = tk.Entry(top, font=("Helvetica", 11), width=10)
+        self.waitlist_showing_ent = tk.Entry(top, font=("Segoe UI", 11), width=10)
         self.waitlist_showing_ent.pack(side="left", padx=5)
         
         tk.Button(top, text="🔍 Load", bg=ACCENT, fg=FG, command=self._refresh_waitlist).pack(side="left", padx=5)

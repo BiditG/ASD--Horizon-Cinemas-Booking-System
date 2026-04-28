@@ -24,22 +24,22 @@ from src.utils.rbac import require_role
 from src.gui.login_window import SessionManager
 
 # Style Constants
-BG          = "#0f172a"
-BG2         = "#1e293b"
-BG_CARD     = "#162032"
-ACCENT      = "#1e40af"
+BG          = "#0b1220"
+BG2         = "#111b2e"
+BG_CARD     = "#162338"
+ACCENT      = "#4f8cff"
 TEXT        = "#f8fafc"
-TEXT2       = "#94a3b8"
-SUCCESS     = "#16a34a"
-WARNING     = "#ca8a04"
-ERROR       = "#dc2626"
-BORDER      = "#334155"
+TEXT2       = "#a7b4c8"
+SUCCESS     = "#22c55e"
+WARNING     = "#f59e0b"
+ERROR       = "#ef4444"
+BORDER      = "#26344a"
 
-FONT_H1     = ("Helvetica", 20, "bold")
-FONT_H2     = ("Helvetica", 14, "bold")
-FONT_BODY   = ("Helvetica", 11)
-FONT_BTN    = ("Helvetica", 10, "bold")
-FONT_METRIC = ("Helvetica", 28, "bold")
+FONT_H1     = ("Segoe UI", 20, "bold")
+FONT_H2     = ("Segoe UI", 14, "bold")
+FONT_BODY   = ("Segoe UI", 11)
+FONT_BTN    = ("Segoe UI", 10, "bold")
+FONT_METRIC = ("Segoe UI", 28, "bold")
 
 @require_role('admin')
 class DashboardWindow:
@@ -96,7 +96,7 @@ class DashboardWindow:
         self.btn_toggle_chart = tk.Button(chart_top, text="View: Today", font=FONT_BTN, bg=BG2, fg=TEXT, relief="flat", cursor="hand2", command=self._toggle_chart_mode)
         self.btn_toggle_chart.pack(side="right")
         
-        self.figure = Figure(figsize=(5, 4), dpi=100, facecolor=BG_CARD)
+        self.figure = Figure(figsize=(5, 4), dpi=144, facecolor=BG_CARD)
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor(BG_CARD)
         self.ax.tick_params(colors=TEXT2)
@@ -113,9 +113,11 @@ class DashboardWindow:
         tk.Label(table_frame, text="Today's Occupancy", font=FONT_H2, bg=BG_CARD, fg=TEXT).pack(anchor="w", padx=15, pady=10)
         
         style = ttk.Style()
-        style.configure("Dash.Treeview", background=BG_CARD, foreground=TEXT, fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY)
+        style.theme_use('clam')
+        style.configure("Dash.Treeview", background=BG_CARD, foreground=TEXT, fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=28)
         style.configure("Dash.Treeview.Heading", background=BG2, foreground=TEXT, font=FONT_BTN)
-        style.map("Dash.Treeview", background=[("selected", ACCENT)])
+        style.map("Dash.Treeview", background=[("selected", ACCENT)], foreground=[("selected", TEXT)])
+        style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
         
         cols = ("cinema", "film", "time", "screen", "booked", "cap", "pct")
         self.tv = ttk.Treeview(table_frame, columns=cols, show="headings", style="Dash.Treeview")

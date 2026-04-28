@@ -31,21 +31,21 @@ from src.models.film    import Film
 from src.gui.login_window import SessionManager
 
 # ── Colour / font constants (matches GUI_STYLE_GUIDE.md) ────────────────────
-BG          = "#0f172a"
-BG2         = "#1e293b"
-BG_CARD     = "#162032"
-ACCENT      = "#1e40af"
-ACCENT_HVR  = "#1e3a8a"
-SUCCESS     = "#16a34a"
-SUCCESS_HVR = "#15803d"
-SOLD_OUT    = "#334155"
-WARNING     = "#ca8a04"
+BG          = "#0b1220"
+BG2         = "#111b2e"
+BG_CARD     = "#162338"
+ACCENT      = "#4f8cff"
+ACCENT_HVR  = "#3478f6"
+SUCCESS     = "#22c55e"
+SUCCESS_HVR = "#16a34a"
+SOLD_OUT    = "#2b3750"
+WARNING     = "#f59e0b"
 TEXT        = "#f8fafc"
-TEXT2       = "#94a3b8"
-ERROR       = "#dc2626"
-BORDER      = "#334155"
+TEXT2       = "#a7b4c8"
+ERROR       = "#ef4444"
+BORDER      = "#26344a"
 
-FF          = "Helvetica"
+FF          = "Segoe UI"
 FONT_H1     = (FF, 20, "bold")
 FONT_H2     = (FF, 14, "bold")
 FONT_BODY   = (FF, 11)
@@ -633,7 +633,7 @@ class FilmListingWindow:
         if film.imdb_rating:
             tk.Label(title_row,
                      text=f"⭐ {film.imdb_rating:.1f}",
-                     font=FONT_SMALL, bg=WARNING, fg="#0f172a",
+                     font=FONT_SMALL, bg=WARNING, fg="#0b1220",
                      padx=6, pady=2
                      ).grid(row=0, column=1, padx=(8, 0))
 
@@ -707,7 +707,7 @@ class FilmListingWindow:
                 r_frame = tk.Frame(rec_list, bg=BG_CARD if index % 2 != 0 else BG2, highlightbackground=BORDER, highlightthickness=1, padx=10, pady=5)
                 r_frame.pack(side="left", padx=(0, 10))
                 
-                title_lbl = tk.Label(r_frame, text=r["title"][:25] + ("..." if len(r["title"]) > 25 else ""), font=("Helvetica", 10, "bold"), bg=r_frame["bg"], fg=TEXT)
+                title_lbl = tk.Label(r_frame, text=r["title"][:25] + ("..." if len(r["title"]) > 25 else ""), font=(FF, 10, "bold"), bg=r_frame["bg"], fg=TEXT)
                 title_lbl.pack(anchor="w")
                 
                 meta_lbl = tk.Label(r_frame, text=f"{r['genre']} | {r['age_rating']}", font=FONT_SMALL, bg=r_frame["bg"], fg=TEXT2)

@@ -16,20 +16,20 @@ from src.gui.login_window import SessionManager
 from src.gui.admin_window import AdminWindow
 
 # Style Guide constants
-BG = "#0f172a"
-BG2 = "#1e293b"
-BG_CARD = "#334155"
-ACCENT = "#1e40af"
+BG = "#0b1220"
+BG2 = "#111b2e"
+BG_CARD = "#162338"
+ACCENT = "#4f8cff"
 TEXT = "#f8fafc"
-TEXT2 = "#94a3b8"
-SUCCESS = "#16a34a"
-ERROR = "#dc2626"
-BORDER = "#475569"
+TEXT2 = "#a7b4c8"
+SUCCESS = "#22c55e"
+ERROR = "#ef4444"
+BORDER = "#26344a"
 
-FONT_H1 = ("Helvetica", 24, "bold")
-FONT_H2 = ("Helvetica", 16, "bold")
-FONT_BODY = ("Helvetica", 11)
-FONT_BTN = ("Helvetica", 11, "bold")
+FONT_H1 = ("Segoe UI", 24, "bold")
+FONT_H2 = ("Segoe UI", 16, "bold")
+FONT_BODY = ("Segoe UI", 11)
+FONT_BTN = ("Segoe UI", 11, "bold")
 
 from src.utils.rbac import require_role
 
@@ -58,16 +58,18 @@ class ManagerWindow:
         btn_frame = tk.Frame(header_frame, bg=BG2)
         btn_frame.pack(side="right")
         
-        tk.Button(btn_frame, text="📊 Live Dashboard", bg="#0f766e", fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_dashboard).pack(side="left", padx=10)
+        tk.Button(btn_frame, text="📊 Live Dashboard", bg="#0f766e", fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", activebackground="#115e59", command=self._open_dashboard).pack(side="left", padx=10)
         tk.Button(btn_frame, text="Switch to Admin View", bg=ACCENT, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self._open_admin).pack(side="left", padx=10)
-        tk.Button(btn_frame, text="Close", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", command=self.root.destroy).pack(side="left")
+        tk.Button(btn_frame, text="Close", bg=BG_CARD, fg=TEXT, font=FONT_BTN, relief="flat", padx=15, pady=8, cursor="hand2", activebackground=BG2, command=self.root.destroy).pack(side="left")
         
         # Notebook
         style = ttk.Style()
-        style.theme_use('default')
+        style.theme_use('clam')
         style.configure("HCBS.TNotebook", background=BG, borderwidth=0)
-        style.configure("HCBS.TNotebook.Tab", background=BG2, foreground=TEXT, font=FONT_BTN, padding=[20, 10])
-        style.map("HCBS.TNotebook.Tab", background=[("selected", ACCENT)])
+        style.configure("HCBS.TNotebook.Tab", background=BG2, foreground=TEXT, font=FONT_BTN, padding=[18, 10])
+        style.map("HCBS.TNotebook.Tab", background=[("selected", ACCENT)], foreground=[("selected", TEXT)])
+        style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
+        style.configure("TSpinbox", fieldbackground=BG2, background=BG2, foreground=TEXT, arrowcolor=TEXT)
         
         self.notebook = ttk.Notebook(self.root, style="HCBS.TNotebook")
         self.notebook.pack(fill="both", expand=True, padx=20, pady=20)
@@ -452,7 +454,7 @@ class ManagerWindow:
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         
-        self.forecast_fig = Figure(figsize=(8, 4), dpi=100, facecolor=BG)
+        self.forecast_fig = Figure(figsize=(8, 4), dpi=144, facecolor=BG)
         self.forecast_ax = self.forecast_fig.add_subplot(111)
         self.forecast_ax.set_facecolor(BG2)
         
@@ -491,8 +493,8 @@ class ManagerWindow:
             x_pred = [p[0] for p in preds]
             y_pred = [p[1] for p in preds]
             
-            self.forecast_ax.bar(x_actual, y_actual, color="#1e40af", label="Actual Revenue")
-            self.forecast_ax.bar(x_pred, y_pred, color="#16a34a", hatch="//", label="Predicted Revenue")
+            self.forecast_ax.bar(x_actual, y_actual, color="#4f8cff", label="Actual Revenue")
+            self.forecast_ax.bar(x_pred, y_pred, color="#22c55e", hatch="//", label="Predicted Revenue")
             
             self.forecast_ax.set_title(f"Revenue Forecast for {cinema_name}", color=TEXT)
             self.forecast_ax.tick_params(colors=TEXT2)

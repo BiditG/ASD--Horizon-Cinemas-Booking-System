@@ -22,17 +22,17 @@ import matplotlib.ticker
 from src.database.db_connection import get_connection
 
 # ── Style constants (matches GUI_STYLE_GUIDE.md) ─────────────────────────────
-BG        = "#0f172a"
-BG2       = "#1e293b"
-BG_CARD   = "#162032"
-ACCENT    = "#1e40af"
-SUCCESS   = "#16a34a"
-WARNING   = "#ca8a04"
+BG        = "#0b1220"
+BG2       = "#111b2e"
+BG_CARD   = "#162338"
+ACCENT    = "#4f8cff"
+SUCCESS   = "#22c55e"
+WARNING   = "#f59e0b"
 FG        = "#f8fafc"
-FG2       = "#94a3b8"
-BORDER    = "#334155"
+FG2       = "#a7b4c8"
+BORDER    = "#26344a"
 
-FF        = "Helvetica"
+FF        = "Segoe UI"
 FONT_H2   = (FF, 13, "bold")
 FONT_BODY = (FF, 10)
 FONT_BTN  = (FF, 10, "bold")
@@ -147,10 +147,12 @@ class RevenueReportPanel:
                   "bookings": 70, "revenue": 95, "avg_ticket": 105}
 
         style = ttk.Style()
+        style.theme_use('clam')
         style.configure("Rev.Treeview", background=BG_CARD, foreground=FG,
-                        fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=26)
+                fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=28)
         style.configure("Rev.Treeview.Heading", background=BG2, foreground=FG, font=FONT_BTN)
-        style.map("Rev.Treeview", background=[("selected", ACCENT)])
+        style.map("Rev.Treeview", background=[("selected", ACCENT)], foreground=[("selected", FG)])
+        style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=FG, arrowcolor=FG)
 
         self._tv = ttk.Treeview(parent, columns=cols, show="headings",
                                 style="Rev.Treeview")
@@ -171,7 +173,7 @@ class RevenueReportPanel:
     def _build_chart(self, parent):
         tk.Label(parent, text="Revenue Trend", font=FONT_H2, bg=BG, fg=FG).pack(anchor="w", pady=(4, 6))
 
-        self._fig = Figure(figsize=(5, 4), dpi=95, facecolor=BG)
+        self._fig = Figure(figsize=(5, 4), dpi=144, facecolor=BG)
         self._ax = self._fig.add_subplot(111)
         self._ax.set_facecolor(BG2)
 

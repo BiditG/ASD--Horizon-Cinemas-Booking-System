@@ -23,44 +23,44 @@ class CancellationWindow:
         if not embedded:
             self.root.title("HCBS — Cancel Booking")
             self.root.geometry("600x550")
-            self.root.configure(bg="#0f172a")
+            self.root.configure(bg="#0b1220")
             self.root.grab_set()
         else:
-            self.root.configure(bg="#0f172a")
+            self.root.configure(bg="#0b1220")
 
         self.current_booking = None
         self._build_ui()
         
     def _build_ui(self):
         # Top frame: search
-        top_frame = tk.Frame(self.root, bg="#1e293b", pady=20, padx=20)
+        top_frame = tk.Frame(self.root, bg="#111b2e", pady=20, padx=20)
         top_frame.pack(fill="x")
         
-        tk.Label(top_frame, text="Booking Reference:", bg="#1e293b", fg="white", font=("Helvetica", 12)).pack(side="left", padx=10)
-        self.ref_entry = tk.Entry(top_frame, font=("Helvetica", 12))
+        tk.Label(top_frame, text="Booking Reference:", bg="#111b2e", fg="white", font=("Segoe UI", 12)).pack(side="left", padx=10)
+        self.ref_entry = tk.Entry(top_frame, font=("Segoe UI", 12), bg="#162338", fg="white", insertbackground="white", relief="flat")
         self.ref_entry.pack(side="left", padx=10)
         
-        tk.Button(top_frame, text="Find Booking", bg="#3b82f6", fg="white", font=("Helvetica", 10, "bold"), command=self._find_booking).pack(side="left", padx=10)
+        tk.Button(top_frame, text="Find Booking", bg="#4f8cff", fg="white", font=("Segoe UI", 10, "bold"), command=self._find_booking, relief="flat", activebackground="#3478f6").pack(side="left", padx=10)
         
         # Details frame
-        self.details_frame = tk.Frame(self.root, bg="#0f172a", pady=20, padx=20)
+        self.details_frame = tk.Frame(self.root, bg="#0b1220", pady=20, padx=20)
         self.details_frame.pack(fill="both", expand=True)
         
-        self.info_lbl = tk.Label(self.details_frame, text="", bg="#0f172a", fg="white", font=("Helvetica", 11), justify="left", anchor="w")
+        self.info_lbl = tk.Label(self.details_frame, text="", bg="#0b1220", fg="white", font=("Segoe UI", 11), justify="left", anchor="w")
         self.info_lbl.pack(fill="x")
         
-        self.fee_lbl = tk.Label(self.details_frame, text="", bg="#0f172a", fg="yellow", font=("Helvetica", 12, "bold"))
+        self.fee_lbl = tk.Label(self.details_frame, text="", bg="#0b1220", fg="#f59e0b", font=("Segoe UI", 12, "bold"))
         self.fee_lbl.pack(pady=10)
         
-        self.error_lbl = tk.Label(self.details_frame, text="", bg="#0f172a", fg="#dc2626", font=("Helvetica", 12, "bold"))
+        self.error_lbl = tk.Label(self.details_frame, text="", bg="#0b1220", fg="#ef4444", font=("Segoe UI", 12, "bold"))
         self.error_lbl.pack(pady=10)
         
         # Buttons
-        btn_frame = tk.Frame(self.root, bg="#0f172a", pady=20)
+        btn_frame = tk.Frame(self.root, bg="#0b1220", pady=20)
         btn_frame.pack(side="bottom", fill="x")
         
-        tk.Button(btn_frame, text="Go Back", bg="#334155", fg="white", font=("Helvetica", 12, "bold"), command=self._on_go_back).pack(side="left", padx=40)
-        self.cancel_btn = tk.Button(btn_frame, text="Confirm Cancellation", bg="#dc2626", fg="white", font=("Helvetica", 12, "bold"), state="disabled", command=self._confirm_cancellation)
+        tk.Button(btn_frame, text="Go Back", bg="#26344a", fg="white", font=("Segoe UI", 12, "bold"), command=self._on_go_back, relief="flat").pack(side="left", padx=40)
+        self.cancel_btn = tk.Button(btn_frame, text="Confirm Cancellation", bg="#ef4444", fg="white", font=("Segoe UI", 12, "bold"), state="disabled", command=self._confirm_cancellation, relief="flat", activebackground="#dc2626")
         self.cancel_btn.pack(side="right", padx=40)
 
     def _on_go_back(self) -> None:

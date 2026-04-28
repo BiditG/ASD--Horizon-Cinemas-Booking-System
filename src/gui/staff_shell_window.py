@@ -12,13 +12,13 @@ from src.gui.film_listing_window import FilmListingWindow
 from src.gui.booking_window import BookingWindow
 from src.gui.cancellation_window import CancellationWindow
 
-BG = "#0f172a"
-BG2 = "#1e293b"
-ACCENT = "#0284c7"
+BG = "#0b1220"
+BG2 = "#111b2e"
+ACCENT = "#4f8cff"
 TEXT = "#f8fafc"
-TEXT2 = "#94a3b8"
-ERROR = "#dc2626"
-FF = "Helvetica"
+TEXT2 = "#a7b4c8"
+ERROR = "#ef4444"
+FF = "Segoe UI"
 FONT_H2 = (FF, 14, "bold")
 FONT_BTN = (FF, 10, "bold")
 FONT_SMALL = (FF, 9)
@@ -164,8 +164,8 @@ class StaffShellWindow:
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TNotebook", background=BG, borderwidth=0)
-        style.configure("TNotebook.Tab", padding=[14, 10], font=(FF, 11))
-        style.map("TNotebook.Tab", background=[("selected", BG2)])
+        style.configure("TNotebook.Tab", padding=[14, 10], font=(FF, 11, "bold"))
+        style.map("TNotebook.Tab", background=[("selected", ACCENT)], foreground=[("selected", TEXT)])
 
         nb = ttk.Notebook(self.root)
         nb.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))

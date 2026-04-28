@@ -3,13 +3,13 @@ from tkinter import ttk, messagebox
 import datetime
 import re
 
-BG = "#0f172a"
-BG2 = "#1e293b"
-ACCENT = "#1e40af"
+BG = "#0b1220"
+BG2 = "#111b2e"
+ACCENT = "#4f8cff"
 FG = "#f8fafc"
-TEXT2 = "#94a3b8"
-SUCCESS = "#16a34a"
-DANGER = "#dc2626"
+TEXT2 = "#a7b4c8"
+SUCCESS = "#22c55e"
+DANGER = "#ef4444"
 
 class PaymentWindow:
     def __init__(self, root: tk.Toplevel, total_amount: float, booking_data: dict, on_payment_success: callable):
@@ -27,31 +27,31 @@ class PaymentWindow:
         self._build_ui()
         
     def _build_ui(self):
-        title_lbl = tk.Label(self.root, text="💳 Secure Payment", font=("Helvetica", 18, "bold"), bg=BG, fg=FG)
+        title_lbl = tk.Label(self.root, text="💳 Secure Payment", font=("Segoe UI", 18, "bold"), bg=BG, fg=FG)
         title_lbl.pack(pady=(30, 10))
         
-        amt_lbl = tk.Label(self.root, text=f"Total Amount to Charge: £{self.total_amount:.2f}", font=("Helvetica", 14), bg=BG, fg=SUCCESS)
+        amt_lbl = tk.Label(self.root, text=f"Total Amount to Charge: £{self.total_amount:.2f}", font=("Segoe UI", 14), bg=BG, fg=SUCCESS)
         amt_lbl.pack(pady=(0, 20))
         
         form_frame = tk.Frame(self.root, bg=BG)
         form_frame.pack(fill="both", expand=True, padx=40)
         
         # Name
-        tk.Label(form_frame, text="Cardholder Name", bg=BG, fg=TEXT2, font=("Helvetica", 10)).grid(row=0, column=0, sticky="w", pady=(10,0))
-        self.name_ent = tk.Entry(form_frame, width=35, font=("Helvetica", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#334155", highlightthickness=1)
+        tk.Label(form_frame, text="Cardholder Name", bg=BG, fg=TEXT2, font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=(10,0))
+        self.name_ent = tk.Entry(form_frame, width=35, font=("Segoe UI", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#26344a", highlightthickness=1)
         self.name_ent.grid(row=1, column=0, sticky="we", pady=(5,0), ipady=5)
-        self.name_err = tk.Label(form_frame, text="", bg=BG, fg=DANGER, font=("Helvetica", 9))
+        self.name_err = tk.Label(form_frame, text="", bg=BG, fg=DANGER, font=("Segoe UI", 9))
         self.name_err.grid(row=2, column=0, sticky="w")
         
         # Card Number
-        tk.Label(form_frame, text="Card Number", bg=BG, fg=TEXT2, font=("Helvetica", 10)).grid(row=3, column=0, sticky="w", pady=(5,0))
+        tk.Label(form_frame, text="Card Number", bg=BG, fg=TEXT2, font=("Segoe UI", 10)).grid(row=3, column=0, sticky="w", pady=(5,0))
         
         self.card_var = tk.StringVar()
         self.card_var.trace_add('write', self._format_card_number)
         
-        self.card_ent = tk.Entry(form_frame, textvariable=self.card_var, width=35, font=("Helvetica", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#334155", highlightthickness=1)
+        self.card_ent = tk.Entry(form_frame, textvariable=self.card_var, width=35, font=("Segoe UI", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#26344a", highlightthickness=1)
         self.card_ent.grid(row=4, column=0, sticky="we", pady=(5,0), ipady=5)
-        self.card_err = tk.Label(form_frame, text="", bg=BG, fg=DANGER, font=("Helvetica", 9))
+        self.card_err = tk.Label(form_frame, text="", bg=BG, fg=DANGER, font=("Segoe UI", 9))
         self.card_err.grid(row=5, column=0, sticky="w")
         
         # Expiry and CVV frame
@@ -61,35 +61,35 @@ class PaymentWindow:
         row_frame.columnconfigure(1, weight=1)
         
         # Expiry
-        tk.Label(row_frame, text="Expiry (MM/YY)", bg=BG, fg=TEXT2, font=("Helvetica", 10)).grid(row=0, column=0, sticky="w")
-        self.exp_ent = tk.Entry(row_frame, width=14, font=("Helvetica", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#334155", highlightthickness=1)
+        tk.Label(row_frame, text="Expiry (MM/YY)", bg=BG, fg=TEXT2, font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w")
+        self.exp_ent = tk.Entry(row_frame, width=14, font=("Segoe UI", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#26344a", highlightthickness=1)
         self.exp_ent.grid(row=1, column=0, sticky="w", pady=(5,0), ipady=5)
-        self.exp_err = tk.Label(row_frame, text="", bg=BG, fg=DANGER, font=("Helvetica", 9))
+        self.exp_err = tk.Label(row_frame, text="", bg=BG, fg=DANGER, font=("Segoe UI", 9))
         self.exp_err.grid(row=2, column=0, sticky="w")
         
         # CVV
-        tk.Label(row_frame, text="CVV", bg=BG, fg=TEXT2, font=("Helvetica", 10)).grid(row=0, column=1, sticky="w")
-        self.cvv_ent = tk.Entry(row_frame, width=8, font=("Helvetica", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#334155", highlightthickness=1)
+        tk.Label(row_frame, text="CVV", bg=BG, fg=TEXT2, font=("Segoe UI", 10)).grid(row=0, column=1, sticky="w")
+        self.cvv_ent = tk.Entry(row_frame, width=8, font=("Segoe UI", 12), bg=BG2, fg=FG, insertbackground=FG, relief="flat", highlightbackground="#26344a", highlightthickness=1)
         self.cvv_ent.grid(row=1, column=1, sticky="w", pady=(5,0), ipady=5)
-        self.cvv_err = tk.Label(row_frame, text="", bg=BG, fg=DANGER, font=("Helvetica", 9))
+        self.cvv_err = tk.Label(row_frame, text="", bg=BG, fg=DANGER, font=("Segoe UI", 9))
         self.cvv_err.grid(row=2, column=1, sticky="w")
         
         # Action Frame
         self.act_frame = tk.Frame(self.root, bg=BG)
         self.act_frame.pack(fill="x", side="bottom", pady=30, padx=40)
         
-        tk.Button(self.act_frame, text="Cancel", font=("Helvetica", 11, "bold"), bg=BG2, fg=FG, relief="flat", padx=20, pady=8, command=self.root.destroy, cursor="hand2").pack(side="left")
+        tk.Button(self.act_frame, text="Cancel", font=("Segoe UI", 11, "bold"), bg=BG2, fg=FG, relief="flat", padx=20, pady=8, command=self.root.destroy, cursor="hand2").pack(side="left")
         
-        self.pay_btn = tk.Button(self.act_frame, text="Pay Now", font=("Helvetica", 11, "bold"), bg=SUCCESS, fg=FG, relief="flat", padx=20, pady=8, command=self._submit, cursor="hand2")
+        self.pay_btn = tk.Button(self.act_frame, text="Pay Now", font=("Segoe UI", 11, "bold"), bg=SUCCESS, fg=FG, relief="flat", padx=20, pady=8, command=self._submit, cursor="hand2")
         self.pay_btn.pack(side="right")
         
         # Progress/Status frame
         self.prog_frame = tk.Frame(self.root, bg=BG)
-        self.prog_lbl = tk.Label(self.prog_frame, text="", bg=BG, fg=FG, font=("Helvetica", 12, "bold"))
+        self.prog_lbl = tk.Label(self.prog_frame, text="", bg=BG, fg=FG, font=("Segoe UI", 12, "bold"))
         self.prog_lbl.pack(pady=(0,15))
         
         style = ttk.Style()
-        style.theme_use('default')
+        style.theme_use('clam')
         style.configure("green.Horizontal.TProgressbar", background=SUCCESS)
         
         self.progress = ttk.Progressbar(self.prog_frame, orient="horizontal", mode="indeterminate", length=300, style="green.Horizontal.TProgressbar")
@@ -176,7 +176,7 @@ class PaymentWindow:
     def _on_processing_complete(self):
         self.progress.stop()
         self.progress.pack_forget()
-        self.prog_lbl.config(text="Payment Successful!", fg=SUCCESS, font=("Helvetica", 14, "bold"))
+        self.prog_lbl.config(text="Payment Successful!", fg=SUCCESS, font=("Segoe UI", 14, "bold"))
         
         # Give user a moment to see success before closing
         self.root.after(1000, self._finalize)

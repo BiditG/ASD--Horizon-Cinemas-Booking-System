@@ -19,15 +19,15 @@ from matplotlib.colors import LinearSegmentedColormap
 from src.database.db_connection import get_connection
 
 # Style constants
-BG        = "#0f172a"
-BG2       = "#1e293b"
-BG_CARD   = "#162032"
-ACCENT    = "#1e40af"
+BG        = "#0b1220"
+BG2       = "#111b2e"
+BG_CARD   = "#162338"
+ACCENT    = "#4f8cff"
 FG        = "#f8fafc"
-FG2       = "#94a3b8"
-BORDER    = "#334155"
+FG2       = "#a7b4c8"
+BORDER    = "#26344a"
 
-FF        = "Helvetica"
+FF        = "Segoe UI"
 FONT_H2   = (FF, 13, "bold")
 FONT_BODY = (FF, 10)
 FONT_BTN  = (FF, 10, "bold")
@@ -89,7 +89,7 @@ class OccupancyHeatmapPanel:
         self.pane.add(self.det_frame, minsize=250)
 
         # Setup Matplotlib Figure
-        self._fig = Figure(figsize=(6, 4), dpi=100, facecolor=BG)
+        self._fig = Figure(figsize=(6, 4), dpi=144, facecolor=BG)
         self._ax = self._fig.add_subplot(111)
         self._ax.set_facecolor(BG2)
         self._canvas = FigureCanvasTkAgg(self._fig, master=self.heat_frame)
@@ -119,9 +119,9 @@ class OccupancyHeatmapPanel:
         self.det_tv.column("rev", width=60, anchor="e")
         self.det_tv.column("risk", width=80, anchor="center")
         
-        self.det_tv.tag_configure("low_risk", foreground="#16a34a") # Green
-        self.det_tv.tag_configure("med_risk", foreground="#fbbf24") # Amber
-        self.det_tv.tag_configure("high_risk", foreground="#dc2626") # Red
+        self.det_tv.tag_configure("low_risk", foreground="#22c55e")
+        self.det_tv.tag_configure("med_risk", foreground="#f59e0b")
+        self.det_tv.tag_configure("high_risk", foreground="#ef4444")
 
         sb = ttk.Scrollbar(self.det_frame, orient="vertical", command=self.det_tv.yview)
         self.det_tv.configure(yscrollcommand=sb.set)

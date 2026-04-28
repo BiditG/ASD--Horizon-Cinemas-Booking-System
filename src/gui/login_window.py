@@ -49,23 +49,23 @@ def _get_staff_window():
 # ===========================================================================
 # Colour & font constants  (matches GUI_STYLE_GUIDE.md)
 # ===========================================================================
-BG_PRIMARY    = "#0f172a"
-BG_SECONDARY  = "#1e293b"
-BG_CARD       = "#162032"
-ACCENT        = "#1e40af"
-ACCENT_HOVER  = "#1e3a8a"
-SUCCESS       = "#16a34a"
-ERROR         = "#dc2626"
+BG_PRIMARY    = "#0b1220"
+BG_SECONDARY  = "#111b2e"
+BG_CARD       = "#162338"
+ACCENT        = "#4f8cff"
+ACCENT_HOVER  = "#3478f6"
+SUCCESS       = "#22c55e"
+ERROR         = "#ef4444"
 TEXT_PRIMARY  = "#f8fafc"
-TEXT_SECONDARY= "#94a3b8"
-BORDER        = "#334155"
+TEXT_SECONDARY= "#a7b4c8"
+BORDER        = "#26344a"
 
-FONT_FAMILY   = "Helvetica"
-FONT_H1       = (FONT_FAMILY, 22, "bold")
-FONT_H2       = (FONT_FAMILY, 14, "bold")
-FONT_BODY     = (FONT_FAMILY, 11)
-FONT_SMALL    = (FONT_FAMILY, 9)
-FONT_LABEL    = (FONT_FAMILY, 11, "bold")
+FONT_FAMILY   = "Segoe UI"
+FONT_H1       = (FONT_FAMILY, 24, "bold")
+FONT_H2       = (FONT_FAMILY, 16, "bold")
+FONT_BODY     = (FONT_FAMILY, 12)
+FONT_SMALL    = (FONT_FAMILY, 10)
+FONT_LABEL    = (FONT_FAMILY, 12, "bold")
 
 
 # ===========================================================================
@@ -240,6 +240,10 @@ class LoginWindow:
         self.root.minsize(self.MIN_W, self.MIN_H)
         self.root.configure(bg=BG_PRIMARY)
         self.root.resizable(True, True)
+        try:
+            self.root.option_add('*Button.cursor', 'hand2')
+        except Exception:
+            pass
 
         # Centre on screen
         self.root.update_idletasks()
@@ -315,6 +319,7 @@ class LoginWindow:
         form = tk.Frame(card, bg=BG_CARD)
         form.grid(row=4, column=0, sticky="ew")
         form.columnconfigure(0, weight=1)
+        form.columnconfigure(1, weight=0)
 
         # Username label
         tk.Label(
@@ -348,6 +353,21 @@ class LoginWindow:
             form, textvariable=self.password_var, show="*"
         )
         self.password_entry.grid(row=3, column=0, sticky="ew", pady=(0, 8), ipady=8)
+        self.password_visible = False
+        self.password_toggle_btn = tk.Button(
+            form,
+            text="👁",
+            font=(FONT_FAMILY, 12),
+            bg=BG_SECONDARY,
+            fg=TEXT_SECONDARY,
+            activebackground=BG_CARD,
+            activeforeground=TEXT_PRIMARY,
+            relief="flat",
+            cursor="hand2",
+            width=3,
+            command=self._toggle_password_visibility
+        )
+        self.password_toggle_btn.grid(row=3, column=1, sticky="e", padx=(10, 0), pady=(0, 8), ipady=6)
         self.password_entry.bind("<Return>", lambda e: self._on_login_click())
 
         # ── Error label (hidden until needed) ─────────────────────────
@@ -441,6 +461,13 @@ class LoginWindow:
     def _clear_error(self) -> None:
         """Clear any previously displayed error message."""
         self.error_lbl.config(text="")
+
+    def _toggle_password_visibility(self) -> None:
+        """Toggle whether the password field is masked."""
+        self.password_visible = not self.password_visible
+        self.password_entry.config(show="" if self.password_visible else "*")
+        self.password_toggle_btn.config(text="🙈" if self.password_visible else "👁")
+        self.password_entry.focus_set()
 
     def _set_loading(self, loading: bool) -> None:
         """

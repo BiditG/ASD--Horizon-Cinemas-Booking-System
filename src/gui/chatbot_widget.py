@@ -9,16 +9,16 @@ from tkinter import ttk
 import datetime
 import re
 
-BG        = "#0f172a"
-BG2       = "#1e293b"
-BG_CARD   = "#162032"
-ACCENT    = "#1e40af"
+BG        = "#0b1220"
+BG2       = "#111b2e"
+BG_CARD   = "#162338"
+ACCENT    = "#4f8cff"
 FG        = "#f8fafc"
-FG2       = "#94a3b8"
-BORDER    = "#334155"
-USER_BG   = "#3b82f6"
-BOT_BG    = "#334155"
-SUCCESS   = "#16a34a"
+FG2       = "#a7b4c8"
+BORDER    = "#26344a"
+USER_BG   = "#2563eb"
+BOT_BG    = "#223047"
+SUCCESS   = "#22c55e"
 
 class ChatbotWidget(tk.Toplevel):
     def __init__(self, parent):
@@ -57,7 +57,7 @@ class ChatbotWidget(tk.Toplevel):
         # Header
         header = tk.Frame(self, bg=ACCENT, pady=10)
         header.pack(fill="x")
-        tk.Label(header, text="🤖 HCBS Help Assistant", bg=ACCENT, fg=FG, font=("Helvetica", 12, "bold")).pack()
+        tk.Label(header, text="🤖 HCBS Help Assistant", bg=ACCENT, fg=FG, font=("Segoe UI", 12, "bold")).pack()
 
         # Chat History
         self.chat_canvas = tk.Canvas(self, bg=BG, highlightthickness=0)
@@ -84,11 +84,11 @@ class ChatbotWidget(tk.Toplevel):
         input_frame.pack(fill="x", side="bottom")
 
         self.input_var = tk.StringVar()
-        self.entry = tk.Entry(input_frame, textvariable=self.input_var, font=("Helvetica", 11), bg=BG_CARD, fg=FG, insertbackground=FG, relief="flat")
+        self.entry = tk.Entry(input_frame, textvariable=self.input_var, font=("Segoe UI", 11), bg=BG_CARD, fg=FG, insertbackground=FG, relief="flat")
         self.entry.pack(side="left", fill="x", expand=True, ipady=5, padx=(0, 10))
         self.entry.bind("<Return>", lambda e: self.send_message())
 
-        btn = tk.Button(input_frame, text="Send", bg=SUCCESS, fg=FG, font=("Helvetica", 10, "bold"), relief="flat", cursor="hand2", command=self.send_message)
+        btn = tk.Button(input_frame, text="Send", bg=SUCCESS, fg=FG, font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2", command=self.send_message)
         btn.pack(side="right", ipadx=10, ipady=3)
 
     def send_message(self):
@@ -133,10 +133,10 @@ class ChatbotWidget(tk.Toplevel):
             pad_x = (10, 50)
             title = f"Bot | {now}"
             
-        lbl_title = tk.Label(msg_frame, text=title, bg=BG, fg=FG2, font=("Helvetica", 8))
+        lbl_title = tk.Label(msg_frame, text=title, bg=BG, fg=FG2, font=("Segoe UI", 8))
         lbl_title.pack(anchor=align, padx=pad_x[1] if sender=="You" else pad_x[0])
         
-        msg_lbl = tk.Label(msg_frame, text=text, bg=bg_col, fg=FG, font=("Helvetica", 10), wraplength=250, justify="left", padx=10, pady=8)
+        msg_lbl = tk.Label(msg_frame, text=text, bg=bg_col, fg=FG, font=("Segoe UI", 10), wraplength=250, justify="left", padx=10, pady=8)
         msg_lbl.pack(anchor=align, padx=pad_x)
         
         # Auto-scroll

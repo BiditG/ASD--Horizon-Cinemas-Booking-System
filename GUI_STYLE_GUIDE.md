@@ -8,20 +8,23 @@ The application uses a modern, high-contrast palette. While a light mode is avai
 
 | Name | Hex Code | Purpose |
 | :--- | :--- | :--- |
-| **Primary Background (Dark)** | `#0f172a` | Main window and frame backgrounds. |
+| **Primary Background (Dark)** | `#0b1220` | Main window and frame backgrounds. |
 | **Primary Background (Light)** | `#f8fafc` | Secondary surfaces or light mode alternative. |
-| **Primary Accent** | `#1e40af` | Primary buttons, active state highlights. |
-| **Success** | `#16a34a` | Positive feedback, confirmed bookings. |
-| **Warning** | `#ca8a04` | Cautions, pending statuses. |
-| **Error** | `#dc2626` | Destructive actions, validation errors. |
+| **Secondary Surface** | `#111b2e` | Top bars, controls, and contrast surfaces. |
+| **Card Surface** | `#162338` | Cards, forms, and content containers. |
+| **Primary Accent** | `#4f8cff` | Primary buttons, active state highlights. |
+| **Secondary Accent** | `#22c55e` | Positive feedback and success states. |
+| **Warning** | `#f59e0b` | Cautions, pending statuses. |
+| **Error** | `#ef4444` | Destructive actions, validation errors. |
 | **Text Primary** | `#f8fafc` | Main headings and labels (on dark). |
-| **Text Secondary** | `#94a3b8` | Subtext, hints, and disabled labels. |
+| **Text Secondary** | `#a7b4c8` | Subtext, hints, and disabled labels. |
+| **Border** | `#26344a` | Subtle separators and input outlines. |
 
 ## 2. Typography
 
 We use clean, sans-serif fonts for maximum readability.
 
-- **Font Family**: `Helvetica` (Primary), `Arial` (Fallback).
+- **Font Family**: `Segoe UI` (Primary), `Arial` (Fallback).
 - **Heading 1**: 24pt, Bold.
 - **Heading 2**: 18pt, Bold.
 - **Body Text**: 11pt, Regular.
@@ -66,9 +69,15 @@ import tkinter as tk
 from tkinter import ttk
 
 # Constants
-BG_PRIMARY = "#0f172a"
-ACCENT = "#1e40af"
+BG_PRIMARY = "#0b1220"
+BG_SECONDARY = "#111b2e"
+BG_CARD = "#162338"
+ACCENT = "#4f8cff"
+SUCCESS = "#22c55e"
+WARNING = "#f59e0b"
+ERROR = "#ef4444"
 TEXT_PRIMARY = "#f8fafc"
+TEXT_SECONDARY = "#a7b4c8"
 
 def apply_style():
     style = ttk.Style()
@@ -92,8 +101,8 @@ def apply_style():
                     background=ACCENT, 
                     foreground="white", 
                     padding=10, 
-                    font=("Helvetica", 11, "bold"))
-    style.map("TButton", background=[('active', '#1e3a8a')])
+                    font=("Segoe UI", 11, "bold"))
+    style.map("TButton", background=[('active', '#3478f6')])
 ```
 
 ### Creating a Styled Entry

@@ -16,17 +16,17 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from src.database.db_connection import get_connection
 
 # Style constants
-BG        = "#0f172a"
-BG2       = "#1e293b"
-BG_CARD   = "#162032"
-ACCENT    = "#1e40af"
-SUCCESS   = "#16a34a"
-WARNING   = "#f59e0b"  # Amber
+BG        = "#0b1220"
+BG2       = "#111b2e"
+BG_CARD   = "#162338"
+ACCENT    = "#4f8cff"
+SUCCESS   = "#22c55e"
+WARNING   = "#f59e0b"
 FG        = "#f8fafc"
-FG2       = "#94a3b8"
-BORDER    = "#334155"
+FG2       = "#a7b4c8"
+BORDER    = "#26344a"
 
-FF        = "Helvetica"
+FF        = "Segoe UI"
 FONT_H2   = (FF, 13, "bold")
 FONT_BODY = (FF, 10)
 FONT_BTN  = (FF, 10, "bold")
@@ -86,9 +86,10 @@ class StaffLeaderboardPanel:
         }
 
         style = ttk.Style()
-        style.configure("Leader.Treeview", background=BG_CARD, foreground=FG, fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=26)
+        style.theme_use('clam')
+        style.configure("Leader.Treeview", background=BG_CARD, foreground=FG, fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=28)
         style.configure("Leader.Treeview.Heading", background=BG2, foreground=FG, font=FONT_BTN)
-        style.map("Leader.Treeview", background=[("selected", ACCENT)])
+        style.map("Leader.Treeview", background=[("selected", ACCENT)], foreground=[("selected", FG)])
 
         self.tv = ttk.Treeview(self.table_frame, columns=cols, show="headings", style="Leader.Treeview")
         for c in cols:
@@ -107,7 +108,7 @@ class StaffLeaderboardPanel:
         self.chart_frame = tk.Frame(self.pane, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         self.pane.add(self.chart_frame, minsize=200, stretch="always")
 
-        self.fig = Figure(figsize=(8, 3), dpi=95, facecolor=BG_CARD)
+        self.fig = Figure(figsize=(8, 3), dpi=144, facecolor=BG_CARD)
         self.ax = self.fig.add_subplot(111)
         self.ax.set_facecolor(BG_CARD)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.chart_frame)

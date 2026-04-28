@@ -63,24 +63,24 @@ TOTAL COST        : £{booking_data['total_cost']:.2f}
 ========================================""".strip()
 
 # ── Style Constants ──────────────────────────────────────────────────────────
-BG          = "#0f172a"
-BG2         = "#1e293b"
-BG_CARD     = "#162032"
-ACCENT      = "#1e40af"
-SUCCESS     = "#16a34a"
-WARNING     = "#ca8a04"
-ERROR       = "#dc2626"
+BG          = "#0b1220"
+BG2         = "#111b2e"
+BG_CARD     = "#162338"
+ACCENT      = "#4f8cff"
+SUCCESS     = "#22c55e"
+WARNING     = "#f59e0b"
+ERROR       = "#ef4444"
 TEXT        = "#f8fafc"
-TEXT2       = "#94a3b8"
-BORDER      = "#334155"
+TEXT2       = "#a7b4c8"
+BORDER      = "#26344a"
 
-FF          = "Helvetica"
-FONT_H1     = (FF, 20, "bold")
-FONT_H2     = (FF, 16, "bold")
-FONT_BODY   = (FF, 11)
-FONT_LABEL  = (FF, 11, "bold")
-FONT_BTN    = (FF, 11, "bold")
-FONT_MONO   = ("Courier New", 10)
+FF          = "Segoe UI"
+FONT_H1     = (FF, 22, "bold")
+FONT_H2     = (FF, 18, "bold")
+FONT_BODY   = (FF, 12)
+FONT_LABEL  = (FF, 12, "bold")
+FONT_BTN    = (FF, 12, "bold")
+FONT_MONO   = ("Consolas", 11)
 
 
 from src.utils.rbac import require_role
@@ -132,8 +132,21 @@ class BookingWindow:
     def _configure_styles(self) -> None:
         style = ttk.Style()
         style.theme_use('clam')
-        style.configure("HCBS.TCombobox", fieldbackground=BG2, background=BG2, 
-                        foreground=TEXT, selectbackground=ACCENT, arrowcolor=TEXT)
+        style.configure(
+            "HCBS.TCombobox",
+            fieldbackground=BG2,
+            background=BG2,
+            foreground=TEXT,
+            selectbackground=ACCENT,
+            arrowcolor=TEXT,
+            font=FONT_BODY,
+            padding=5,
+        )
+        style.map(
+            "HCBS.TCombobox",
+            fieldbackground=[('readonly', BG2), ('active', BG2), ('focus', BG2)],
+            foreground=[('readonly', TEXT), ('active', TEXT), ('focus', TEXT)],
+        )
                         
         # Fix dropdown list visibility (Tkinter Combobox bug where dropdown inherits foreground but not background)
         app_root = self._tl._root()
@@ -182,24 +195,24 @@ class BookingWindow:
             row_offset = 1
             
         # Date
-        tk.Label(sel_card, text="Select Date:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset, column=0, sticky="w", pady=5)
+        tk.Label(sel_card, text="Date:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset, column=0, sticky="w", pady=5)
         self.date_var = tk.StringVar()
-        self.date_cb = ttk.Combobox(sel_card, textvariable=self.date_var, state="readonly", width=25, style="HCBS.TCombobox")
+        self.date_cb = ttk.Combobox(sel_card, textvariable=self.date_var, state="readonly", width=25, style="HCBS.TCombobox", font=FONT_BODY)
         self.date_cb.grid(row=row_offset, column=1, padx=10, pady=5)
         self.date_cb.bind("<<ComboboxSelected>>", self._on_date_or_film_change)
         
         # Film
-        tk.Label(sel_card, text="Select Film:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset+1, column=0, sticky="w", pady=5)
+        tk.Label(sel_card, text="Film:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset+1, column=0, sticky="w", pady=5)
         self.film_var = tk.StringVar()
-        self.film_cb = ttk.Combobox(sel_card, textvariable=self.film_var, state="readonly", width=40, style="HCBS.TCombobox")
+        self.film_cb = ttk.Combobox(sel_card, textvariable=self.film_var, state="readonly", width=40, style="HCBS.TCombobox", font=FONT_BODY)
         self.film_cb.grid(row=row_offset+1, column=1, padx=10, pady=5)
         self.film_cb.bind("<<ComboboxSelected>>", self._on_date_or_film_change)
         
         # Showing (each option includes screen number — there is no separate screen control)
-        tk.Label(sel_card, text="Select Screen & time:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset+2, column=0, sticky="w", pady=5)
+        tk.Label(sel_card, text="Screen & Time:", font=FONT_LABEL, bg=BG_CARD, fg=ACCENT).grid(row=row_offset+2, column=0, sticky="w", pady=5)
         self.showing_var = tk.StringVar()
         # Wider so "Screen N — time (Type) — seats" is readable (tk width is in characters).
-        self.showing_cb = ttk.Combobox(sel_card, textvariable=self.showing_var, state="readonly", width=52, style="HCBS.TCombobox")
+        self.showing_cb = ttk.Combobox(sel_card, textvariable=self.showing_var, state="readonly", width=52, style="HCBS.TCombobox", font=FONT_BODY)
         self.showing_cb.grid(row=row_offset+2, column=1, padx=10, pady=5, sticky="ew")
         sel_card.columnconfigure(1, weight=1)
         self.showing_cb.bind("<<ComboboxSelected>>", self._on_showing_change)
@@ -236,8 +249,17 @@ class BookingWindow:
                   activebackground=BG, relief="flat", padx=15, pady=6, cursor="hand2", 
                   command=self.check_availability_and_price).pack(side="left")
                   
-        self.avail_lbl = tk.Label(chk_frame, text="", font=FONT_LABEL, bg=BG_CARD, fg=WARNING)
-        self.avail_lbl.pack(side="left", padx=20)
+        self.avail_lbl = tk.Label(
+            chk_frame,
+            text="",
+            font=FONT_LABEL,
+            bg=BG_CARD,
+            fg=WARNING,
+            wraplength=460,
+            justify="left",
+            anchor="w"
+        )
+        self.avail_lbl.pack(side="left", padx=20, fill="x", expand=True)
 
         # 3. Customer Details Card
         self.cust_card = tk.Frame(form_frame, bg=BG_CARD, padx=20, pady=20, highlightbackground=BORDER, highlightthickness=1)
@@ -260,13 +282,13 @@ class BookingWindow:
         
         # Duplicate Banner
         self.dup_banner = tk.Frame(form_frame, bg="#ca8a04", padx=10, pady=10)
-        self.dup_lbl = tk.Label(self.dup_banner, text="", bg="#ca8a04", fg="#0f172a", font=FONT_BODY, wraplength=400)
+        self.dup_lbl = tk.Label(self.dup_banner, text="", bg=WARNING, fg="#0b1220", font=FONT_BODY, wraplength=400)
         self.dup_lbl.pack(side="left", fill="x", expand=True)
         
-        self.dup_yes_btn = tk.Button(self.dup_banner, text="Yes", bg="#0f172a", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._dismiss_duplicate_banner)
+        self.dup_yes_btn = tk.Button(self.dup_banner, text="Yes", bg="#0b1220", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._dismiss_duplicate_banner)
         self.dup_yes_btn.pack(side="right", padx=5)
         
-        self.dup_no_btn = tk.Button(self.dup_banner, text="No", bg="#0f172a", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._reset_form)
+        self.dup_no_btn = tk.Button(self.dup_banner, text="No", bg="#0b1220", fg="#f8fafc", relief="flat", padx=10, cursor="hand2", command=self._reset_form)
         self.dup_no_btn.pack(side="right", padx=5)
         
         # 4. Action Buttons
@@ -788,9 +810,9 @@ class BookingWindow:
             tier = loy["tier"].title()
             pts  = loy["total_points"]
             earned = loy["points_earned"]
-            tier_colours = {"Bronze": "#cd7f32", "Silver": "#94a3b8", "Gold": "#f59e0b"}
+            tier_colours = {"Bronze": "#d97706", "Silver": "#cbd5e1", "Gold": "#f59e0b"}
             badge_colour = tier_colours.get(tier, TEXT2)
-            self.receipt_text.tag_config(f"tier_{tier}", foreground=badge_colour, font=("Helvetica", 11, "bold"))
+            self.receipt_text.tag_config(f"tier_{tier}", foreground=badge_colour, font=("Segoe UI", 11, "bold"))
             self.receipt_text.insert(tk.END, f"\n{tier} Member — {pts} pts  (+{earned} earned today)\n", f"tier_{tier}")
         
         # --- Embed QR Code ---
@@ -855,8 +877,8 @@ class BookingWindow:
         
         tk.Label(pop, text="🏅 Loyalty Account", font=FONT_H2, bg=BG, fg=TEXT).pack(pady=(20, 5))
         tk.Label(pop, text=acct["customer_name"], font=FONT_BODY, bg=BG, fg=TEXT2).pack()
-        tk.Label(pop, text=f"{tier.upper()} MEMBER", font=("Helvetica", 14, "bold"), bg=BG, fg=badge_colour).pack(pady=6)
-        tk.Label(pop, text=f"🔖 {acct['total_points']} pts", font=("Helvetica", 20, "bold"), bg=BG, fg=TEXT).pack(pady=4)
+        tk.Label(pop, text=f"{tier.upper()} MEMBER", font=("Segoe UI", 14, "bold"), bg=BG, fg=badge_colour).pack(pady=6)
+        tk.Label(pop, text=f"🔖 {acct['total_points']} pts", font=("Segoe UI", 20, "bold"), bg=BG, fg=TEXT).pack(pady=4)
         
         sep = tk.Frame(pop, bg=BORDER, height=1)
         sep.pack(fill="x", padx=20, pady=8)
@@ -906,8 +928,8 @@ class BookingWindow:
         
         tk.Label(pop, text="🏅 Loyalty Account", font=FONT_H2, bg=BG, fg=TEXT).pack(pady=(20, 5))
         tk.Label(pop, text=acct["customer_name"], font=FONT_BODY, bg=BG, fg=TEXT2).pack()
-        tk.Label(pop, text=f"{tier.upper()} MEMBER", font=("Helvetica", 14, "bold"), bg=BG, fg=badge_colour).pack(pady=6)
-        tk.Label(pop, text=f"🔖 {acct['total_points']} pts", font=("Helvetica", 20, "bold"), bg=BG, fg=TEXT).pack(pady=4)
+        tk.Label(pop, text=f"{tier.upper()} MEMBER", font=("Segoe UI", 14, "bold"), bg=BG, fg=badge_colour).pack(pady=6)
+        tk.Label(pop, text=f"🔖 {acct['total_points']} pts", font=("Segoe UI", 20, "bold"), bg=BG, fg=TEXT).pack(pady=4)
         
         sep = tk.Frame(pop, bg=BORDER, height=1)
         sep.pack(fill="x", padx=20, pady=8)
