@@ -7,8 +7,13 @@ from src.utils.seat_recommender import recommend_seats
 class SeatMapWindow:
     def __init__(self, parent: tk.Toplevel, showing_id: int, required_quantity: int, ticket_type: str, on_confirm: Callable[[List[str]], None]):
         self.root = tk.Toplevel(parent)
-        self.root.title("Select Seats")
+        self.root.title("HCBS — Select Seats")
         self.root.configure(bg="#0f172a")
+        
+        # Set a reasonable default size and minsize
+        self.root.geometry("900x750")
+        self.root.minsize(800, 600)
+        
         self.root.grab_set() # Make modal
         
         self.showing_id = showing_id
@@ -21,6 +26,11 @@ class SeatMapWindow:
         self.seat_buttons = {}
         
         # Load data
+        if not self.showing_id:
+            messagebox.showerror("Error", "No showing selected.")
+            self.root.destroy()
+            return
+
         if not self._load_data():
             return
             
@@ -44,6 +54,7 @@ class SeatMapWindow:
             self.recommended = selected or []
         else:
             self.recommended = recommend_seats(self.showing_id, self.ticket_type, self.required_quantity)
+        
         self.is_manual_mode = False
         
         # Build UI
@@ -55,6 +66,7 @@ class SeatMapWindow:
         else:
             self.is_manual_mode = True
             self.status_lbl.config(text="No recommendations available. Please choose manually.")
+            self.confirm_btn.config(text="Confirm Selection")
 
     def _load_data(self) -> bool:
         try:
@@ -89,8 +101,12 @@ class SeatMapWindow:
             return False
         
     def _build_ui(self):
+        # 1. Main Static Header
+        header_frame = tk.Frame(self.root, bg="#0f172a")
+        header_frame.pack(fill="x", side="top")
+
         # Legend
-        legend_frame = tk.Frame(self.root, bg="#0f172a", pady=10)
+        legend_frame = tk.Frame(header_frame, bg="#0f172a", pady=10)
         legend_frame.pack(fill="x")
         
         tk.Label(legend_frame, text="Legend:", bg="#0f172a", fg="white", font=("Helvetica", 12, "bold")).pack(side="left", padx=10)
@@ -108,15 +124,57 @@ class SeatMapWindow:
         
         # Status Label — show group booking banner if bulk
         if self.is_bulk:
-            tk.Label(self.root, text=f"🎟 GROUP BOOKING MODE — {self.required_quantity} seats",
+            tk.Label(header_frame, text=f"🎟 GROUP BOOKING MODE — {self.required_quantity} seats",
                      bg="#f97316", fg="white", font=("Helvetica", 13, "bold"), pady=5).pack(fill="x")
-        self.status_lbl = tk.Label(self.root, text=f"0 / {self.required_quantity} seats selected", bg="#0f172a", fg="white", font=("Helvetica", 14))
+        
+        self.status_lbl = tk.Label(header_frame, text=f"0 / {self.required_quantity} seats selected", bg="#0f172a", fg="white", font=("Helvetica", 14))
         self.status_lbl.pack(pady=10)
+
+        # 2. Scrollable Middle Area
+        container = tk.Frame(self.root, bg="#0f172a")
+        container.pack(fill="both", expand=True)
+
+        self.canvas = tk.Canvas(container, bg="#1e293b", highlightthickness=0)
+        scrollbar = tk.Scrollbar(container, orient="vertical", command=self.canvas.yview)
         
-        # Grid
-        grid_frame = tk.Frame(self.root, bg="#1e293b", padx=20, pady=20)
-        grid_frame.pack()
+        # This is the frame that actually holds the seats
+        self.scrollable_frame = tk.Frame(self.canvas, bg="#1e293b", padx=20, pady=20)
         
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+
+        # Mousewheel support
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        self.canvas.create_window((430, 0), window=self.scrollable_frame, anchor="n") # Center the frame in canvas
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+        
+        self.canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # 3. Footer Buttons (Static)
+        self.btn_frame = tk.Frame(self.root, bg="#0f172a", pady=20)
+        self.btn_frame.pack(fill="x", side="bottom")
+        
+        self.cancel_btn = tk.Button(self.btn_frame, text="Cancel", bg="#334155", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self.root.destroy)
+        self.cancel_btn.pack(side="left", padx=20)
+        
+        self.manual_btn = tk.Button(self.btn_frame, text="Choose Manually", bg="#f59e0b", fg="black", font=("Helvetica", 12, "bold"), padx=15, command=self._enable_manual)
+        
+        self.confirm_btn = tk.Button(
+            self.btn_frame,
+            text="Accept Group Selection" if self.is_bulk else "Accept Recommendation",
+            bg="#16a34a", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self._confirm)
+        self.confirm_btn.pack(side="right", padx=20)
+
+        if self.recommended:
+            self.manual_btn.pack(side="right", padx=10)
+
+        # 4. Populate Grid (inside scrollable_frame)
         all_seats = []
         for i in range(1, self.layout["lower_hall_seats"] + 1):
             all_seats.append(("lower_hall", f"A{i}"))
@@ -140,39 +198,19 @@ class SeatMapWindow:
                 
             color = taken_color if is_booked else free_color
             
-            btn = tk.Button(grid_frame, text=seat_num, width=4, height=2, bg=color, fg="white" if not is_booked else "#9ca3af", font=("Helvetica", 10, "bold"), relief="flat")
+            btn = tk.Button(self.scrollable_frame, text=seat_num, width=4, height=2, bg=color, fg="white" if not is_booked else "#9ca3af", font=("Helvetica", 10, "bold"), relief="flat")
             if is_booked:
                 btn.config(state="disabled")
             else:
-                # We need to capture state correctly
                 btn.config(command=lambda s=seat_num, c=color: self._toggle_seat(s, c))
                 
             btn.grid(row=row_idx, column=col_idx, padx=5, pady=5)
-            # Save original color
             self.seat_buttons[seat_num] = {"btn": btn, "color": color, "zone": zone}
             
             col_idx += 1
             if col_idx >= 10:
                 col_idx = 0
                 row_idx += 1
-                
-        # Buttons
-        self.btn_frame = tk.Frame(self.root, bg="#0f172a", pady=20)
-        self.btn_frame.pack(fill="x")
-        
-        self.cancel_btn = tk.Button(self.btn_frame, text="Cancel", bg="#334155", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self.root.destroy)
-        self.cancel_btn.pack(side="left", padx=20)
-        
-        self.manual_btn = tk.Button(self.btn_frame, text="Choose Manually", bg="#f59e0b", fg="black", font=("Helvetica", 12, "bold"), padx=15, command=self._enable_manual)
-        
-        self.confirm_btn = tk.Button(
-            self.btn_frame,
-            text="Accept Group Selection" if self.is_bulk else "Accept Recommendation",
-            bg="#16a34a", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self._confirm)
-        self.confirm_btn.pack(side="right", padx=20)
-
-        if self.recommended:
-            self.manual_btn.pack(side="right", padx=10)
 
     def _add_legend_item(self, parent, text, color, fg="white"):
         frame = tk.Frame(parent, bg="#0f172a")

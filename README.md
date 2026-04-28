@@ -31,7 +31,35 @@ Follow these steps to set up the project locally:
     python main.py
     ```
 
-## 🔐 Credentials
+### 🔐 Credentials
+
+The following accounts are available for testing various access levels within the system:
+
+| Role    | Username | Password   |
+| :------ | :------- | :--------- |
+| Manager | manager1 | password123 |
+| Admin   | admin1   | password123 |
+| Admin   | admin2   | password123 |
+| Staff   | staff1   | password123 |
+| Staff   | staff2   | password123 |
+| Staff   | staff3   | password123 |
+
+## 📦 Bulk Booking Feature
+
+- **Group Booking Mode** automatically activates when the user selects a quantity of **10 or more** seats.
+- Seats are auto‑selected using a best‑available algorithm that fills whole rows first and splits across the fewest rows when necessary.
+- A banner appears in the booking UI indicating *Group Booking Mode* and the selected seats are highlighted in a distinct colour.
+- The receipt displays a *Group Booking* summary with per‑seat cost.
+- If insufficient contiguous seats are available, the system suggests the maximum possible group size.
+
+## 🎨 Dark Mode
+
+A persistent dark‑mode toggle is available on the admin and manager dashboards. The UI theme is saved per‑user in `user_prefs.json` and applied automatically on login.
+
+## 🎁 Loyalty Points
+
+Customers earn 1 point per £1 spent. Points are tracked per email and displayed via a loyalty popup. Tier badges (Bronze, Silver, Gold) are shown on the receipt.
+
 
 The following accounts are available for testing various access levels within the system:
 

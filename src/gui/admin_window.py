@@ -803,7 +803,7 @@ class AdminWindow:
     def _open_cancellation(self):
         try:
             from src.gui.cancellation_window import CancellationWindow
-            CancellationWindow(self.root)
+            CancellationWindow(tk.Toplevel(self.root))
         except Exception as e:
             messagebox.showerror("Error", f"Could not open cancellation window: {e}")
 

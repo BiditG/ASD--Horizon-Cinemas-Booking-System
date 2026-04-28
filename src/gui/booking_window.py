@@ -26,11 +26,7 @@ from src.models.user import User
 from src.utils.pricing_engine import PricingEngine
 from src.gui.login_window import SessionManager
 
-class PDFService:
-    """Stub for Sprint 4 PDF Generator."""
-    @staticmethod
-    def generate_ticket(booking_data: dict) -> None:
-        messagebox.showinfo("PDF Generator", "Ticket PDF generated successfully! (S4-05 stub)")
+from src.utils.pdf_service import PDFService
 
 def format_receipt_text(booking_data: dict) -> str:
     """Helper function to format the receipt as plain text."""
@@ -116,6 +112,13 @@ class BookingWindow:
         style.theme_use('clam')
         style.configure("HCBS.TCombobox", fieldbackground=BG2, background=BG2, 
                         foreground=TEXT, selectbackground=ACCENT, arrowcolor=TEXT)
+                        
+        # Fix dropdown list visibility (Tkinter Combobox bug where dropdown inherits foreground but not background)
+        app_root = self.root._root()
+        app_root.option_add('*TCombobox*Listbox.background', BG2)
+        app_root.option_add('*TCombobox*Listbox.foreground', TEXT)
+        app_root.option_add('*TCombobox*Listbox.selectBackground', ACCENT)
+        app_root.option_add('*TCombobox*Listbox.selectForeground', TEXT)
         style.configure("HCBS.TRadiobutton", background=BG_CARD, foreground=TEXT, 
                         font=FONT_BODY)
         style.map("HCBS.TRadiobutton",
@@ -151,7 +154,10 @@ class BookingWindow:
             self.cinema_cb.bind("<<ComboboxSelected>>", self._on_cinema_change)
             row_offset = 1
         else:
-            row_offset = 0
+            # Staff: Show static label
+            tk.Label(sel_card, text="Cinema:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=0, column=0, sticky="w", pady=5)
+            tk.Label(sel_card, textvariable=self.cinema_var, font=FONT_LABEL, bg=BG_CARD, fg=TEXT).grid(row=0, column=1, sticky="w", padx=10, pady=5)
+            row_offset = 1
             
         # Date
         tk.Label(sel_card, text="Select Date:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=row_offset, column=0, sticky="w", pady=5)
@@ -210,23 +216,23 @@ class BookingWindow:
         self.avail_lbl.pack(side="left", padx=20)
 
         # 3. Customer Details Card
-        cust_card = tk.Frame(form_frame, bg=BG_CARD, padx=20, pady=20, highlightbackground=BORDER, highlightthickness=1)
-        cust_card.pack(fill="x", pady=(0, 20))
+        self.cust_card = tk.Frame(form_frame, bg=BG_CARD, padx=20, pady=20, highlightbackground=BORDER, highlightthickness=1)
+        self.cust_card.pack(fill="x", pady=(0, 20))
         
-        tk.Label(cust_card, text="Customer Name:", font=FONT_BODY, bg=BG_CARD, fg=TEXT).grid(row=0, column=0, sticky="w", pady=5)
-        self.cust_name_ent = tk.Entry(cust_card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", highlightbackground=BORDER, highlightthickness=1)
+        tk.Label(self.cust_card, text="Customer Name:", font=FONT_BODY, bg=BG_CARD, fg=TEXT).grid(row=0, column=0, sticky="w", pady=5)
+        self.cust_name_ent = tk.Entry(self.cust_card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", highlightbackground=BORDER, highlightthickness=1)
         self.cust_name_ent.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
         
-        tk.Label(cust_card, text="Phone:", font=FONT_BODY, bg=BG_CARD, fg=TEXT).grid(row=1, column=0, sticky="w", pady=5)
-        self.cust_phone_ent = tk.Entry(cust_card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", highlightbackground=BORDER, highlightthickness=1)
+        tk.Label(self.cust_card, text="Phone:", font=FONT_BODY, bg=BG_CARD, fg=TEXT).grid(row=1, column=0, sticky="w", pady=5)
+        self.cust_phone_ent = tk.Entry(self.cust_card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", highlightbackground=BORDER, highlightthickness=1)
         self.cust_phone_ent.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
         
-        tk.Label(cust_card, text="Email:", font=FONT_BODY, bg=BG_CARD, fg=TEXT).grid(row=2, column=0, sticky="w", pady=5)
-        self.cust_email_ent = tk.Entry(cust_card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", highlightbackground=BORDER, highlightthickness=1)
+        tk.Label(self.cust_card, text="Email:", font=FONT_BODY, bg=BG_CARD, fg=TEXT).grid(row=2, column=0, sticky="w", pady=5)
+        self.cust_email_ent = tk.Entry(self.cust_card, font=FONT_BODY, bg=BG, fg=TEXT, insertbackground=TEXT, relief="flat", highlightbackground=BORDER, highlightthickness=1)
         self.cust_email_ent.grid(row=2, column=1, padx=10, pady=5, sticky="ew")
         self.cust_email_ent.bind("<FocusOut>", self._check_duplicate_booking)
         
-        cust_card.columnconfigure(1, weight=1)
+        self.cust_card.columnconfigure(1, weight=1)
         
         # Duplicate Banner
         self.dup_banner = tk.Frame(form_frame, bg="#ca8a04", padx=10, pady=10)
@@ -326,6 +332,17 @@ class BookingWindow:
         if self._showing_id_param:
             try:
                 sh = Showing.get_by_id(self._showing_id_param)
+                
+                # Set Cinema — always set cinema_var regardless of widget presence
+                conn = get_connection()
+                row = conn.execute("SELECT cinema_id FROM screens WHERE screen_id = ?", (sh.screen_id,)).fetchone()
+                if row:
+                    cin = next((c for c in self._all_cinemas if c.cinema_id == row['cinema_id']), None)
+                    if cin:
+                        self.cinema_var.set(cin.cinema_name)
+                        if hasattr(self, 'cinema_cb'):
+                            self.cinema_cb.set(cin.cinema_name)
+
                 # Set Date
                 if sh.show_date in dates:
                     self.date_var.set(sh.show_date)
@@ -335,17 +352,28 @@ class BookingWindow:
                 
                 # Set Film
                 f_title = next((f.title for f in self._all_films if f.film_id == sh.film_id), "")
+                if not f_title:
+                    try:
+                        # Film might be inactive but showing is scheduled
+                        f = Film.get_by_id(sh.film_id)
+                        self._all_films.append(f)
+                        self.film_cb['values'] = tuple(list(self.film_cb['values']) + [f.title])
+                        f_title = f.title
+                    except Exception:
+                        pass
                 self.film_var.set(f_title)
                 
                 # Load Showings and Select
                 self._on_date_or_film_change()
                 
-                display_str = f"{sh.show_time} ({sh.show_type.title()})"
+                display_str = f"{sh.show_time} ({sh.show_type.title()}) - {sh.seats_remaining} seats"
                 if display_str in self.showing_cb['values']:
                     self.showing_var.set(display_str)
                     self._on_showing_change()
                     
-                # Lock Date & Film to prevent confusion
+                # Lock Cinema, Date & Film to prevent confusion
+                if hasattr(self, 'cinema_cb'):
+                    self.cinema_cb.config(state="disabled")
                 self.date_cb.config(state="disabled")
                 self.film_cb.config(state="disabled")
                 
@@ -405,7 +433,7 @@ class BookingWindow:
                 self.showing_var.set("No showings available")
                 self._selected_showing = None
             else:
-                displays = [f"{s.show_time} ({s.show_type.title()})" for s in self._available_showings]
+                displays = [f"{s.show_time} ({s.show_type.title()}) - {s.seats_remaining} seats" for s in self._available_showings]
                 self.showing_cb['values'] = displays
                 self.showing_cb.current(0)
                 self._on_showing_change()
@@ -414,12 +442,22 @@ class BookingWindow:
             messagebox.showerror("Error", f"Could not load showings: {e}")
 
     def _on_showing_change(self, event=None) -> None:
+        """Select the actual Showing object from the dropdown string."""
         self._reset_check()
-        idx = self.showing_cb.current()
-        if 0 <= idx < len(self._available_showings):
-            self._selected_showing = self._available_showings[idx]
-        else:
+        display_val = self.showing_var.get()
+        if not display_val or display_val == "No showings available":
             self._selected_showing = None
+            return
+            
+        # Match display string to showing list (ignoring seats_remaining part for robustness)
+        # Display format: "10:00 (Morning) - 92 seats"
+        selected_time_type = display_val.split(" - ")[0]
+        
+        for s in self._available_showings:
+            test_str = f"{s.show_time} ({s.show_type.title()})"
+            if test_str == selected_time_type:
+                self._selected_showing = s
+                break
 
     def _on_qty_change(self):
         """Called whenever qty spinbox changes — shows/hides group banner."""
@@ -440,6 +478,12 @@ class BookingWindow:
         self.confirmed_price = None
         self.is_waitlist_mode = False
 
+    def _check_duplicate_booking(self, event=None):
+        pass # Placeholder for duplicate booking check
+        
+    def _dismiss_duplicate_banner(self):
+        self.dup_banner.pack_forget()
+
     def check_availability_and_price(self) -> None:
         """Calculate price, verify seat availability, and validate show date."""
         self._reset_check()
@@ -456,10 +500,10 @@ class BookingWindow:
             
         try:
             qty = self.qty_var.get()
-            if qty < 1 or qty > 10:
+            if qty < 1 or qty > 50:
                 raise ValueError
         except (tk.TclError, ValueError):
-            self.avail_lbl.config(text="❌ Error: Quantity must be between 1 and 10.", fg=ERROR)
+            self.avail_lbl.config(text="Error: Quantity must be between 1 and 50.", fg=ERROR)
             return
 
         sh = self._selected_showing
@@ -488,8 +532,38 @@ class BookingWindow:
         # 4. Calculate total cost using PricingEngine
         try:
             conn = get_connection()
+            
+            # Check zone-specific availability
+            # Get zone capacity
+            cursor = conn.execute("""
+                SELECT lower_hall_seats, upper_gallery_seats, vip_seats
+                FROM screens WHERE screen_id = ?
+            """, (sh.screen_id,))
+            screen_row = cursor.fetchone()
+            zone_cap = screen_row[f"{t_type}_seats"] if screen_row else 0
+            
+            # Get booked count in zone
+            cursor = conn.execute("""
+                SELECT COUNT(*) as c FROM tickets t
+                JOIN bookings b ON t.booking_id = b.booking_id
+                WHERE b.showing_id = ? AND t.ticket_type = ? AND b.booking_status = 'Active'
+            """, (sh.showing_id, t_type))
+            booked_in_zone = cursor.fetchone()["c"]
+            
+            avail_in_zone = zone_cap - booked_in_zone
+            
+            if avail_in_zone < qty:
+                self.avail_lbl.config(text=f"❌ Only {avail_in_zone} seats left in {t_type.replace('_', ' ').title()}.", fg=ERROR)
+                return
+
+            # Look up city_id from the cinema (PricingEngine uses city_id not cinema_id)
+            city_row = conn.execute(
+                "SELECT city_id FROM cinemas WHERE cinema_id = ?", (sh.cinema_id,)
+            ).fetchone()
+            city_id = city_row["city_id"] if city_row else sh.cinema_id
+            
             self.confirmed_price = PricingEngine.calculate_price(
-                city_id=sh.cinema_id, 
+                city_id=city_id, 
                 show_type=sh.show_type, 
                 ticket_type=t_type, 
                 quantity=qty, 
@@ -498,52 +572,58 @@ class BookingWindow:
             
             # 5. Display success result
             total_str = f"£{self.confirmed_price['total_price']:.2f}"
-            msg = f"✅ {sh.seats_remaining} seats available — Total: {total_str}"
+            msg = f"✅ {avail_in_zone} seats available — Total: {total_str}"
             self.avail_lbl.config(text=msg, fg=SUCCESS)
             
             # 7. Enable Book Now button
-            self.book_btn.config(state="normal")
+            self.is_waitlist_mode = False
+            self.book_btn.config(text="✅ Select Seats & Book", state="normal", bg=SUCCESS)
             
         except Exception as e:
+            self.is_waitlist_mode = False
             self.avail_lbl.config(text=f"❌ Pricing Error: {str(e)}", fg=ERROR)
 
     # ── Booking Processing ───────────────────────────────────────────────────
 
     def _process_booking(self) -> None:
-        if getattr(self, 'is_waitlist_mode', False):
-            self._process_waitlist_join()
-            return
+        try:
+            if getattr(self, 'is_waitlist_mode', False):
+                self._process_waitlist_join()
+                return
+                
+            name = self.cust_name_ent.get().strip()
+            if not name:
+                messagebox.showwarning("Missing Info", "Customer Name is required.")
+                return
+                
+            if not self._selected_showing or not self.confirmed_price:
+                messagebox.showwarning("Incomplete", "Please check availability and price first.")
+                return
+                
+            qty = self.confirmed_price["quantity"]
+            sh = self._selected_showing
             
-        name = self.cust_name_ent.get().strip()
-        if not name:
-            messagebox.showwarning("Missing Info", "Customer Name is required.")
-            return
+            # Open Seat Map to select seats
+            from src.gui.seat_map_window import SeatMapWindow
             
-        if not self._selected_showing or not self.confirmed_price:
-            return
-            
-        qty = self.confirmed_price["quantity"]
-        sh = self._selected_showing
-        
-        # Open Seat Map to select seats
-        from src.gui.seat_map_window import SeatMapWindow
-        
-        def on_seats_selected(selected_seats):
-            booking_data = {
-                "name": name,
-                "email": self.cust_email_ent.get().strip(),
-                "phone": self.cust_phone_ent.get().strip(),
-                "selected_seats": selected_seats
-            }
-            from src.gui.payment_window import PaymentWindow
-            PaymentWindow(
-                self.root,
-                total_amount=self.confirmed_price["total_price"],
-                booking_data=booking_data,
-                on_payment_success=self._on_payment_success
-            )
-            
-        SeatMapWindow(self.root, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
+            def on_seats_selected(selected_seats):
+                booking_data = {
+                    "name": name,
+                    "email": self.cust_email_ent.get().strip(),
+                    "phone": self.cust_phone_ent.get().strip(),
+                    "selected_seats": selected_seats
+                }
+                from src.gui.payment_window import PaymentWindow
+                PaymentWindow(
+                    self.root,
+                    total_amount=self.confirmed_price["total_price"],
+                    booking_data=booking_data,
+                    on_payment_success=self._on_payment_success
+                )
+                
+            SeatMapWindow(self.root, sh.showing_id, qty, self.confirmed_price["ticket_type"], on_seats_selected)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to start booking process: {e}")
 
     def _on_payment_success(self, booking_data: dict) -> None:
         self._finalize_booking(
@@ -605,18 +685,6 @@ class BookingWindow:
             
             self.display_receipt(self.current_booking_data)
             self.book_btn.config(state="disabled")
-            
-            # Award loyalty points
-            try:
-                from src.utils.loyalty_manager import award_points
-                email = self.cust_email_ent.get().strip()
-                if email:
-                    loyalty = award_points(name, email, ref, self.confirmed_price["total_price"])
-                    self.current_booking_data["loyalty"] = loyalty
-                    self.display_receipt(self.current_booking_data)  # re-render with badge
-            except Exception as e:
-                print(f"Loyalty award error: {e}")
-            
             
             # Award loyalty points
             try:
@@ -713,7 +781,13 @@ class BookingWindow:
 
     def _generate_pdf(self) -> None:
         if hasattr(self, 'current_booking_data'):
-            PDFService.generate_ticket(self.current_booking_data)
+            try:
+                path = PDFService.generate_ticket(self.current_booking_data)
+                if messagebox.askyesno("Success", f"Ticket PDF generated successfully!\nPath: {path}\n\nWould you like to open it now?"):
+                    import os
+                    os.startfile(path)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to generate PDF:\n{e}")
 
     def _reset_form(self) -> None:
         """Clear customer fields and reset checks after booking."""

@@ -12,7 +12,7 @@ import sqlite3
 import datetime
 
 from src.database.db_connection import get_connection
-from src.utils.session import SessionManager
+from src.gui.login_window import SessionManager
 from src.gui.admin_window import AdminWindow
 
 # Style Guide constants

@@ -1,0 +1,5 @@
+showing_id: 2
+cinema_id: 6
+avail_lbl: ❌ Error: Advance booking limit is 7 days
+book_btn state: disabled
+confirmed_price: None

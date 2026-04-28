@@ -24,6 +24,22 @@ def main() -> None:
     init_loyalty_db()
 
     root = tk.Tk()
+    
+    # Globally fix Tkinter Combobox dropdown list styling for the 'clam' theme
+    BG2 = "#1e293b"
+    TEXT = "#f8fafc"
+    ACCENT = "#1e40af"
+    root.option_add('*TCombobox*Listbox.background', BG2)
+    root.option_add('*TCombobox*Listbox.foreground', TEXT)
+    root.option_add('*TCombobox*Listbox.selectBackground', ACCENT)
+    root.option_add('*TCombobox*Listbox.selectForeground', TEXT)
+    
+    # Aggressive fallback for Windows native listboxes
+    try:
+        root.tk_setPalette(background=BG2, foreground=TEXT, activeBackground=ACCENT, activeForeground=TEXT)
+    except Exception:
+        pass
+    
     LoginWindow(root)
     root.mainloop()
 

@@ -10,10 +10,10 @@ from src.utils.rbac import require_role
 
 @require_role('staff')
 class CancellationWindow:
-    def __init__(self, parent: tk.Toplevel):
-        self.root = tk.Toplevel(parent)
-        self.root.title("Cancel Booking")
-        self.root.geometry("600x500")
+    def __init__(self, root: tk.Toplevel):
+        self.root = root
+        self.root.title("HCBS — Cancel Booking")
+        self.root.geometry("600x550")
         self.root.configure(bg="#0f172a")
         self.root.grab_set()
         

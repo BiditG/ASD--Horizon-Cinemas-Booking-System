@@ -252,19 +252,25 @@ class FilmListingWindow:
                  bg=BG, fg=TEXT2).grid(row=0, column=3, sticky="e")
 
         self._cinema_var = tk.StringVar()
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("HCBS.TCombobox",
-                        fieldbackground=BG2, background=BG2,
-                        foreground=TEXT, selectbackground=ACCENT,
-                        arrowcolor=TEXT)
-        self._cinema_cb = ttk.Combobox(
-            ctrl, textvariable=self._cinema_var,
-            state="readonly", font=FONT_BODY, width=34,
-            style="HCBS.TCombobox"
-        )
-        self._cinema_cb.grid(row=0, column=4, padx=(8, 0))
-        self._cinema_cb.bind("<<ComboboxSelected>>", self._on_cinema_change)
+        
+        if self.user and self.user.is_admin:
+            style = ttk.Style()
+            style.theme_use('clam')
+            style.configure("HCBS.TCombobox",
+                            fieldbackground=BG2, background=BG2,
+                            foreground=TEXT, selectbackground=ACCENT,
+                            arrowcolor=TEXT)
+            self._cinema_cb = ttk.Combobox(
+                ctrl, textvariable=self._cinema_var,
+                state="readonly", font=FONT_BODY, width=34,
+                style="HCBS.TCombobox"
+            )
+            self._cinema_cb.grid(row=0, column=4, padx=(8, 0))
+            self._cinema_cb.bind("<<ComboboxSelected>>", self._on_cinema_change)
+        else:
+            # Staff: Show static label
+            tk.Label(ctrl, textvariable=self._cinema_var, font=FONT_LABEL,
+                     bg=BG, fg=TEXT).grid(row=0, column=4, padx=(8, 0), sticky="w")
 
     def _build_search_bar(self) -> None:
         """
@@ -397,15 +403,31 @@ class FilmListingWindow:
     # ── Data loading ──────────────────────────────────────────────────────────
 
     def _load_cinemas(self) -> None:
-        """Populate the cinema combobox from the database."""
+        """Populate the cinema selection and load initial film data."""
         try:
             self._cinemas = Cinema.get_all()
-            names = [f"{c.cinema_name}" for c in self._cinemas]
-            self._cinema_cb['values'] = names
-            if names:
-                self._cinema_cb.current(0)
+            names = [c.cinema_name for c in self._cinemas]
+            
+            # Handle home cinema for staff
+            home_cinema = None
+            if self.user and self.user.cinema_id:
+                home_cinema = next((c for c in self._cinemas if c.cinema_id == self.user.cinema_id), None)
+            
+            if home_cinema:
+                self._cinema_var.set(home_cinema.cinema_name)
+                self._selected_cinema_id = home_cinema.cinema_id
+            elif names:
+                self._cinema_var.set(names[0])
                 self._selected_cinema_id = self._cinemas[0].cinema_id
+            
+            # Populate combobox if it exists (for admin/manager)
+            if hasattr(self, '_cinema_cb'):
+                self._cinema_cb['values'] = names
+            
+            # Load initial films
+            if self._selected_cinema_id:
                 self._refresh_films()
+                
         except Exception as exc:
             messagebox.showerror("Database Error", str(exc), parent=self.root)
 
@@ -718,10 +740,11 @@ class FilmListingWindow:
         return self._current_date.strftime("%A, %d %B %Y")
 
     def _get_cinema_name(self) -> str:
-        idx = self._cinema_cb.current()
-        if 0 <= idx < len(self._cinemas):
-            return self._cinemas[idx].cinema_name
-        return ""
+        if hasattr(self, '_cinema_cb'):
+            idx = self._cinema_cb.current()
+            if 0 <= idx < len(self._cinemas):
+                return self._cinemas[idx].cinema_name
+        return self._cinema_var.get()
 
     def _set_status(self, msg: str) -> None:
         self._status_lbl.config(text=msg)
