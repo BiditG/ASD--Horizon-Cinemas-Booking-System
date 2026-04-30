@@ -2,7 +2,7 @@
 
 HCBS is a comprehensive Python-based cinema booking system designed to streamline movie scheduling, seat reservations, and staff management. The system features a graphical user interface built with Tkinter and a persistent SQLite database.
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 Follow these steps to set up and run the project locally. The steps cover Windows (PowerShell) and macOS/Linux.
 
@@ -101,6 +101,33 @@ python src/gui/film_listing_window.py
 ```bash
 rm hcbs.db 2>nul || del hcbs.db
 python src/database/setup_db.py
+```
+
+---
+
+## CI/CD Pipeline
+
+[![CI](https://github.com/shritika28/ASD--Horizon-Cinemas-Booking-System/actions/workflows/ci.yml/badge.svg)](https://github.com/shritika28/ASD--Horizon-Cinemas-Booking-System/actions/workflows/ci.yml)
+
+This project strictly follows an automated Continuous Integration and Continuous Deployment (CI/CD) pipeline powered by GitHub Actions.
+
+### Branch Strategy
+- **`feature/*` branches**: Used by developers to build isolated features.
+- **`develop` branch (Staging)**: When features are pushed or PR'd to `develop`, the **CI Pipeline** runs automatically. It lints code, runs all unit/integration tests with an in-memory SQLite database, enforces 70% coverage, and scans for security vulnerabilities.
+- **`main` branch (Production)**: When code is merged into `main`, the **CD Pipeline** initiates. It requires a manual review step. Once approved, it executes database migrations (if applicable for MySQL), tags the Git release, and builds the deployable `.zip` artifact.
+
+### Running the Pipeline Locally
+You can mirror the CI pipeline exactly on your local machine using the provided `Makefile`. Make sure you have activated your `.venv` and installed the tools via `pip install flake8 pylint pytest pytest-cov bandit safety`.
+
+```bash
+# Run linting + testing + security scanning in sequence:
+make ci
+
+# Or run individual stages:
+make lint
+make test
+make security
+make build
 ```
 
 ---

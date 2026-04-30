@@ -53,8 +53,8 @@ def test_cinema_creation_valid(db):
 def test_cinema_city_validation(db):
     """assert only valid cities accepted"""
     # Attempt to create a cinema in a non-existent city (e.g., city_id 999)
-    # The foreign key constraint should raise an IntegrityError
-    with pytest.raises(sqlite3.IntegrityError):
+    # The foreign key constraint should raise a DatabaseError (wrapping IntegrityError)
+    with pytest.raises(sqlite3.DatabaseError):
         Cinema.create(city_id=999, name="Test Cinema", location="Test Location")
 
 def test_add_screen_to_cinema(db):
@@ -114,6 +114,7 @@ def test_film_age_rating_valid_values(db):
 def test_showing_creation(db):
     """assert film, screen, show_time, date stored"""
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ?", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
     assert showing.film_id == 1
@@ -124,6 +125,7 @@ def test_showing_creation(db):
 def test_no_overlapping_shows_same_screen(db):
     """assert two showings on same screen at same time raises an error"""
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ?", (date_str,))
     Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
     with pytest.raises(Exception, match="Overlapping showing exists"):
@@ -143,6 +145,7 @@ def test_advance_booking_limit(db):
 def test_unique_booking_reference(db):
     """assert two bookings get different references"""
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ?", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
     # Using admin user (user_id=1) to bypass home cinema restrictions
@@ -162,6 +165,7 @@ def test_unique_booking_reference(db):
 def test_booking_total_cost_lower_hall(db):
     """assert correct price calculated"""
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ?", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
     # Base lower_hall price in morning is 5.0
@@ -179,10 +183,11 @@ def test_booking_total_cost_vip(db):
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
     
     # Create a screen for London (city_id=4)
-    db.execute("INSERT INTO cinemas (cinema_id, city_id, cinema_name, is_active) VALUES (99, 4, 'London Cinema', 1)")
+    db.execute("INSERT INTO cinemas (cinema_id, city_id, cinema_name) VALUES (99, 4, 'London Cinema')")
     db.execute("INSERT INTO screens (cinema_id, screen_number, total_capacity, lower_hall_seats, upper_gallery_seats, vip_seats) VALUES (99, 1, 100, 30, 60, 10)")
     screen_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
     
+    db.execute("DELETE FROM showings WHERE screen_id = ? AND show_date = ?", (screen_id, date_str))
     showing = Showing.create(cinema_id=99, screen_id=screen_id, film_id=1, date=date_str, show_type="evening")
     
     # London evening base price is 12.0
@@ -201,6 +206,7 @@ def test_booking_total_cost_vip(db):
 def test_booking_receipt_fields(db):
     """assert receipt contains all required fields"""
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ?", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
     booking = BookingManager.create_booking(
@@ -234,6 +240,52 @@ def test_password_hashing():
     
     assert hashed != plain
     assert User.verify_password(plain, hashed) is True
+
+def test_user_registration_create_user(db):
+    """assert User.create_user successfully inserts into DB"""
+    User.create_user("newstaff", "password123", "New Staff Member", "new@staff.com", "staff", cinema_id=1)
+    
+    conn = get_connection()
+    user_row = conn.execute("SELECT * FROM users WHERE username = ?", ("newstaff",)).fetchone()
+    
+    assert user_row is not None
+    assert user_row["full_name"] == "New Staff Member"
+    assert user_row["role"] == "staff"
+    assert User.verify_password("password123", user_row["password_hash"])
+
+def test_create_user_duplicate_username(db):
+    """assert create_user raises ValueError for existing username"""
+    User.create_user("duplicate", "pass1", "Name 1", "e1@test.com", "staff")
+    
+    with pytest.raises(ValueError, match="already exists"):
+        User.create_user("duplicate", "pass2", "Name 2", "e2@test.com", "admin")
+
+def test_get_users_by_role(db):
+    """assert get_users_by_role returns correct subset"""
+    User.create_user("admin_test", "pass", "Admin Test", "a@t.com", "admin")
+    User.create_user("staff_test", "pass", "Staff Test", "s@t.com", "staff")
+    
+    admins = User.get_users_by_role("admin")
+    staff_members = User.get_users_by_role("staff")
+    
+    assert any(u["username"] == "admin_test" for u in admins)
+    assert not any(u["username"] == "staff_test" for u in admins)
+    assert any(u["username"] == "staff_test" for u in staff_members)
+
+def test_delete_user(db):
+    """assert user can be permanently removed"""
+    # Create a dummy user
+    User.create_user(username="temp_user", password="password123", full_name="Temp", email="t@t.com", role="staff")
+    user = db.execute("SELECT user_id FROM users WHERE username = 'temp_user'").fetchone()
+    uid = user["user_id"]
+    
+    # Delete
+    success = User.delete_user(uid)
+    assert success is True
+    
+    # Verify gone
+    user_gone = db.execute("SELECT * FROM users WHERE user_id = ?", (uid,)).fetchone()
+    assert user_gone is None
 
 # ------------------------------------------------------------------------------
 # Pricing engine tests

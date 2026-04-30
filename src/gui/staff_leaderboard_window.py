@@ -138,17 +138,17 @@ class StaffLeaderboardPanel:
                 filters.append("CAST(strftime('%Y', b.booking_time) AS INTEGER) = ?")
                 params.append(year_num)
 
-            where_clause = "WHERE " + " AND ".join(filters) if filters else ""
+            join_filters = " AND " + " AND ".join(filters) if filters else ""
 
             query = f"""
                 SELECT 
                     u.full_name AS staff_name,
                     COUNT(b.booking_id) AS total_handled,
-                    SUM(CASE WHEN b.booking_status = 'Cancelled' THEN 1 ELSE 0 END) AS cancellations_processed,
-                    SUM(CASE WHEN b.booking_status != 'Cancelled' THEN b.total_cost ELSE 0 END) AS total_revenue
-                FROM bookings b
-                INNER JOIN users u ON b.staff_id = u.user_id
-                {where_clause}
+                    IFNULL(SUM(CASE WHEN b.booking_status = 'Cancelled' THEN 1 ELSE 0 END), 0) AS cancellations_processed,
+                    IFNULL(SUM(CASE WHEN b.booking_status != 'Cancelled' THEN b.total_cost ELSE 0 END), 0) AS total_revenue
+                FROM users u
+                LEFT JOIN bookings b ON u.user_id = b.staff_id {join_filters}
+                WHERE u.role = 'staff'
                 GROUP BY u.user_id
                 ORDER BY total_revenue DESC, total_handled DESC
             """

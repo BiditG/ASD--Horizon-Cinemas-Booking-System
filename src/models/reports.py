@@ -133,17 +133,15 @@ class ReportManager:
             SELECT 
                 u.full_name as staff_full_name, 
                 COUNT(b.booking_id) as total_bookings, 
-                SUM(b.total_cost) as total_revenue
-            FROM bookings b
-            JOIN showings s ON b.showing_id = s.showing_id
-            JOIN screens sc ON s.screen_id = sc.screen_id
-            JOIN users u ON b.staff_id = u.user_id
-            WHERE sc.cinema_id = ? AND b.booking_status = 'Active'
-              AND s.show_date LIKE ?
+                IFNULL(SUM(b.total_cost), 0) as total_revenue
+            FROM users u
+            LEFT JOIN bookings b ON u.user_id = b.staff_id AND b.booking_status = 'Active'
+            LEFT JOIN showings s ON b.showing_id = s.showing_id AND s.show_date LIKE ?
+            WHERE u.cinema_id = ? AND u.role = 'staff'
             GROUP BY u.user_id
             ORDER BY total_bookings DESC
         """
-        cursor = db_connection.execute(query, (cinema_id, f"{month_str}%"))
+        cursor = db_connection.execute(query, (f"{month_str}%", cinema_id, cinema_id))
         results = []
         for rank, row in enumerate(cursor.fetchall(), start=1):
             results.append({

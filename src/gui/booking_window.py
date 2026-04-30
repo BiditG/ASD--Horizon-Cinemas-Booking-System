@@ -80,16 +80,16 @@ TOTAL COST        : £{booking_data['total_cost']:.2f}
 ========================================""".strip()
 
 # ── Style Constants ──────────────────────────────────────────────────────────
-BG          = "#1A120B"
-BG2         = "#FFFFFF"
-BG_CARD     = "#FFFFFF"
-ACCENT      = "#C69B7B"
-SUCCESS     = "#8E9775"
-WARNING     = "#C69B7B"
-ERROR       = "#A35709"
-TEXT        = "#1A120B"
-TEXT2       = "#4A4A4A"
-BORDER      = "#E5E5E5"
+BG          = "#0b1220"
+BG2         = "#111b2e"
+BG_CARD     = "#111b2e"
+ACCENT      = "#4f8cff"
+SUCCESS     = "#22c55e"
+WARNING     = "#f59e0b"
+ERROR       = "#ef4444"
+TEXT        = "#f8fafc"
+TEXT2       = "#a7b4c8"
+BORDER      = "#26344a"
 
 FF          = "Segoe UI"
 FONT_H1     = (FF, 22, "bold")

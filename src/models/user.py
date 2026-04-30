@@ -12,6 +12,8 @@ import datetime
 import sqlite3
 from typing import Optional
 
+from src.database.db_connection import get_connection
+
 
 # ---------------------------------------------------------------------------
 # Custom Exception
@@ -240,6 +242,57 @@ class User:
         )
         user._logged_in = True
         return user
+
+    @staticmethod
+    def create_user(username: str, password: str, full_name: str, email: str, role: str, cinema_id: Optional[int] = None) -> None:
+        """Create a new user in the database."""
+        if role.lower() not in User.VALID_ROLES:
+            raise ValueError(f"Invalid role '{role}'. Must be one of: {', '.join(User.VALID_ROLES)}")
+            
+        conn = get_connection()
+        
+        # Check if username exists
+        existing = conn.execute("SELECT user_id FROM users WHERE username = ?", (username,)).fetchone()
+        if existing:
+            raise ValueError(f"Username '{username}' already exists.")
+            
+        hashed = User.hash_password(password)
+        conn.execute(
+            """
+            INSERT INTO users (cinema_id, username, password_hash, full_name, email, role, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+            """,
+            (cinema_id, username, hashed, full_name, email, role.lower())
+        )
+        conn.commit()
+
+    @staticmethod
+    def get_users_by_role(role: str) -> list:
+        """Fetch all users of a specific role."""
+        conn = get_connection()
+        
+        query = """
+            SELECT u.user_id, u.username, u.full_name, u.email, u.is_active, c.cinema_name
+            FROM users u
+            LEFT JOIN cinemas c ON u.cinema_id = c.cinema_id
+            WHERE u.role = ?
+            ORDER BY u.username
+        """
+        rows = conn.execute(query, (role.lower(),)).fetchall()
+        return [dict(row) for row in rows]
+
+    @staticmethod
+    def delete_user(user_id: int) -> bool:
+        """Permanently delete a user from the database."""
+        try:
+            conn = get_connection()
+            # Do not allow deleting the last manager or the current user (handled in GUI)
+            cursor = conn.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error deleting user: {e}")
+            return False
 
     # -----------------------------------------------------------------------
     # Role Properties

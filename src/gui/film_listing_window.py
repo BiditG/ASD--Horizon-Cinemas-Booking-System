@@ -31,19 +31,19 @@ from src.models.film    import Film
 from src.gui.login_window import SessionManager
 
 # ── Colour / font constants (matches GUI_STYLE_GUIDE.md) ────────────────────
-BG          = "#1A120B"
-BG2         = "#FFFFFF"
-BG_CARD     = "#FFFFFF"
-ACCENT      = "#C69B7B"
-ACCENT_HVR  = "#D9D2B6"
-SUCCESS     = "#8E9775"
-SUCCESS_HVR = "#A7AF92"
-SOLD_OUT    = "#E5E5E5"
-WARNING     = "#C69B7B"
-TEXT        = "#1A120B"
-TEXT2       = "#4A4A4A"
-ERROR       = "#A35709"
-BORDER      = "#E5E5E5"
+BG          = "#0b1220"
+BG2         = "#111b2e"
+BG_CARD     = "#111b2e"
+ACCENT      = "#4f8cff"
+ACCENT_HVR  = "#3478f6"
+SUCCESS     = "#22c55e"
+SUCCESS_HVR = "#16a34a"
+SOLD_OUT    = "#26344a"
+WARNING     = "#f59e0b"
+TEXT        = "#f8fafc"
+TEXT2       = "#a7b4c8"
+ERROR       = "#ef4444"
+BORDER      = "#26344a"
 
 FF          = "Segoe UI"
 FONT_H1     = (FF, 20, "bold")

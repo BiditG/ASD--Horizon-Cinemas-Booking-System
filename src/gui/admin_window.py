@@ -47,12 +47,23 @@ class AdminWindow:
 
     def _create_btn(self, parent, text, bg, command, fg="#FFFFFF", **kwargs):
         """Helper to create a styled button with hover effects."""
+        # Defaults
+        btn_opts = {
+            "relief": "flat",
+            "font": ("Segoe UI Semibold", 10),
+            "padx": 15,
+            "pady": 8,
+            "cursor": "hand2",
+            "activebackground": bg,
+            "activeforeground": fg
+        }
+        # Override with kwargs
+        btn_opts.update(kwargs)
+        
         btn = tk.Button(
             parent, text=text, bg=bg, fg=fg,
-            relief="flat", font=("Segoe UI Semibold", 10),
-            padx=15, pady=8, cursor="hand2",
-            activebackground=bg, activeforeground=fg,
-            command=command, **kwargs
+            command=command,
+            **btn_opts
         )
         
         # Calculate hover color (slightly darker)
@@ -121,6 +132,7 @@ class AdminWindow:
         self.tab_leaderboard = tk.Frame(self.notebook, bg=BG)
         self.tab_waitlist = tk.Frame(self.notebook, bg=BG)
         self.tab_customers = tk.Frame(self.notebook, bg=BG)
+        self.tab_staff = tk.Frame(self.notebook, bg=BG)
 
         self.notebook.add(self.tab_films,   text="Films")
         self.notebook.add(self.tab_showings, text="Showings")
@@ -132,6 +144,7 @@ class AdminWindow:
         self.notebook.add(self.tab_leaderboard, text="🏆 Staff Leaderboard")
         self.notebook.add(self.tab_waitlist, text="⏳ Waitlist")
         self.notebook.add(self.tab_customers, text="👥 Customers")
+        self.notebook.add(self.tab_staff, text="👔 Manage Staff")
 
         self._build_films_tab()
         self._build_showings_tab()
@@ -143,6 +156,7 @@ class AdminWindow:
         self._build_leaderboard_tab()
         self._build_waitlist_tab()
         self._build_customers_tab()
+        self._build_staff_tab()
         
     # --- FILMS TAB ---
     def _build_films_tab(self):
@@ -1794,3 +1808,129 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
             messagebox.showinfo("Export Successful", f"Saved to:\n{filepath}")
         except Exception as e:
             messagebox.showerror("Export Error", f"Could not save CSV:\n{e}")
+
+    # --- MANAGE STAFF TAB ---
+    def _build_staff_tab(self):
+        # Split view: left for form, right for treeview
+        main_fr = tk.Frame(self.tab_staff, bg=BG)
+        main_fr.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Left side: Form
+        form_fr = tk.Frame(main_fr, bg=BG2, padx=20, pady=20, highlightbackground=BORDER, highlightthickness=1)
+        form_fr.pack(side="left", fill="y", padx=(0, 20))
+        
+        tk.Label(form_fr, text="Register New Staff", font=("Segoe UI", 16, "bold"), bg=BG2, fg=FG).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 20))
+        
+        tk.Label(form_fr, text="Username:", font=("Segoe UI", 11), bg=BG2, fg=TEXT2).grid(row=1, column=0, sticky="w", pady=10)
+        self.staff_user_ent = tk.Entry(form_fr, font=("Segoe UI", 11), bg=BG, fg=FG, insertbackground=FG, width=25, relief="flat", highlightbackground=BORDER, highlightthickness=1)
+        self.staff_user_ent.grid(row=1, column=1, sticky="w", pady=10)
+        
+        tk.Label(form_fr, text="Password:", font=("Segoe UI", 11), bg=BG2, fg=TEXT2).grid(row=2, column=0, sticky="w", pady=10)
+        self.staff_pass_ent = tk.Entry(form_fr, font=("Segoe UI", 11), bg=BG, fg=FG, insertbackground=FG, width=25, show="*", relief="flat", highlightbackground=BORDER, highlightthickness=1)
+        self.staff_pass_ent.grid(row=2, column=1, sticky="w", pady=10)
+        
+        tk.Label(form_fr, text="Full Name:", font=("Segoe UI", 11), bg=BG2, fg=TEXT2).grid(row=3, column=0, sticky="w", pady=10)
+        self.staff_name_ent = tk.Entry(form_fr, font=("Segoe UI", 11), bg=BG, fg=FG, insertbackground=FG, width=25, relief="flat", highlightbackground=BORDER, highlightthickness=1)
+        self.staff_name_ent.grid(row=3, column=1, sticky="w", pady=10)
+        
+        tk.Label(form_fr, text="Email:", font=("Segoe UI", 11), bg=BG2, fg=TEXT2).grid(row=4, column=0, sticky="w", pady=10)
+        self.staff_email_ent = tk.Entry(form_fr, font=("Segoe UI", 11), bg=BG, fg=FG, insertbackground=FG, width=25, relief="flat", highlightbackground=BORDER, highlightthickness=1)
+        self.staff_email_ent.grid(row=4, column=1, sticky="w", pady=10)
+
+        tk.Label(form_fr, text="Cinema:", font=("Segoe UI", 11), bg=BG2, fg=TEXT2).grid(row=5, column=0, sticky="w", pady=10)
+        self.staff_cinema_cb = ttk.Combobox(form_fr, state="readonly", width=23)
+        self.staff_cinema_cb.grid(row=5, column=1, sticky="w", pady=10)
+        
+        self._create_btn(form_fr, "➕ Create Staff", SUCCESS, self._submit_staff).grid(row=6, column=0, columnspan=2, pady=(30, 0))
+        
+        # Right side: Treeview
+        list_fr = tk.Frame(main_fr, bg=BG)
+        list_fr.pack(side="left", fill="both", expand=True)
+        
+        tk.Label(list_fr, text="Current Staff Accounts", font=("Segoe UI", 16, "bold"), bg=BG, fg=FG).pack(anchor="w", pady=(0, 10))
+        
+        cols = ("ID", "Username", "Full Name", "Cinema", "Status")
+        self.staff_tv = ttk.Treeview(list_fr, columns=cols, show="headings", style="Treeview")
+        for c in cols:
+            self.staff_tv.heading(c, text=c)
+        self.staff_tv.column("ID", width=50, anchor="center")
+        self.staff_tv.column("Username", width=120)
+        self.staff_tv.column("Full Name", width=150)
+        self.staff_tv.column("Cinema", width=150)
+        self.staff_tv.column("Status", width=80, anchor="center")
+        
+        sb = ttk.Scrollbar(list_fr, orient="vertical", command=self.staff_tv.yview)
+        self.staff_tv.configure(yscrollcommand=sb.set)
+        self.staff_tv.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        
+        self._create_btn(list_fr, "🗑 Remove Selected", WARNING, self._remove_staff, padx=10, pady=4, font=("Segoe UI", 9)).pack(pady=(20, 10))
+        
+        self._refresh_staff()
+
+    def _refresh_staff(self):
+        from src.models.user import User
+        for row in self.staff_tv.get_children():
+            self.staff_tv.delete(row)
+        try:
+            conn = get_connection()
+            cinemas = conn.execute("SELECT cinema_id, cinema_name FROM cinemas ORDER BY cinema_name").fetchall()
+            self._cinemas_data = {c["cinema_name"]: c["cinema_id"] for c in cinemas}
+            self.staff_cinema_cb['values'] = list(self._cinemas_data.keys())
+            if self.staff_cinema_cb['values']:
+                self.staff_cinema_cb.current(0)
+
+            staff = User.get_users_by_role('staff')
+            for s in staff:
+                status = "Active" if s["is_active"] else "Inactive"
+                c_name = s["cinema_name"] or "Unassigned"
+                self.staff_tv.insert("", "end", values=(s["user_id"], s["username"], s["full_name"], c_name, status))
+        except Exception as e:
+            print(f"Error loading staff: {e}")
+
+    def _submit_staff(self):
+        from src.models.user import User
+        u = self.staff_user_ent.get().strip()
+        p = self.staff_pass_ent.get().strip()
+        fn = self.staff_name_ent.get().strip()
+        e = self.staff_email_ent.get().strip()
+        c_name = self.staff_cinema_cb.get()
+        
+        if not u or not p or not fn:
+            messagebox.showerror("Validation Error", "Username, Password, and Full Name are required.")
+            return
+            
+        if len(p) < 6:
+            messagebox.showerror("Validation Error", "Password must be at least 6 characters.")
+            return
+            
+        cid = self._cinemas_data.get(c_name)
+        
+        try:
+            User.create_user(username=u, password=p, full_name=fn, email=e, role='staff', cinema_id=cid)
+            messagebox.showinfo("Success", f"Staff '{u}' created successfully.")
+            self.staff_user_ent.delete(0, tk.END)
+            self.staff_pass_ent.delete(0, tk.END)
+            self.staff_name_ent.delete(0, tk.END)
+            self.staff_email_ent.delete(0, tk.END)
+            self._refresh_staff()
+        except ValueError as ve:
+            messagebox.showerror("Validation Error", str(ve))
+        except Exception as ex:
+            messagebox.showerror("Database Error", f"Failed to create staff: {ex}")
+
+    def _remove_staff(self):
+        from src.models.user import User
+        sel = self.staff_tv.selection()
+        if not sel:
+            messagebox.showwarning("Selection Required", "Please select a staff member to remove.")
+            return
+            
+        uid, uname = self.staff_tv.item(sel[0])["values"][:2]
+        
+        if messagebox.askyesno("Confirm Removal", f"Are you sure you want to PERMANENTLY delete staff account '{uname}'?"):
+            if User.delete_user(uid):
+                messagebox.showinfo("Success", f"Staff '{uname}' removed.")
+                self._refresh_staff()
+            else:
+                messagebox.showerror("Error", "Could not remove staff.")

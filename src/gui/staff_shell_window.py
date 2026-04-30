@@ -12,12 +12,16 @@ from src.gui.film_listing_window import FilmListingWindow
 from src.gui.booking_window import BookingWindow
 from src.gui.cancellation_window import CancellationWindow
 
-BG = "#1A120B"
-BG2 = "#FFFFFF"
-ACCENT = "#C69B7B"
-TEXT = "#1A120B"
-TEXT2 = "#4A4A4A"
-ERROR = "#A35709"
+BG = "#0b1220"
+BG2 = "#111b2e"
+BG_CARD = "#111b2e"
+ACCENT = "#4f8cff"
+TEXT = "#f8fafc"
+TEXT2 = "#a7b4c8"
+SUCCESS = "#22c55e"
+ERROR = "#ef4444"
+WARNING = "#f59e0b"
+BORDER = "#26344a"
 FF = "Segoe UI"
 FONT_H2 = (FF, 14, "bold")
 FONT_BTN = (FF, 10, "bold")
@@ -112,7 +116,7 @@ class StaffShellWindow:
             col += 1
 
         if self.user:
-            self._create_btn(bar, "Logout", ERROR, self._on_logout).grid(row=0, column=col, padx=(0, 16))
+            self._create_btn(bar, "Logout", ERROR, self._logout).grid(row=0, column=col, padx=(0, 16))
             col += 1
 
         if self.user and self.user.role == "manager":

@@ -3,8 +3,8 @@
 
 | Test Case # | Category | Description | Test Dataset / Input | Expected Output | Actual Output | Pass/Fail |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-01** | Auth | Valid manager login | Username: `manager1`, Password: `password123` | Login succeeds, routes to Manager Window | As Ex| **TC-02** | Auth | Valid admin login | Username: `admin1`, Password: `password123` | Login succeeds, routes to Admin Window | As Expected | Pass |
-pected | Pass |
+| **TC-01** | Auth | Valid manager login | Username: `manager1`, Password: `password123` | Login succeeds, routes to Manager Window | As Expected | Pass |
+| **TC-02** | Auth | Valid admin login | Username: `admin1`, Password: `password123` | Login succeeds, routes to Admin Window | As Expected | Pass |
 | **TC-03** | Auth | Valid booking staff login | Username: `staff1`, Password: `password123` | Login succeeds, routes to Staff / Film Listing Window | As Expected | Pass |
 | **TC-04** | Auth | Invalid password login attempt | Username: `staff1`, Password: `wrongpassword` | Login fails, error "Authentication failed" displayed | As Expected | Pass |
 | **TC-05** | Auth | Booking staff tries to access Admin GUI | `staff1` session active, attempts to load `AdminWindow` | Access denied via RBAC, error dialog shown | As Expected | Pass |

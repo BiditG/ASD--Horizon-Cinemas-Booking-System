@@ -147,7 +147,14 @@ def create_tables(cursor):
     );
     """)
 
-def seed_data(cursor):
+def seed_data(conn_or_cursor):
+    # If passed a connection, get a cursor. Connection.execute returns a cursor, 
+    # but Connection itself doesn't have fetchall/fetchone.
+    if hasattr(conn_or_cursor, 'cursor') and not hasattr(conn_or_cursor, 'fetchall'):
+        cursor = conn_or_cursor.cursor()
+    else:
+        cursor = conn_or_cursor
+
     # 1. Cities
     cities = ['Birmingham', 'Bristol', 'Cardiff', 'London']
     for city in cities:
@@ -238,8 +245,8 @@ def seed_data(cursor):
     future_showings = []
     film_idx = 0
     
-    cursor.execute("SELECT screen_id, total_capacity FROM screens ORDER BY screen_id")
-    all_screens = cursor.fetchall()
+    res = cursor.execute("SELECT screen_id, total_capacity FROM screens ORDER BY screen_id")
+    all_screens = res.fetchall()
     films_list = list(range(1, 9))
     
     for d_offset in range(8): # Today + next 7 days
@@ -364,7 +371,7 @@ def seed_data(cursor):
 
     # 11. Add loyalty points
     print("Seeding loyalty points...")
-    cursor.execute("SELECT customer_name FROM bookings ORDER BY RANDOM() LIMIT 10")
+    cursor.execute("SELECT DISTINCT customer_name FROM bookings ORDER BY RANDOM() LIMIT 10")
     customers = cursor.fetchall()
     for customer, in customers:
         points = random.randint(50, 500)
