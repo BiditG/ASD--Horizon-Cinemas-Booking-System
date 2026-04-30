@@ -1690,12 +1690,12 @@ Booked By Agent: {'Yes' if booking['booked_by_agent'] else 'No'}
             ORDER BY b.customer_name ASC
         """).fetchall()
 
-        # Phone lookup from waitlist contact_info (numeric-looking entries only)
+        # Phone lookup from waitlist customer_phone column
         phone_map = {}
         for wl in conn.execute(
-            "SELECT customer_name, contact_info FROM waitlist"
+            "SELECT customer_name, customer_phone FROM waitlist"
         ).fetchall():
-            info = wl["contact_info"] or ""
+            info = wl["customer_phone"] or ""
             if any(ch.isdigit() for ch in info) and "@" not in info:
                 phone_map.setdefault(wl["customer_name"].lower(), info)
 
