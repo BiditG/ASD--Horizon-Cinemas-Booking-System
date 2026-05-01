@@ -58,6 +58,7 @@ def test_booking_yesterday_date(db):
 def test_same_day_cancellation(db):
     """should RAISE exception"""
     today = datetime.date.today().isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (today,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=today, show_type="evening")
     booking = BookingManager.create_booking(
         showing_id=showing.showing_id, staff_user_id=1, ticket_type="lower_hall", 
@@ -70,6 +71,7 @@ def test_same_day_cancellation(db):
 def test_cancellation_1_day_before(db):
     """should SUCCEED with 50% fee"""
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (tomorrow,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=tomorrow, show_type="evening")
     booking = BookingManager.create_booking(
         showing_id=showing.showing_id, staff_user_id=1, ticket_type="lower_hall", 
@@ -89,6 +91,7 @@ def test_cancellation_1_day_before(db):
 def test_book_zero_tickets(db):
     """should RAISE ValueError"""
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (tomorrow,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=tomorrow, show_type="morning")
     
     with pytest.raises(ValueError, match="at least 1"):
@@ -101,6 +104,7 @@ def test_book_zero_tickets(db):
 def test_book_negative_tickets(db):
     """should RAISE ValueError"""
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (tomorrow,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=tomorrow, show_type="morning")
     
     with pytest.raises(ValueError, match="at least 1"):
@@ -113,6 +117,7 @@ def test_book_negative_tickets(db):
 def test_book_more_tickets_than_available(db):
     """should RAISE exception with message 'available'"""
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (tomorrow,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=tomorrow, show_type="morning")
     
     # Requesting 1000 tickets which definitely exceeds the maximum screen capacity (max 120)
@@ -126,11 +131,10 @@ def test_book_more_tickets_than_available(db):
 def test_book_exactly_remaining_seats(db):
     """should SUCCEED"""
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    
     # Fetch total capacity dynamically
     screen = db.execute("SELECT total_capacity FROM screens WHERE screen_id = 1").fetchone()
     capacity = screen["total_capacity"]
-    
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (tomorrow,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=tomorrow, show_type="morning")
     
     booking = BookingManager.create_booking(
@@ -174,6 +178,7 @@ def test_invalid_email_format():
 def test_show_time_overlap_same_screen(db):
     """adding overlapping showing should RAISE exception"""
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (tomorrow,))
     Showing.create(cinema_id=1, screen_id=1, film_id=1, date=tomorrow, show_type="morning")
     
     with pytest.raises(Exception, match="Overlapping showing exists"):

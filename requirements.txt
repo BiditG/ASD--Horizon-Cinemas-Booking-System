@@ -7,3 +7,5 @@ bcrypt
 matplotlib
 pandas
 scikit-learn
+pytest
+pytest-html

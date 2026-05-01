@@ -125,10 +125,15 @@ def create_tables(cursor):
 
     CREATE TABLE waitlist (
         waitlist_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        showing_id INTEGER,
+        showing_id INTEGER NOT NULL,
         customer_name TEXT NOT NULL,
-        contact_info TEXT NOT NULL,
-        FOREIGN KEY(showing_id) REFERENCES showings(showing_id)
+        customer_email TEXT NOT NULL,
+        customer_phone TEXT NOT NULL,
+        num_tickets INTEGER NOT NULL,
+        joined_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'waiting', -- 'waiting', 'offered', 'confirmed', 'expired'
+        offered_at TEXT,
+        FOREIGN KEY (showing_id) REFERENCES showings(showing_id)
     );
 
     CREATE TABLE loyalty_points (
@@ -262,11 +267,11 @@ def seed_data(conn_or_cursor):
         VALUES (?, ?, ?, ?, ?, ?)
     """, future_showings)
 
-    # 8. Create historical showings (past 30 days) for reports
+    # 8. Create historical showings (past 6 months) for reports
     print("Seeding historical showings for reports...")
     historical_showings = []
     base_date = datetime.date.today()
-    for i in range(1, 31):
+    for i in range(1, 181): # 6 months
         past_date = (base_date - datetime.timedelta(days=i)).isoformat()
         for screen_id, capacity in all_screens:
             stype, stime = random.choice(show_types_times)
@@ -278,7 +283,7 @@ def seed_data(conn_or_cursor):
         VALUES (?, ?, ?, ?, ?, ?)
     """, historical_showings)
 
-    # 9. Create bookings and tickets for reports (past 30 days)
+    # 9. Create bookings and tickets for reports (past 6 months)
     print("Seeding bookings and tickets for reports...")
     cursor.execute("SELECT showing_id, screen_id FROM showings WHERE show_date < ?", (today,))
     past_showings = cursor.fetchall()
@@ -286,7 +291,7 @@ def seed_data(conn_or_cursor):
     booking_ref_counter = 1
     staff_ids = [4, 5, 6]  # staff1, staff2, staff3 user IDs
     
-    for showing_id, screen_id in past_showings[:100]:  # Sample past showings
+    for showing_id, screen_id in past_showings:  # Seed all past showings
         # Create 1-3 bookings per showing
         num_bookings = random.randint(1, 3)
         for _ in range(num_bookings):
@@ -337,11 +342,16 @@ def seed_data(conn_or_cursor):
             
             total_cost = base_price * num_tickets
             
+            # Approximate booking time as 1 day before showing or Today if showing is today
+            showing_date_res = cursor.execute("SELECT show_date FROM showings WHERE showing_id = ?", (showing_id,)).fetchone()
+            showing_date = datetime.date.fromisoformat(showing_date_res[0])
+            booking_time = (showing_date - datetime.timedelta(days=random.randint(0, 7))).isoformat() + " 12:00:00"
+
             cursor.execute("""
                 INSERT INTO bookings
-                (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent, staff_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (showing_id, booking_ref, customer_name, total_cost, 'Active', 1, staff_id))
+                (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent, staff_id, booking_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (showing_id, booking_ref, customer_name, total_cost, 'Active', 1, staff_id, booking_time))
             
             booking_id = cursor.lastrowid
             
@@ -364,10 +374,13 @@ def seed_data(conn_or_cursor):
     
     for showing_id, in today_showings_sample:
         for i in range(random.randint(1, 3)):
+            now = datetime.datetime.now().isoformat()
             cursor.execute("""
-                INSERT INTO waitlist (showing_id, customer_name, contact_info)
-                VALUES (?, ?, ?)
-            """, (showing_id, f"WaitlistCustomer_{random.randint(1000, 9999)}", f"email_{random.randint(1, 9999)}@example.com"))
+                INSERT INTO waitlist (showing_id, customer_name, customer_email, customer_phone, num_tickets, joined_at, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (showing_id, f"WaitlistCustomer_{random.randint(1000, 9999)}", 
+                  f"email_{random.randint(1, 9999)}@example.com", "12345678", 
+                  random.randint(1, 4), now, 'waiting'))
 
     # 11. Add loyalty points
     print("Seeding loyalty points...")

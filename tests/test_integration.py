@@ -22,6 +22,7 @@ def db():
     Pre-populated with realistic seed data to simulate end-to-end flows.
     """
     conn = sqlite3.connect(':memory:', check_same_thread=False)
+    conn.isolation_level = None # Allow manual BEGIN/COMMIT
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     
@@ -53,9 +54,14 @@ def test_full_booking_flow(db):
     user = User.login("staff1", "password123", db)
     assert user.role == "staff"
     
-    # 2. Select film & showing (Find an active future showing from seed data)
+    # 2. Select film & showing (Find an active future showing at staff's home cinema)
     future_date = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    showing = db.execute("SELECT * FROM showings WHERE seats_remaining >= 2 AND show_date = ? LIMIT 1", (future_date,)).fetchone()
+    showing = db.execute("""
+        SELECT s.* FROM showings s 
+        JOIN screens sc ON s.screen_id = sc.screen_id
+        WHERE s.seats_remaining >= 2 AND s.show_date = ? AND sc.cinema_id = ? 
+        LIMIT 1
+    """, (future_date, user.cinema_id)).fetchone()
     showing_id = showing["showing_id"]
     initial_seats = showing["seats_remaining"]
     
@@ -99,6 +105,7 @@ def test_full_cancellation_flow(db):
     """
     # Find showing > 24 hours in the future
     future_date = (datetime.date.today() + datetime.timedelta(days=2)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (future_date,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=future_date, show_type="morning")
     initial_seats = showing.seats_remaining
     
@@ -141,6 +148,7 @@ def test_admin_add_film_listing(db):
     
     # Add showing
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=film.film_id, date=date_str, show_type="evening")
     
     # Assert showing appears in query
@@ -150,6 +158,7 @@ def test_admin_add_film_listing(db):
 def test_admin_update_show_time(db):
     """Update showing's time -> assert old time no longer in DB, new time present."""
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning") # defaults to 10:00
     
     # Update to afternoon (14:30) via direct SQL representing the Manager/Admin repository layer
@@ -164,6 +173,7 @@ def test_admin_remove_listing(db):
     """Remove a film listing -> assert its showings are removed or flagged inactive."""
     film = Film.create(title="To Be Removed", genre="Action", age_rating="15", duration_mins=120)
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=film.film_id, date=date_str, show_type="evening")
     
     # Deactivate film
@@ -223,12 +233,13 @@ def test_monthly_revenue_report(db):
     now = datetime.datetime.now()
     year, month = now.year, now.month
     
-    # Get a valid showing for cinema 1
+    # Get a valid future showing for cinema 1 to avoid "already started" errors
+    future_date = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
     showing = db.execute("""
         SELECT s.* FROM showings s 
         JOIN screens sc ON s.screen_id = sc.screen_id
-        WHERE sc.cinema_id = 1 AND s.seats_remaining > 5 AND s.show_date LIKE ? LIMIT 1
-    """, (f"{year}-{month:02d}%",)).fetchone()
+        WHERE sc.cinema_id = 1 AND s.seats_remaining > 5 AND s.show_date = ? LIMIT 1
+    """, (future_date,)).fetchone()
     
     total_spent = 0.0
     for i in range(5):
@@ -249,7 +260,7 @@ def test_staff_leaderboard_ordering(db):
     now = datetime.datetime.now()
     year, month = now.year, now.month
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    
+    db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (date_str,))
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
     # Give staff 4 -> 3 bookings, staff 5 -> 2 bookings, staff 6 -> 1 booking

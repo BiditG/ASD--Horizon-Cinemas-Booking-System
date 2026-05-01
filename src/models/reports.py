@@ -141,7 +141,7 @@ class ReportManager:
             GROUP BY u.user_id
             ORDER BY total_bookings DESC
         """
-        cursor = db_connection.execute(query, (f"{month_str}%", cinema_id, cinema_id))
+        cursor = db_connection.execute(query, (f"{month_str}%", cinema_id))
         results = []
         for rank, row in enumerate(cursor.fetchall(), start=1):
             results.append({
