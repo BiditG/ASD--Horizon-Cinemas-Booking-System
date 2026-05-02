@@ -105,7 +105,9 @@ def test_full_cancellation_flow(db):
     """
     # Find showing > 24 hours in the future
     future_date = (datetime.date.today() + datetime.timedelta(days=2)).isoformat()
+    db.execute("PRAGMA foreign_keys = OFF")
     db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (future_date,))
+    db.execute("PRAGMA foreign_keys = ON")
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=future_date, show_type="morning")
     initial_seats = showing.seats_remaining
     
@@ -148,7 +150,9 @@ def test_admin_add_film_listing(db):
     
     # Add showing
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("PRAGMA foreign_keys = OFF")
     db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (date_str,))
+    db.execute("PRAGMA foreign_keys = ON")
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=film.film_id, date=date_str, show_type="evening")
     
     # Assert showing appears in query
@@ -158,7 +162,9 @@ def test_admin_add_film_listing(db):
 def test_admin_update_show_time(db):
     """Update showing's time -> assert old time no longer in DB, new time present."""
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("PRAGMA foreign_keys = OFF")
     db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (date_str,))
+    db.execute("PRAGMA foreign_keys = ON")
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning") # defaults to 10:00
     
     # Update to afternoon (14:30) via direct SQL representing the Manager/Admin repository layer
@@ -173,7 +179,9 @@ def test_admin_remove_listing(db):
     """Remove a film listing -> assert its showings are removed or flagged inactive."""
     film = Film.create(title="To Be Removed", genre="Action", age_rating="15", duration_mins=120)
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("PRAGMA foreign_keys = OFF")
     db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (date_str,))
+    db.execute("PRAGMA foreign_keys = ON")
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=film.film_id, date=date_str, show_type="evening")
     
     # Deactivate film
@@ -260,7 +268,9 @@ def test_staff_leaderboard_ordering(db):
     now = datetime.datetime.now()
     year, month = now.year, now.month
     date_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    db.execute("PRAGMA foreign_keys = OFF")
     db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '10:00'", (date_str,))
+    db.execute("PRAGMA foreign_keys = ON")
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=date_str, show_type="morning")
     
     # Give staff 4 -> 3 bookings, staff 5 -> 2 bookings, staff 6 -> 1 booking
