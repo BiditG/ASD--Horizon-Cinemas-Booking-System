@@ -188,8 +188,16 @@ class BookingWindow:
         tk.Label(tkt_card, text="Quantity:", font=FONT_LABEL, bg=BG_CARD, fg=TEXT2).grid(row=1, column=0, sticky="w", pady=(15,5))
         self.qty_var = tk.IntVar(value=1)
         self.qty_spin = ttk.Spinbox(tkt_card, from_=1, to=50, textvariable=self.qty_var, width=5, font=FONT_BODY, command=self._on_qty_change)
+        self.qty_spin = ttk.Spinbox(tkt_card, from_=1, to=50, textvariable=self.qty_var, width=5, font=FONT_BODY, command=self._on_qty_change)
         self.qty_spin.grid(row=1, column=1, sticky="w", pady=(15,5))
         # Bind key release to reset check if user types
+        self.qty_spin.bind("<KeyRelease>", lambda e: self._on_qty_change())
+        
+        # Group booking banner (hidden by default)
+        self.group_banner = tk.Label(tkt_card, text="🎟 GROUP BOOKING MODE — Auto-select enabled",
+                                     font=FONT_LABEL, bg="#f97316", fg=TEXT, pady=4)
+        self.group_banner.grid(row=1, column=2, columnspan=2, sticky="w", padx=(15, 0), pady=(15, 5))
+        self.group_banner.grid_remove()  # hidden until qty >= 10
         self.qty_spin.bind("<KeyRelease>", lambda e: self._on_qty_change())
         
         # Group booking banner (hidden by default)
@@ -251,6 +259,10 @@ class BookingWindow:
         tk.Button(act_frame, text="Main Menu", font=FONT_BTN, bg=BG2, fg=TEXT, 
                   activebackground=BG_CARD, relief="flat", padx=20, pady=10, 
                   cursor="hand2", command=self.root.destroy).pack(side="left")
+        
+        tk.Button(act_frame, text="🏅 Check Loyalty", font=FONT_BTN, bg="#92400e", fg=TEXT,
+                  activebackground="#78350f", relief="flat", padx=14, pady=10,
+                  cursor="hand2", command=self._show_loyalty_popup).pack(side="left", padx=(12, 0))
         
         tk.Button(act_frame, text="🏅 Check Loyalty", font=FONT_BTN, bg="#92400e", fg=TEXT,
                   activebackground="#78350f", relief="flat", padx=14, pady=10,
@@ -420,6 +432,18 @@ class BookingWindow:
             self._selected_showing = self._available_showings[idx]
         else:
             self._selected_showing = None
+
+    def _on_qty_change(self):
+        """Called whenever qty spinbox changes — shows/hides group banner."""
+        try:
+            qty = self.qty_var.get()
+            if qty >= 10:
+                self.group_banner.grid()
+            else:
+                self.group_banner.grid_remove()
+        except tk.TclError:
+            pass
+        self._reset_check()
 
     def _on_qty_change(self):
         """Called whenever qty spinbox changes — shows/hides group banner."""
