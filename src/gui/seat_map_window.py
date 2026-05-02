@@ -15,6 +15,7 @@ class SeatMapWindow:
         self.required_quantity = required_quantity
         self.ticket_type = ticket_type
         self.on_confirm = on_confirm
+        self.is_bulk = required_quantity >= 10   # Group Booking Mode flag
         
         self.selected_seats = []
         self.seat_buttons = {}
@@ -23,7 +24,26 @@ class SeatMapWindow:
         if not self._load_data():
             return
             
-        self.recommended = recommend_seats(self.showing_id, self.ticket_type, self.required_quantity)
+        if self.is_bulk:
+            from src.utils.bulk_seat_selector import bulk_select_seats
+            selected, max_avail = bulk_select_seats(self.showing_id, self.ticket_type, self.required_quantity)
+            if selected is None:
+                # Not enough seats — ask to book fewer
+                ans = messagebox.askyesno(
+                    "Not Enough Seats",
+                    f"Not enough seats available for a group of {self.required_quantity}.\n"
+                    f"Maximum available: {max_avail}.\n\nWould you like to book {max_avail} instead?",
+                    parent=self.root
+                )
+                if ans and max_avail > 0:
+                    self.required_quantity = max_avail
+                    selected, _ = bulk_select_seats(self.showing_id, self.ticket_type, self.required_quantity)
+                else:
+                    self.root.destroy()
+                    return
+            self.recommended = selected or []
+        else:
+            self.recommended = recommend_seats(self.showing_id, self.ticket_type, self.required_quantity)
         self.is_manual_mode = False
         
         # Build UI
@@ -81,9 +101,15 @@ class SeatMapWindow:
         self._add_legend_item(legend_frame, "Upper Gallery (Taken)", "#14532d")
         self._add_legend_item(legend_frame, "VIP (Free)", "#ca8a04")
         self._add_legend_item(legend_frame, "VIP (Taken)", "#78350f")
-        self._add_legend_item(legend_frame, "Recommended/Selected", "yellow", fg="black")
+        if self.is_bulk:
+            self._add_legend_item(legend_frame, "Group Selection", "#f97316", fg="white")
+        else:
+            self._add_legend_item(legend_frame, "Recommended/Selected", "yellow", fg="black")
         
-        # Status Label
+        # Status Label — show group booking banner if bulk
+        if self.is_bulk:
+            tk.Label(self.root, text=f"🎟 GROUP BOOKING MODE — {self.required_quantity} seats",
+                     bg="#f97316", fg="white", font=("Helvetica", 13, "bold"), pady=5).pack(fill="x")
         self.status_lbl = tk.Label(self.root, text=f"0 / {self.required_quantity} seats selected", bg="#0f172a", fg="white", font=("Helvetica", 14))
         self.status_lbl.pack(pady=10)
         
@@ -139,7 +165,10 @@ class SeatMapWindow:
         
         self.manual_btn = tk.Button(self.btn_frame, text="Choose Manually", bg="#f59e0b", fg="black", font=("Helvetica", 12, "bold"), padx=15, command=self._enable_manual)
         
-        self.confirm_btn = tk.Button(self.btn_frame, text="Accept Recommendation", bg="#16a34a", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self._confirm)
+        self.confirm_btn = tk.Button(
+            self.btn_frame,
+            text="Accept Group Selection" if self.is_bulk else "Accept Recommendation",
+            bg="#16a34a", fg="white", font=("Helvetica", 12, "bold"), padx=15, command=self._confirm)
         self.confirm_btn.pack(side="right", padx=20)
 
         if self.recommended:
@@ -160,9 +189,11 @@ class SeatMapWindow:
                 btn.config(bg=color, fg="white")
                 
         # Color selected
+        highlight = "#f97316" if self.is_bulk else "yellow"
+        text_col   = "white"   if self.is_bulk else "black"
         for seat_num in self.selected_seats:
             if seat_num in self.seat_buttons:
-                self.seat_buttons[seat_num]["btn"].config(bg="yellow", fg="black")
+                self.seat_buttons[seat_num]["btn"].config(bg=highlight, fg=text_col)
                 
         self.status_lbl.config(text=f"{len(self.selected_seats)} / {self.required_quantity} seats selected")
 
