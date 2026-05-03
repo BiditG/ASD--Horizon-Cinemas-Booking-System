@@ -17,6 +17,7 @@ ROLE_HIERARCHY = {
     'manager': 3
 }
 
+
 def require_role(minimum_role: str):
     """
     Class decorator to enforce RBAC on Tkinter Window classes.
@@ -25,28 +26,28 @@ def require_role(minimum_role: str):
     """
     def decorator(cls):
         original_init = cls.__init__
-        
+
         @wraps(original_init)
         def new_init(self, root, *args, **kwargs):
             session = SessionManager.get_instance()
             user = session.get_current_user()
-            
+
             user_role = user.role if user else ''
             user_level = ROLE_HIERARCHY.get(user_role, 0)
             req_level = ROLE_HIERARCHY.get(minimum_role, 99)
-            
+
             if user_level < req_level:
                 messagebox.showerror(
-                    "Access Denied", 
+                    "Access Denied",
                     f"You do not have permission to access {cls.__name__}.\nRequires: {minimum_role.capitalize()}"
                 )
                 if isinstance(root, tk.Toplevel) or isinstance(root, tk.Tk):
                     root.destroy()
                 # Return without executing the rest of __init__
                 return
-                
+
             original_init(self, root, *args, **kwargs)
-            
+
         cls.__init__ = new_init
         return cls
     return decorator

@@ -9,7 +9,6 @@ used by Booking Staff and Admin GUI windows.
 
 import sqlite3
 import datetime
-from typing import Optional
 from src.database.db_connection import get_connection
 
 
@@ -38,20 +37,20 @@ class Showing:
     """
 
     VALID_SHOW_TYPES = ('morning', 'afternoon', 'evening')
-    SHOW_TYPE_TIMES  = {'morning': '10:00', 'afternoon': '14:30', 'evening': '19:00'}
+    SHOW_TYPE_TIMES = {'morning': '10:00', 'afternoon': '14:30', 'evening': '19:00'}
 
     def __init__(self, showing_id: int, cinema_id: int, screen_id: int,
                  film_id: int, show_date: str, show_time: str,
                  show_type: str, seats_remaining: int, is_cancelled: bool = False):
-        self.showing_id:       int  = showing_id
-        self.cinema_id:        int  = cinema_id
-        self.screen_id:        int  = screen_id
-        self.film_id:          int  = film_id
-        self.show_date:        str  = show_date
-        self.show_time:        str  = show_time
-        self.show_type:        str  = show_type
-        self.seats_remaining:  int  = seats_remaining
-        self.is_cancelled:     bool = bool(is_cancelled)
+        self.showing_id: int = showing_id
+        self.cinema_id: int = cinema_id
+        self.screen_id: int = screen_id
+        self.film_id: int = film_id
+        self.show_date: str = show_date
+        self.show_time: str = show_time
+        self.show_type: str = show_type
+        self.seats_remaining: int = seats_remaining
+        self.is_cancelled: bool = bool(is_cancelled)
 
     # ------------------------------------------------------------------
     # Factory helper
@@ -62,15 +61,15 @@ class Showing:
         """Construct a Showing from a sqlite3.Row object."""
         keys = row.keys()
         return cls(
-            showing_id      = row["showing_id"],
-            cinema_id       = row["cinema_id"]   if "cinema_id"   in keys else 0,
-            screen_id       = row["screen_id"],
-            film_id         = row["film_id"],
-            show_date       = row["show_date"],
-            show_time       = row["show_time"],
-            show_type       = row["show_type"],
-            seats_remaining = row["seats_remaining"],
-            is_cancelled    = row["is_cancelled"] if "is_cancelled" in keys else False,
+            showing_id=row["showing_id"],
+            cinema_id=row["cinema_id"] if "cinema_id" in keys else 0,
+            screen_id=row["screen_id"],
+            film_id=row["film_id"],
+            show_date=row["show_date"],
+            show_time=row["show_time"],
+            show_type=row["show_type"],
+            seats_remaining=row["seats_remaining"],
+            is_cancelled=row["is_cancelled"] if "is_cancelled" in keys else False,
         )
 
     # ------------------------------------------------------------------
@@ -96,7 +95,7 @@ class Showing:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 """
                 SELECT s.*, sc.cinema_id
@@ -131,7 +130,7 @@ class Showing:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 """
                 SELECT s.*, sc.cinema_id
@@ -193,34 +192,34 @@ class Showing:
         try:
             conn = get_connection()
             col_name = f"{ticket_type}_seats"
-            
+
             # Prevent SQL injection by checking against known valid types
             if ticket_type not in ('lower_hall', 'upper_gallery', 'vip'):
                 raise ValueError(f"Invalid ticket_type '{ticket_type}'")
-                
+
             row = conn.execute(f"""
                 SELECT sc.{col_name} as capacity
                 FROM screens sc
                 JOIN showings s ON sc.screen_id = s.screen_id
                 WHERE s.showing_id = ?
             """, (showing_id,)).fetchone()
-            
+
             if not row:
                 raise ValueError(f"Showing {showing_id} not found.")
-                
+
             capacity = row["capacity"]
-            
+
             count_row = conn.execute("""
                 SELECT COUNT(t.ticket_id) as booked
                 FROM tickets t
                 JOIN bookings b ON t.booking_id = b.booking_id
-                WHERE b.showing_id = ? 
-                AND t.ticket_type = ? 
+                WHERE b.showing_id = ?
+                AND t.ticket_type = ?
                 AND b.booking_status = 'Active'
             """, (showing_id, ticket_type)).fetchone()
-            
+
             booked = count_row["booked"] if count_row else 0
-            
+
             return max(0, capacity - booked)
         except sqlite3.DatabaseError as exc:
             raise sqlite3.DatabaseError(f"Showing.get_live_availability failed: {exc}") from exc
@@ -284,7 +283,7 @@ class Showing:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 """
                 UPDATE showings
@@ -352,9 +351,9 @@ class Showing:
             if row is None:
                 raise ValueError(f"No screen found with screen_id={screen_id}.")
 
-            capacity  = row["total_capacity"]
+            capacity = row["total_capacity"]
             show_time = Showing.SHOW_TYPE_TIMES[show_type]
-            
+
             # Check for overlaps
             overlap = conn.execute(
                 "SELECT showing_id FROM showings WHERE screen_id = ? AND show_date = ? AND show_time = ?",
@@ -374,15 +373,15 @@ class Showing:
             )
             conn.commit()
             return Showing(
-                showing_id      = cursor.lastrowid,
-                cinema_id       = cinema_id,
-                screen_id       = screen_id,
-                film_id         = film_id,
-                show_date       = date,
-                show_time       = show_time,
-                show_type       = show_type,
-                seats_remaining = capacity,
-                is_cancelled    = False,
+                showing_id=cursor.lastrowid,
+                cinema_id=cinema_id,
+                screen_id=screen_id,
+                film_id=film_id,
+                show_date=date,
+                show_time=show_time,
+                show_type=show_type,
+                seats_remaining=capacity,
+                is_cancelled=False,
             )
         except sqlite3.DatabaseError as exc:
             raise sqlite3.DatabaseError(f"Showing.create failed: {exc}") from exc

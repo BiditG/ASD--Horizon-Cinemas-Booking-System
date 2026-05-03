@@ -235,7 +235,7 @@ class PDFService:
 
             if os.path.exists(temp_qr_path):
                 os.remove(temp_qr_path)
-                
+
             # --- Update DB ---
             try:
                 conn = get_connection()
@@ -247,8 +247,8 @@ class PDFService:
                     conn.commit()
             except Exception as db_e:
                 print(f"Warning: Failed to update db with pdf path: {db_e}")
-                
+
             return os.path.abspath(output_path)
-            
+
         except Exception as e:
             raise Exception(f"Failed to generate ticket PDF: {e}")

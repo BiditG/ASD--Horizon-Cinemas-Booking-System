@@ -17,7 +17,6 @@ Provides:
 import sqlite3
 import threading
 import tkinter as tk
-from tkinter import font as tkfont
 from tkinter import messagebox
 from typing import Optional
 import datetime
@@ -36,13 +35,17 @@ DB_PATH = os.path.join(_PROJECT_ROOT, 'hcbs.db')
 # Lazy imports for role windows — avoids circular imports at module load time.
 # Each window module must expose a class with the names below.
 # ---------------------------------------------------------------------------
+
+
 def _get_manager_window():
     from src.gui.manager_window import ManagerWindow
     return ManagerWindow
 
+
 def _get_admin_window():
     from src.gui.admin_window import AdminWindow
     return AdminWindow
+
 
 def _get_staff_window():
     from src.gui.staff_window import StaffWindow
@@ -52,23 +55,23 @@ def _get_staff_window():
 # ===========================================================================
 # Colour & font constants  (matches GUI_STYLE_GUIDE.md)
 # ===========================================================================
-BG_PRIMARY    = "#0b1220"
-BG_SECONDARY  = "#111b2e"
-BG_CARD       = "#162338"
-ACCENT        = "#4f8cff"
-ACCENT_HOVER  = "#3b78f6"
-SUCCESS       = "#22c55e"
-ERROR         = "#ef4444"
-TEXT_PRIMARY  = "#f8fafc"
-TEXT_SECONDARY= "#a7b4c8"
-BORDER        = "#26344a"
+BG_PRIMARY = "#0b1220"
+BG_SECONDARY = "#111b2e"
+BG_CARD = "#162338"
+ACCENT = "#4f8cff"
+ACCENT_HOVER = "#3b78f6"
+SUCCESS = "#22c55e"
+ERROR = "#ef4444"
+TEXT_PRIMARY = "#f8fafc"
+TEXT_SECONDARY = "#a7b4c8"
+BORDER = "#26344a"
 
-FONT_FAMILY   = "Segoe UI"
-FONT_H1       = (FONT_FAMILY, 24, "bold")
-FONT_H2       = (FONT_FAMILY, 16, "bold")
-FONT_BODY     = (FONT_FAMILY, 12)
-FONT_SMALL    = (FONT_FAMILY, 10)
-FONT_LABEL    = (FONT_FAMILY, 12, "bold")
+FONT_FAMILY = "Segoe UI"
+FONT_H1 = (FONT_FAMILY, 24, "bold")
+FONT_H2 = (FONT_FAMILY, 16, "bold")
+FONT_BODY = (FONT_FAMILY, 12)
+FONT_SMALL = (FONT_FAMILY, 10)
+FONT_LABEL = (FONT_FAMILY, 12, "bold")
 
 
 # ===========================================================================
@@ -176,7 +179,7 @@ class SessionManager:
         """Register the active Tkinter root window and bind interaction events."""
         self._active_root = root
         self.update_activity()
-        
+
         # Bind events to update activity
         root.bind_all("<Any-KeyPress>", self.update_activity)
         root.bind_all("<Any-Button>", self.update_activity)
@@ -197,8 +200,9 @@ class SessionManager:
         """Executed on the main thread to perform auto-logout."""
         if not self._current_user:
             return
-            
-        messagebox.showinfo("Session Expired", "Your session has expired due to inactivity. Please log in again.", parent=self._active_root)
+
+        messagebox.showinfo(
+            "Session Expired", "Your session has expired due to inactivity. Please log in again.", parent=self._active_root)
         _logout_and_return(self._active_root)
 
 
@@ -214,12 +218,12 @@ class _PlaceholderEntry(tk.Entry):
 
     def __init__(self, master, placeholder: str, show_char: str = "", **kwargs):
         super().__init__(master, **kwargs)
-        self._placeholder  = placeholder
-        self._show_char    = show_char
-        self._is_empty     = True
+        self._placeholder = placeholder
+        self._show_char = show_char
+        self._is_empty = True
 
         self._set_placeholder()
-        self.bind("<FocusIn>",  self._on_focus_in)
+        self.bind("<FocusIn>", self._on_focus_in)
         self.bind("<FocusOut>", self._on_focus_out)
 
     def _set_placeholder(self):
@@ -289,7 +293,7 @@ class LoginWindow:
         # Centre on screen
         self.root.update_idletasks()
         w, h = self.MIN_W, self.MIN_H
-        x = (self.root.winfo_screenwidth()  - w) // 2
+        x = (self.root.winfo_screenwidth() - w) // 2
         y = (self.root.winfo_screenheight() - h) // 2
         self.root.geometry(f"{w}x{h}+{x}+{y}")
 
@@ -487,7 +491,7 @@ class LoginWindow:
             highlightcolor=ACCENT,
             **kwargs
         )
-        entry.bind("<FocusIn>",  lambda e: entry.config(highlightbackground=ACCENT))
+        entry.bind("<FocusIn>", lambda e: entry.config(highlightbackground=ACCENT))
         entry.bind("<FocusOut>", lambda e: entry.config(highlightbackground=BORDER))
         return entry
 
@@ -571,7 +575,7 @@ class LoginWindow:
             password (str): Plaintext password entered by the user.
         """
         try:
-            from src.models.user import User, AuthenticationError
+            from src.models.user import User
             conn = self.session.get_db_connection()
             user = User.login(username, password, conn)
             # Schedule success handler on main thread

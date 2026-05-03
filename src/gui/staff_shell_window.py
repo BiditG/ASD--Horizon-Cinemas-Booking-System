@@ -58,8 +58,8 @@ class StaffShellWindow:
             r = int(bg[1:3], 16)
             g = int(bg[3:5], 16)
             b = int(bg[5:7], 16)
-            hover_bg = f"#{max(0, r-20):02x}{max(0, g-20):02x}{max(0, b-20):02x}"
-        except:
+            hover_bg = f"#{max(0, r - 20):02x}{max(0, g - 20):02x}{max(0, b - 20):02x}"
+        except BaseException:
             hover_bg = bg
         btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg))
         btn.bind("<Leave>", lambda e: btn.config(bg=bg))
@@ -120,7 +120,8 @@ class StaffShellWindow:
             col += 1
 
         if self.user and self.user.role == "manager":
-            self._create_btn(bar, "Manager Dashboard", "#7C3AED", self._open_manager).grid(row=0, column=col, padx=(0, 16))
+            self._create_btn(bar, "Manager Dashboard", "#7C3AED",
+                             self._open_manager).grid(row=0, column=col, padx=(0, 16))
             col += 1
 
         self._create_btn(bar, "❓ Help", WARNING, self._open_chatbot, fg="#000000").grid(row=0, column=col, padx=(0, 16))
@@ -130,7 +131,8 @@ class StaffShellWindow:
         style.theme_use("clam")
         style.configure("TNotebook", background=BG, borderwidth=0)
         style.configure("TNotebook.Tab", background=BG, foreground=TEXT2, padding=[14, 10], font=(FF, 11, "bold"))
-        style.map("TNotebook.Tab", background=[("selected", ACCENT), ("active", BG2)], foreground=[("selected", "#FFFFFF"), ("active", TEXT)])
+        style.map("TNotebook.Tab", background=[("selected", ACCENT), ("active", BG2)],
+                  foreground=[("selected", "#FFFFFF"), ("active", TEXT)])
 
         nb = ttk.Notebook(self.root)
         nb.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))

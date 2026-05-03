@@ -67,6 +67,10 @@ def test_same_day_cancellation(db):
     db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (today,))
     db.execute("PRAGMA foreign_keys = ON")
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=today, show_type="evening")
+    # Update the show_time to late night to ensure it hasn't passed
+    db.execute("UPDATE showings SET show_time = '23:59' WHERE showing_id = ?", (showing.showing_id,))
+    db.commit()
+    
     booking = BookingManager.create_booking(
         showing_id=showing.showing_id, staff_user_id=1, ticket_type="lower_hall", 
         quantity=1, customer_name="Test", customer_email="t@test.com", 

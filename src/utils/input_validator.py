@@ -7,6 +7,7 @@ Utility class for sanitising and validating form inputs.
 import re
 from datetime import datetime
 
+
 class InputValidator:
     """Provides static methods for input sanitisation and validation."""
 
@@ -66,11 +67,11 @@ class InputValidator:
         """
         if not card:
             return False
-            
+
         card = card.replace(" ", "").replace("-", "").strip()
         if not card.isdigit() or len(card) != 16:
             return False
-            
+
         total = 0
         reverse_digits = card[::-1]
         for i, digit in enumerate(reverse_digits):
