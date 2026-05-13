@@ -1,3 +1,4 @@
+# Student: Bidit Giri, 24030151
 """
 src/gui/chatbot_widget.py
 =========================

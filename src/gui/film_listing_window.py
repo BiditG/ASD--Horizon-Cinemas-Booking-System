@@ -1,3 +1,4 @@
+# Student: Pujan Gurung, 24030157
 """
 src/gui/film_listing_window.py
 ==============================

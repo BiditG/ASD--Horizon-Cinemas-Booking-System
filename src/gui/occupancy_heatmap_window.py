@@ -1,3 +1,4 @@
+# Student: Shritika Gauchan, 24030134
 """
 src/gui/occupancy_heatmap_window.py
 ===================================

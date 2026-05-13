@@ -1,3 +1,4 @@
+# Student: Bidit Giri, 24030151
 """
 src/utils/image_loader.py
 =========================

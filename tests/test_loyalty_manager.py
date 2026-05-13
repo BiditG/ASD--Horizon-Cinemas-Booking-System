@@ -1,3 +1,4 @@
+# Student: Simona Kattel, 24030159
 """
 tests/test_loyalty_manager.py
 """
