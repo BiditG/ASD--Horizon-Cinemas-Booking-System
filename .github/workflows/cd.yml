@@ -34,18 +34,11 @@ jobs:
           # python seed_database.py --env=production
           echo "Production DB Migrations applied." >> $GITHUB_STEP_SUMMARY
 
-      - name: Tag Release
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ github.run_number }}
-          git push origin v${{ github.run_number }}
-
       - name: Post Deployment Notification
         if: always()
         run: |
           if [ "${{ job.status }}" = "success" ]; then
-            echo "✅ **Deployment to Production Successful!** Release tagged as v${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Deployment to Production Successful!**" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Deployment Failed!** Check logs for details." >> $GITHUB_STEP_SUMMARY
           fi
