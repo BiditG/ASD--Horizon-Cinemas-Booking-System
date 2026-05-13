@@ -24,6 +24,7 @@ def db():
     
     setup_db.create_tables(conn)
     setup_db.seed_data(conn)
+    conn.commit()
     
     original_conn = db_connection._connection
     db_connection._connection = conn
@@ -58,7 +59,11 @@ def test_booking_yesterday_date(db):
 def test_same_day_cancellation(db):
     """should RAISE exception"""
     today = datetime.date.today().isoformat()
+    db.commit() # Ensure no active transaction so PRAGMA works
     db.execute("PRAGMA foreign_keys = OFF")
+    db.execute("DELETE FROM tickets WHERE booking_id IN (SELECT booking_id FROM bookings WHERE showing_id IN (SELECT showing_id FROM showings WHERE screen_id = 1 AND show_date = ?))", (today,))
+    db.execute("DELETE FROM bookings WHERE showing_id IN (SELECT showing_id FROM showings WHERE screen_id = 1 AND show_date = ?)", (today,))
+    db.execute("DELETE FROM waitlist WHERE showing_id IN (SELECT showing_id FROM showings WHERE screen_id = 1 AND show_date = ?)", (today,))
     db.execute("DELETE FROM showings WHERE screen_id = 1 AND show_date = ? AND show_time = '19:00'", (today,))
     db.execute("PRAGMA foreign_keys = ON")
     showing = Showing.create(cinema_id=1, screen_id=1, film_id=1, date=today, show_type="evening")
