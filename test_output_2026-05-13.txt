@@ -1,0 +1,25 @@
+======================================================================
+                     HCBS TEST RUN OUTPUT                             
+======================================================================
+Date Captured : 2026-05-13 15:10:20.727348
+Python Exec   : C:\Users\pujan\AppData\Local\Python\pythoncore-3.14-64\python.exe
+======================================================================
+
+
+======================================================================
+                             STDERR                                   
+======================================================================
+
+C:\Users\pujan\AppData\Roaming\Python\Python314\site-packages\_pytest\config\__init__.py:331: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.
+Plugin: helpconfig, Hook: pytest_cmdline_parse
+UsageError: usage: python.exe -m pytest [options] [file_or_dir] [file_or_dir] [...]
+python.exe -m pytest: error: unrecognized arguments: --html=test_report.html --self-contained-html
+  inifile: C:\Users\pujan\OneDrive - UWE Bristol\Study\Level 5\Sem 2\ASD\ASD--Horizon-Cinemas-Booking-System\pytest.ini
+  rootdir: C:\Users\pujan\OneDrive - UWE Bristol\Study\Level 5\Sem 2\ASD\ASD--Horizon-Cinemas-Booking-System
+For more information see https://pluggy.readthedocs.io/en/stable/api_reference.html#pluggy.PluggyTeardownRaisedWarning
+  config = pluginmanager.hook.pytest_cmdline_parse(
+ERROR: usage: python.exe -m pytest [options] [file_or_dir] [file_or_dir] [...]
+python.exe -m pytest: error: unrecognized arguments: --html=test_report.html --self-contained-html
+  inifile: C:\Users\pujan\OneDrive - UWE Bristol\Study\Level 5\Sem 2\ASD\ASD--Horizon-Cinemas-Booking-System\pytest.ini
+  rootdir: C:\Users\pujan\OneDrive - UWE Bristol\Study\Level 5\Sem 2\ASD\ASD--Horizon-Cinemas-Booking-System
+

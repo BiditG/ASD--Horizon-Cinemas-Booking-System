@@ -10,12 +10,12 @@ from src.database.db_connection import get_connection
 # ── Tier thresholds ────────────────────────────────────────────────────────────
 TIER_BRONZE = "bronze"
 TIER_SILVER = "silver"
-TIER_GOLD   = "gold"
+TIER_GOLD = "gold"
 
 TIER_COLOURS = {
     TIER_BRONZE: "#cd7f32",
     TIER_SILVER: "#94a3b8",
-    TIER_GOLD:   "#f59e0b",
+    TIER_GOLD: "#f59e0b",
 }
 
 
@@ -66,23 +66,23 @@ def award_points(customer_name: str, customer_email: str, booking_id: str, total
     """
     conn = get_connection()
     points = calculate_points(total_cost)
-    now    = datetime.datetime.now().isoformat()
+    now = datetime.datetime.now().isoformat()
 
     row = conn.execute(
         "SELECT * FROM loyalty_accounts WHERE customer_email = ?", (customer_email,)
     ).fetchone()
 
     if row:
-        account_id    = row["account_id"]
-        new_total     = row["total_points"] + points
-        new_tier      = calculate_tier(new_total)
+        account_id = row["account_id"]
+        new_total = row["total_points"] + points
+        new_tier = calculate_tier(new_total)
         conn.execute(
             "UPDATE loyalty_accounts SET total_points = ?, tier = ?, customer_name = ? WHERE account_id = ?",
             (new_total, new_tier, customer_name, account_id)
         )
     else:
         new_total = points
-        new_tier  = calculate_tier(new_total)
+        new_tier = calculate_tier(new_total)
         cur = conn.execute(
             "INSERT INTO loyalty_accounts (customer_name, customer_email, total_points, tier) VALUES (?, ?, ?, ?)",
             (customer_name, customer_email, new_total, new_tier)
@@ -90,15 +90,20 @@ def award_points(customer_name: str, customer_email: str, booking_id: str, total
         account_id = cur.lastrowid
 
     conn.execute(
-        "INSERT INTO loyalty_transactions (account_id, booking_id, points_earned, points_redeemed, created_at) VALUES (?, ?, ?, 0, ?)",
+        """
+        INSERT INTO loyalty_transactions (
+            account_id, booking_id, points_earned, points_redeemed, created_at
+        )
+        VALUES (?, ?, ?, 0, ?)
+        """,
         (account_id, booking_id, points, now)
     )
     conn.commit()
 
     return {
-        "account_id":   account_id,
+        "account_id": account_id,
         "total_points": new_total,
-        "tier":         new_tier,
+        "tier": new_tier,
         "points_earned": points
     }
 
@@ -119,15 +124,20 @@ def deduct_points(customer_email: str, booking_id: str, total_cost: float):
         return
 
     account_id = row["account_id"]
-    new_total  = max(0, row["total_points"] - points_to_deduct)
-    new_tier   = calculate_tier(new_total)
+    new_total = max(0, row["total_points"] - points_to_deduct)
+    new_tier = calculate_tier(new_total)
 
     conn.execute(
         "UPDATE loyalty_accounts SET total_points = ?, tier = ? WHERE account_id = ?",
         (new_total, new_tier, account_id)
     )
     conn.execute(
-        "INSERT INTO loyalty_transactions (account_id, booking_id, points_earned, points_redeemed, created_at) VALUES (?, ?, ?, ?, ?)",
+        """
+        INSERT INTO loyalty_transactions (
+            account_id, booking_id, points_earned, points_redeemed, created_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
         (account_id, booking_id, -points_to_deduct, 0, now)
     )
     conn.commit()
@@ -148,10 +158,10 @@ def get_account(customer_email: str) -> dict | None:
     ).fetchall()
 
     return {
-        "account_id":    row["account_id"],
+        "account_id": row["account_id"],
         "customer_name": row["customer_name"],
         "customer_email": row["customer_email"],
-        "total_points":  row["total_points"],
-        "tier":          row["tier"],
-        "transactions":  [dict(t) for t in txs]
+        "total_points": row["total_points"],
+        "tier": row["tier"],
+        "transactions": [dict(t) for t in txs]
     }

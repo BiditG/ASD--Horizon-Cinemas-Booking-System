@@ -9,7 +9,6 @@ CRUD operations used by the Manager and Admin GUI windows.
 """
 
 import sqlite3
-from typing import Optional
 from src.database.db_connection import get_connection
 
 
@@ -37,11 +36,11 @@ class Cinema:
         location: str = "",
         is_active: bool = True,
     ) -> None:
-        self.cinema_id: int   = cinema_id
-        self.city_id: int     = city_id
+        self.cinema_id: int = cinema_id
+        self.city_id: int = city_id
         self.cinema_name: str = cinema_name
-        self.location: str    = location
-        self.is_active: bool  = bool(is_active)
+        self.location: str = location
+        self.is_active: bool = bool(is_active)
 
     # ------------------------------------------------------------------
     # Factory helper
@@ -51,11 +50,11 @@ class Cinema:
     def _from_row(cls, row: sqlite3.Row) -> "Cinema":
         """Construct a Cinema from a sqlite3.Row object."""
         return cls(
-            cinema_id   = row["cinema_id"],
-            city_id     = row["city_id"],
-            cinema_name = row["cinema_name"],
-            location    = row["location"] if "location" in row.keys() else "",
-            is_active   = row["is_active"] if "is_active" in row.keys() else True,
+            cinema_id=row["cinema_id"],
+            city_id=row["city_id"],
+            cinema_name=row["cinema_name"],
+            location=row["location"] if "location" in row.keys() else "",
+            is_active=row["is_active"] if "is_active" in row.keys() else True,
         )
 
     @staticmethod
@@ -78,7 +77,7 @@ class Cinema:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             columns = Cinema._table_columns(conn)
             if "is_active" in columns:
                 cursor = conn.execute(
@@ -108,7 +107,7 @@ class Cinema:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 "SELECT * FROM cinemas WHERE cinema_id = ?", (cinema_id,)
             )
@@ -134,7 +133,7 @@ class Cinema:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             columns = Cinema._table_columns(conn)
             if "is_active" in columns:
                 cursor = conn.execute(
@@ -176,7 +175,7 @@ class Cinema:
         if not location.strip():
             raise ValueError("Cinema location cannot be empty.")
         try:
-            conn   = get_connection()
+            conn = get_connection()
             columns = Cinema._table_columns(conn)
             if "location" in columns and "is_active" in columns:
                 cursor = conn.execute(
@@ -198,11 +197,11 @@ class Cinema:
                 )
             conn.commit()
             return Cinema(
-                cinema_id   = cursor.lastrowid,
-                city_id     = city_id,
-                cinema_name = name.strip(),
-                location    = location.strip(),
-                is_active   = True
+                cinema_id=cursor.lastrowid,
+                city_id=city_id,
+                cinema_name=name.strip(),
+                location=location.strip(),
+                is_active=True
             )
         except sqlite3.DatabaseError as exc:
             raise sqlite3.DatabaseError(f"Cinema.create failed: {exc}") from exc
@@ -227,7 +226,7 @@ class Cinema:
         if not name.strip():
             raise ValueError("Cinema name cannot be empty.")
         try:
-            conn   = get_connection()
+            conn = get_connection()
             columns = Cinema._table_columns(conn)
             if "location" in columns:
                 cursor = conn.execute(
@@ -259,7 +258,7 @@ class Cinema:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             columns = Cinema._table_columns(conn)
             if "is_active" not in columns:
                 return False

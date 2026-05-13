@@ -38,31 +38,31 @@ class Film:
     def __init__(self, film_id, title, description="", genre="", age_rating="PG",
                  duration_mins=0, imdb_rating=None, cast_members="",
                  poster_path="", is_active=True):
-        self.film_id       = film_id
-        self.title         = title
-        self.description   = description
-        self.genre         = genre
-        self.age_rating    = age_rating
+        self.film_id = film_id
+        self.title = title
+        self.description = description
+        self.genre = genre
+        self.age_rating = age_rating
         self.duration_mins = duration_mins
-        self.imdb_rating   = imdb_rating
-        self.cast_members  = cast_members
-        self.poster_path   = poster_path
-        self.is_active     = bool(is_active)
+        self.imdb_rating = imdb_rating
+        self.cast_members = cast_members
+        self.poster_path = poster_path
+        self.is_active = bool(is_active)
 
     @classmethod
     def _from_row(cls, row: sqlite3.Row) -> "Film":
         keys = row.keys()
         return cls(
-            film_id       = row["film_id"],
-            title         = row["title"],
-            description   = row["description"]   if "description"   in keys else "",
-            genre         = row["genre"]          if "genre"         in keys else "",
-            age_rating    = row["age_rating"]     if "age_rating"    in keys else "PG",
-            duration_mins = row["duration_mins"]  if "duration_mins" in keys else 0,
-            imdb_rating   = row["imdb_rating"]    if "imdb_rating"   in keys else None,
-            cast_members  = row["cast_members"]   if "cast_members"  in keys else "",
-            poster_path   = row["poster_path"]    if "poster_path"   in keys else "",
-            is_active     = row["is_active"]      if "is_active"     in keys else True,
+            film_id=row["film_id"],
+            title=row["title"],
+            description=row["description"] if "description" in keys else "",
+            genre=row["genre"] if "genre" in keys else "",
+            age_rating=row["age_rating"] if "age_rating" in keys else "PG",
+            duration_mins=row["duration_mins"] if "duration_mins" in keys else 0,
+            imdb_rating=row["imdb_rating"] if "imdb_rating" in keys else None,
+            cast_members=row["cast_members"] if "cast_members" in keys else "",
+            poster_path=row["poster_path"] if "poster_path" in keys else "",
+            is_active=row["is_active"] if "is_active" in keys else True,
         )
 
     @staticmethod
@@ -135,7 +135,7 @@ class Film:
         if age_rating not in Film.VALID_RATINGS:
             raise ValueError(f"Invalid age rating '{age_rating}'.")
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 """INSERT INTO films (title, description, genre, age_rating,
                    duration_mins, imdb_rating, cast_members, poster_path, is_active)
@@ -158,17 +158,17 @@ class Film:
         Raises:
             ValueError: If no fields provided or an invalid column name is used.
         """
-        ALLOWED = {'title','description','genre','age_rating',
-                   'duration_mins','imdb_rating','cast_members','poster_path'}
+        ALLOWED = {'title', 'description', 'genre', 'age_rating',
+                   'duration_mins', 'imdb_rating', 'cast_members', 'poster_path'}
         if not kwargs:
             raise ValueError("At least one field must be provided.")
         invalid = set(kwargs) - ALLOWED
         if invalid:
             raise ValueError(f"Invalid field(s): {invalid}")
         try:
-            conn    = get_connection()
+            conn = get_connection()
             setters = ", ".join(f"{col} = ?" for col in kwargs)
-            cursor  = conn.execute(
+            cursor = conn.execute(
                 f"UPDATE films SET {setters} WHERE film_id = ?",
                 list(kwargs.values()) + [film_id]
             )
@@ -181,7 +181,7 @@ class Film:
     def deactivate(film_id: int) -> bool:
         """Soft-delete a film by setting is_active = 0."""
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 "UPDATE films SET is_active = 0 WHERE film_id = ?", (film_id,)
             )
@@ -193,7 +193,7 @@ class Film:
     @property
     def duration_formatted(self) -> str:
         """Return runtime as 'Xh Ym'."""
-        hrs  = self.duration_mins // 60
+        hrs = self.duration_mins // 60
         mins = self.duration_mins % 60
         return f"{hrs}h {mins}m" if hrs else f"{mins}m"
 

@@ -11,6 +11,11 @@ Description : Displays films and showings for a selected cinema and date.
               to the BookingWindow.
 """
 
+from src.utils.rbac import require_role
+from src.gui.login_window import SessionManager
+from src.models.film import Film
+from src.models.showing import Showing
+from src.models.cinema import Cinema
 import tkinter as tk
 from tkinter import ttk, messagebox
 import calendar
@@ -26,40 +31,34 @@ _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from src.models.cinema  import Cinema
-from src.models.showing import Showing
-from src.models.film    import Film
-from src.gui.login_window import SessionManager
 
 # ── Colour / font constants (matches GUI_STYLE_GUIDE.md) ────────────────────
-BG          = "#0b1220"
-BG2         = "#111b2e"
-BG_CARD     = "#111b2e"
-ACCENT      = "#4f8cff"
-ACCENT_HVR  = "#3478f6"
-SUCCESS     = "#22c55e"
+BG = "#0b1220"
+BG2 = "#111b2e"
+BG_CARD = "#111b2e"
+ACCENT = "#4f8cff"
+ACCENT_HVR = "#3478f6"
+SUCCESS = "#22c55e"
 SUCCESS_HVR = "#16a34a"
-SOLD_OUT    = "#26344a"
-WARNING     = "#f59e0b"
-TEXT        = "#f8fafc"
-TEXT2       = "#a7b4c8"
-ERROR       = "#ef4444"
-BORDER      = "#26344a"
+SOLD_OUT = "#26344a"
+WARNING = "#f59e0b"
+TEXT = "#f8fafc"
+TEXT2 = "#a7b4c8"
+ERROR = "#ef4444"
+BORDER = "#26344a"
 
-FF          = "Segoe UI"
-FONT_H1     = (FF, 20, "bold")
-FONT_H2     = (FF, 14, "bold")
-FONT_BODY   = (FF, 11)
-FONT_SMALL  = (FF,  9)
-FONT_LABEL  = (FF, 11, "bold")
-FONT_BTN    = (FF, 10, "bold")
+FF = "Segoe UI"
+FONT_H1 = (FF, 20, "bold")
+FONT_H2 = (FF, 14, "bold")
+FONT_BODY = (FF, 11)
+FONT_SMALL = (FF, 9)
+FONT_LABEL = (FF, 11, "bold")
+FONT_BTN = (FF, 10, "bold")
 
-THUMB_SIZE  = (90, 130)    # poster thumbnail dimensions
-CARD_PAD    = 14
-CARD_GAP    = 10
+THUMB_SIZE = (90, 130)    # poster thumbnail dimensions
+CARD_PAD = 14
+CARD_GAP = 10
 
-
-from src.utils.rbac import require_role
 
 @require_role('staff')
 class FilmListingWindow:
@@ -98,17 +97,17 @@ class FilmListingWindow:
 
         self._current_date = datetime.date.today()
         self._cinemas: list[Cinema] = []
-        self.poster_images: list    = []   # keep references so GC doesn't collect them
+        self.poster_images: list = []   # keep references so GC doesn't collect them
         self._selected_cinema_id: int | None = None
 
         # Filter state — populated by _refresh_films(), filtered by _apply_filters()
-        self._all_films: list[tuple]    = []   # list of (Film, list[Showing])
+        self._all_films: list[tuple] = []   # list of (Film, list[Showing])
         self._displayed_films: list[tuple] = []
 
         # StringVar traces for real-time filtering
-        self._search_var    = tk.StringVar()
-        self._genre_var     = tk.StringVar(value="All")
-        self._rating_var    = tk.StringVar(value="All")
+        self._search_var = tk.StringVar()
+        self._genre_var = tk.StringVar(value="All")
+        self._rating_var = tk.StringVar(value="All")
 
         if embedded:
             self._r = {"ctrl": 0, "search": 1, "film": 2, "status": 3}
@@ -244,7 +243,6 @@ class FilmListingWindow:
         else:
             self.chatbot_window.show_widget()
 
-
     def _build_controls(self) -> None:
         """Date navigator + cinema selector row."""
         ctrl = tk.Frame(self.content, bg=BG, pady=12)
@@ -287,7 +285,7 @@ class FilmListingWindow:
                  bg=BG, fg=TEXT2).grid(row=0, column=4, sticky="e")
 
         self._cinema_var = tk.StringVar()
-        
+
         if self.user and self.user.is_admin:
             style = ttk.Style()
             style.theme_use('clam')
@@ -326,8 +324,8 @@ class FilmListingWindow:
         - Age Rating    : filters by exact BBFC rating (or 'All').
         - Clear button  : resets all three controls and re-renders all films.
         """
-        GENRES  = ["All", "Action", "Animation", "Comedy", "Documentary",
-                   "Drama", "Horror", "Romance", "Sci-Fi", "Thriller"]
+        GENRES = ["All", "Action", "Animation", "Comedy", "Documentary",
+                  "Drama", "Horror", "Romance", "Sci-Fi", "Thriller"]
         RATINGS = ["All", "U", "PG", "12", "12A", "15", "18"]
 
         bar = tk.Frame(self.content, bg=BG2, pady=10)
@@ -453,16 +451,16 @@ class FilmListingWindow:
     def _load_cinemas(self) -> None:
         """Populate the cinema selection and load initial film data."""
         try:
-            print(f"[DEBUG] FilmListingWindow._load_cinemas called")
+            print("[DEBUG] FilmListingWindow._load_cinemas called")
             self._cinemas = Cinema.get_all()
             print(f"[DEBUG] Loaded {len(self._cinemas)} cinemas")
             names = [c.cinema_name for c in self._cinemas]
-            
+
             # Handle home cinema for staff
             home_cinema = None
             if self.user and self.user.cinema_id:
                 home_cinema = next((c for c in self._cinemas if c.cinema_id == self.user.cinema_id), None)
-            
+
             if home_cinema:
                 self._cinema_var.set(home_cinema.cinema_name)
                 self._selected_cinema_id = home_cinema.cinema_id
@@ -471,15 +469,15 @@ class FilmListingWindow:
                 self._cinema_var.set(names[0])
                 self._selected_cinema_id = self._cinemas[0].cinema_id
                 print(f"[DEBUG] Selected first cinema: {self._selected_cinema_id} ({names[0]})")
-            
+
             # Populate combobox if it exists (for admin/manager)
             if hasattr(self, '_cinema_cb'):
                 self._cinema_cb['values'] = names
-            
+
             # Load initial films
             if self._selected_cinema_id:
                 self._refresh_films()
-                
+
         except Exception as exc:
             print(f"[DEBUG] FilmListingWindow._load_cinemas ERROR: {exc}")
             messagebox.showerror("Database Error", str(exc), parent=self._tk)
@@ -495,7 +493,7 @@ class FilmListingWindow:
         self._all_films.clear()
 
         if self._selected_cinema_id is None:
-            print(f"[DEBUG] _selected_cinema_id is None, returning")
+            print("[DEBUG] _selected_cinema_id is None, returning")
             return
 
         date_str = self._current_date.isoformat()
@@ -535,8 +533,8 @@ class FilmListingWindow:
         Reads the current values of search_var, genre_var, and rating_var.
         No database calls are made here — operates purely on the cached list.
         """
-        query  = self._search_var.get().strip().lower()
-        genre  = self._genre_var.get()
+        query = self._search_var.get().strip().lower()
+        genre = self._genre_var.get()
         rating = self._rating_var.get()
 
         self._displayed_films = []
@@ -603,7 +601,7 @@ class FilmListingWindow:
             self._build_film_card(self._inner, film, film_shows, i)
 
         total_shows = sum(len(s) for _, s in self._displayed_films)
-        filtered    = len(self._displayed_films) != len(self._all_films)
+        filtered = len(self._displayed_films) != len(self._all_films)
         filter_note = (f" (filtered from {len(self._all_films)})"
                        if filtered else "")
         self._set_status(
@@ -623,8 +621,8 @@ class FilmListingWindow:
         card.columnconfigure(1, weight=1)
 
         # ── Poster thumbnail ──────────────────────────────────────────────────
-        poster_frame = tk.Frame(card, bg=bg, width=THUMB_SIZE[0]+4,
-                                height=THUMB_SIZE[1]+4)
+        poster_frame = tk.Frame(card, bg=bg, width=THUMB_SIZE[0] + 4,
+                                height=THUMB_SIZE[1] + 4)
         poster_frame.grid(row=0, column=0, rowspan=3, padx=(0, 16),
                           sticky="n", pady=4)
         poster_frame.grid_propagate(False)
@@ -663,7 +661,7 @@ class FilmListingWindow:
         meta = (
             f"🎭 {film.genre}   "
             f"⏱ {film.duration_formatted}   "
-            + (f"🎬 {film.cast_members[:60]}{'…' if len(film.cast_members)>60 else ''}"
+            + (f"🎬 {film.cast_members[:60]}{'…' if len(film.cast_members) > 60 else ''}"
                if film.cast_members else "")
         )
         tk.Label(card, text=meta, font=FONT_SMALL, bg=bg,
@@ -686,10 +684,10 @@ class FilmListingWindow:
 
         for sh in sorted(showings, key=lambda s: s.show_time):
             sold_out = sh.is_sold_out or sh.seats_remaining <= 0
-            btn_bg   = SOLD_OUT if sold_out else SUCCESS
-            btn_fg   = TEXT2    if sold_out else TEXT
+            btn_bg = SOLD_OUT if sold_out else SUCCESS
+            btn_fg = TEXT2 if sold_out else TEXT
             btn_text = f"{sh.show_time}\n{'SOLD OUT' if sold_out else f'{sh.seats_remaining} seats'}"
-            state    = "disabled" if sold_out else "normal"
+            state = "disabled" if sold_out else "normal"
 
             btn = tk.Button(
                 btn_row,
@@ -713,27 +711,36 @@ class FilmListingWindow:
         if recs:
             rec_container = tk.Frame(card, bg=bg, pady=10)
             rec_container.grid(row=4, column=1, sticky="w", pady=(10, 0))
-            
-            tk.Label(rec_container, text="✨ You might also like...", font=FONT_LABEL, bg=bg, fg=ACCENT).pack(anchor="w", pady=(0, 5))
-            
+
+            tk.Label(rec_container, text="✨ You might also like...",
+                     font=FONT_LABEL, bg=bg, fg=ACCENT).pack(anchor="w", pady=(0, 5))
+
             rec_list = tk.Frame(rec_container, bg=bg)
             rec_list.pack(fill="x")
-            
+
             for r in recs:
-                r_frame = tk.Frame(rec_list, bg=BG_CARD if index % 2 != 0 else BG2, highlightbackground=BORDER, highlightthickness=1, padx=10, pady=5)
+                r_frame = tk.Frame(rec_list, bg=BG_CARD if index % 2 != 0 else BG2,
+                                   highlightbackground=BORDER, highlightthickness=1, padx=10, pady=5)
                 r_frame.pack(side="left", padx=(0, 10))
-                
-                title_lbl = tk.Label(r_frame, text=r["title"][:25] + ("..." if len(r["title"]) > 25 else ""), font=(FF, 10, "bold"), bg=r_frame["bg"], fg=TEXT)
+
+                title_lbl = tk.Label(r_frame, text=r["title"][:25] + ("..." if len(r["title"])
+                                     > 25 else ""), font=(FF, 10, "bold"), bg=r_frame["bg"], fg=TEXT)
                 title_lbl.pack(anchor="w")
-                
-                meta_lbl = tk.Label(r_frame, text=f"{r['genre']} | {r['age_rating']}", font=FONT_SMALL, bg=r_frame["bg"], fg=TEXT2)
+
+                meta_lbl = tk.Label(r_frame, text=f"{r['genre']} | {r['age_rating']}",
+                                    font=FONT_SMALL, bg=r_frame["bg"], fg=TEXT2)
                 meta_lbl.pack(anchor="w")
-                
-                info_lbl = tk.Label(r_frame, text=f"Next: {r['next_show_date']} {r['next_show_time']}", font=FONT_SMALL, bg=r_frame["bg"], fg=TEXT2)
+
+                info_lbl = tk.Label(
+                    r_frame, text=f"Next: {r['next_show_date']} {r['next_show_time']}",
+                    font=FONT_SMALL, bg=r_frame["bg"], fg=TEXT2)
                 info_lbl.pack(anchor="w", pady=(2, 5))
-                
-                btn = tk.Button(r_frame, text="Book Now", font=FONT_BTN, bg=SUCCESS, fg=TEXT, activebackground=SUCCESS_HVR, relief="flat", cursor="hand2", padx=10, pady=2,
-                                command=lambda sh_id=r["next_showing_id"]: self._open_booking_by_id(sh_id))
+
+                btn = tk.Button(
+                    r_frame, text="Book Now", font=FONT_BTN, bg=SUCCESS, fg=TEXT,
+                    activebackground=SUCCESS_HVR, relief="flat", cursor="hand2", padx=10, pady=2,
+                    command=lambda sh_id=r["next_showing_id"]: self._open_booking_by_id(sh_id)
+                )
                 btn.pack(anchor="w")
 
     # ── Event handlers ────────────────────────────────────────────────────────

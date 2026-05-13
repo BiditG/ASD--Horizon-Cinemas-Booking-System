@@ -12,10 +12,11 @@ Description : Calculates ticket prices based on city, show time, and seat zone.
 import datetime
 from typing import Dict, Any
 
+
 class PricingEngine:
     """
     Handles base prices and zone uplifts.
-    
+
     Rules:
     - Base price (Lower Hall) depends on city and show type.
     - Upper Gallery = Base Price * 1.20
@@ -27,20 +28,20 @@ class PricingEngine:
     def get_lower_hall_price(city_id: int, show_type: str, db_connection) -> float:
         """
         Query the database for the base (lower hall) price.
-        
+
         Args:
             city_id: FK to cities table.
             show_type: 'morning', 'afternoon', or 'evening'.
             db_connection: sqlite3.Connection object.
-            
+
         Returns:
             float: The current base price.
         """
         cursor = db_connection.execute(
             """
-            SELECT lower_hall_price 
-            FROM prices 
-            WHERE city_id = ? AND show_type = ? 
+            SELECT lower_hall_price
+            FROM prices
+            WHERE city_id = ? AND show_type = ?
             ORDER BY effective_from DESC LIMIT 1
             """,
             (city_id, show_type.lower())
@@ -54,19 +55,19 @@ class PricingEngine:
     def calculate_price(city_id: int, show_type: str, ticket_type: str, quantity: int, db_connection) -> Dict[str, Any]:
         """
         Calculate the total price for a given number of tickets.
-        
+
         Args:
             city_id: FK to cities.
             show_type: 'morning', 'afternoon', 'evening'.
             ticket_type: 'lower_hall', 'upper_gallery', or 'vip'.
             quantity: Number of tickets.
             db_connection: Active database connection.
-            
+
         Returns:
             dict: {unit_price: float, total_price: float, ticket_type: str, quantity: int, price_breakdown: str}
         """
         base_price = PricingEngine.get_lower_hall_price(city_id, show_type, db_connection)
-        
+
         ticket_type = ticket_type.lower()
         if ticket_type == 'lower_hall':
             unit = base_price
@@ -79,7 +80,7 @@ class PricingEngine:
             raise ValueError(f"Invalid ticket_type: {ticket_type}")
 
         total = round(unit * quantity, 2)
-        
+
         return {
             "unit_price": unit,
             "total_price": total,
@@ -104,14 +105,14 @@ class PricingEngine:
     def validate_show_type(show_time: str) -> str:
         """
         Map a time string (HH:MM) or datetime.time object to the correct show_type.
-        
+
         - 08:00 - 11:59 -> morning
         - 12:00 - 16:59 -> afternoon
         - 17:00 - 23:59 -> evening
-        
+
         Args:
             show_time: "HH:MM" string or datetime.time.
-            
+
         Returns:
             str: 'morning', 'afternoon', or 'evening'.
         """

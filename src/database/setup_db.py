@@ -3,12 +3,13 @@ import sqlite3
 import bcrypt
 import datetime
 import random
-import os
 
 DB_PATH = 'hcbs.db'
 
+
 def hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
 
 def create_tables(cursor):
     cursor.executescript("""
@@ -153,8 +154,9 @@ def create_tables(cursor):
     );
     """)
 
+
 def seed_data(conn_or_cursor):
-    # If passed a connection, get a cursor. Connection.execute returns a cursor, 
+    # If passed a connection, get a cursor. Connection.execute returns a cursor,
     # but Connection itself doesn't have fetchall/fetchone.
     if hasattr(conn_or_cursor, 'cursor') and not hasattr(conn_or_cursor, 'fetchall'):
         cursor = conn_or_cursor.cursor()
@@ -165,7 +167,7 @@ def seed_data(conn_or_cursor):
     cities = ['Birmingham', 'Bristol', 'Cardiff', 'London']
     for city in cities:
         cursor.execute("INSERT INTO cities (city_name) VALUES (?)", (city,))
-    
+
     # 2. Cinemas
     cinemas_data = [
         (1, 'Horizon Birmingham Central'), (1, 'Horizon Birmingham South'),
@@ -178,7 +180,7 @@ def seed_data(conn_or_cursor):
     # 3. Screens
     screens_data = []
     for cinema_id in range(1, 9):
-        for screen_num in range(1, 4): # 3 screens per cinema
+        for screen_num in range(1, 4):  # 3 screens per cinema
             total = random.randint(50, 120)
             vip = random.randint(5, 10)
             lower = int(total * 0.3)
@@ -233,12 +235,12 @@ def seed_data(conn_or_cursor):
 
     # 6. Users (cinema_id, username, password_hash, full_name, email, role, theme_pref, is_active)
     users_data = [
-        (None, 'manager1', hash_password('password123'), 'Alice Manager',   'alice@hcbs.com',   'manager', 'dark', 1),
-        (1,    'admin1',   hash_password('password123'), 'Bob Admin',        'bob@hcbs.com',     'admin',   'dark', 1),
-        (5,    'admin2',   hash_password('password123'), 'Carol Admin',      'carol@hcbs.com',   'admin',   'light',1),
-        (2,    'staff1',   hash_password('password123'), 'Dave Staff',       'dave@hcbs.com',    'staff',   'dark', 1),
-        (3,    'staff2',   hash_password('password123'), 'Eve Staff',        'eve@hcbs.com',     'staff',   'dark', 1),
-        (7,    'staff3',   hash_password('password123'), 'Frank Staff',      'frank@hcbs.com',   'staff',   'light',1),
+        (None, 'manager1', hash_password('password123'), 'Alice Manager', 'alice@hcbs.com', 'manager', 'dark', 1),
+        (1, 'admin1', hash_password('password123'), 'Bob Admin', 'bob@hcbs.com', 'admin', 'dark', 1),
+        (5, 'admin2', hash_password('password123'), 'Carol Admin', 'carol@hcbs.com', 'admin', 'light', 1),
+        (2, 'staff1', hash_password('password123'), 'Dave Staff', 'dave@hcbs.com', 'staff', 'dark', 1),
+        (3, 'staff2', hash_password('password123'), 'Eve Staff', 'eve@hcbs.com', 'staff', 'dark', 1),
+        (7, 'staff3', hash_password('password123'), 'Frank Staff', 'frank@hcbs.com', 'staff', 'light', 1),
     ]
     cursor.executemany("""
         INSERT INTO users (cinema_id, username, password_hash, full_name, email, role, theme_pref, is_active)
@@ -250,19 +252,19 @@ def seed_data(conn_or_cursor):
     show_types_times = [('morning', '10:00'), ('afternoon', '14:30'), ('evening', '19:00')]
     future_showings = []
     film_idx = 0
-    
+
     res = cursor.execute("SELECT screen_id, total_capacity FROM screens ORDER BY screen_id")
     all_screens = res.fetchall()
     films_list = list(range(1, 9))
-    
-    for d_offset in range(8): # Today + next 7 days
+
+    for d_offset in range(8):  # Today + next 7 days
         target_date = (datetime.date.today() + datetime.timedelta(days=d_offset)).isoformat()
         for screen_id, capacity in all_screens:
             for show_type, show_time in show_types_times:
                 film_id = films_list[film_idx % len(films_list)]
                 future_showings.append((film_id, screen_id, target_date, show_time, show_type, capacity))
                 film_idx += 1
-    
+
     cursor.executemany("""
         INSERT INTO showings (film_id, screen_id, show_date, show_time, show_type, seats_remaining)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -272,13 +274,13 @@ def seed_data(conn_or_cursor):
     print("Seeding historical showings for reports...")
     historical_showings = []
     base_date = datetime.date.today()
-    for i in range(1, 181): # 6 months
+    for i in range(1, 181):  # 6 months
         past_date = (base_date - datetime.timedelta(days=i)).isoformat()
         for screen_id, capacity in all_screens:
             stype, stime = random.choice(show_types_times)
             film_id = random.randint(1, 8)
             historical_showings.append((film_id, screen_id, past_date, stime, stype, capacity))
-    
+
     cursor.executemany("""
         INSERT INTO showings (film_id, screen_id, show_date, show_time, show_type, seats_remaining)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -288,10 +290,10 @@ def seed_data(conn_or_cursor):
     print("Seeding bookings and tickets for reports...")
     cursor.execute("SELECT showing_id, screen_id FROM showings WHERE show_date < ?", (today,))
     past_showings = cursor.fetchall()
-    
+
     booking_ref_counter = 1
     staff_ids = [4, 5, 6]  # staff1, staff2, staff3 user IDs
-    
+
     for showing_id, screen_id in past_showings:  # Seed all past showings
         # Create 1-3 bookings per showing
         num_bookings = random.randint(1, 3)
@@ -299,30 +301,30 @@ def seed_data(conn_or_cursor):
             customer_name = f"Customer_{random.randint(1000, 9999)}"
             booking_ref = f"HCBS-{today}-{booking_ref_counter:04d}"
             booking_ref_counter += 1
-            
+
             staff_id = random.choice(staff_ids)
-            
+
             # Determine prices by show_type
             cursor.execute("SELECT show_type FROM showings WHERE showing_id = ?", (showing_id,))
             show_type = cursor.fetchone()[0]
-            
+
             cursor.execute("""
                 SELECT s.screen_id FROM showings s WHERE s.showing_id = ?
             """, (showing_id,))
             scr = cursor.fetchone()
             if not scr:
                 continue
-            
+
             # Get screen capacity to determine seat distribution
             cursor.execute("SELECT total_capacity FROM screens WHERE screen_id = ?", (scr[0],))
             cap_row = cursor.fetchone()
             if not cap_row:
                 continue
             capacity = cap_row[0]
-            
+
             # Random number of tickets (1-5)
             num_tickets = random.randint(1, min(5, capacity))
-            
+
             # Calculate price
             cursor.execute("""
                 SELECT sp.screen_id, c.city_id FROM screens sp
@@ -333,34 +335,42 @@ def seed_data(conn_or_cursor):
             if not screen_info:
                 continue
             city_id = screen_info[1]
-            
+
             cursor.execute("""
                 SELECT lower_hall_price FROM prices
                 WHERE city_id = ? AND show_type = ?
             """, (city_id, show_type))
             price_row = cursor.fetchone()
             base_price = price_row[0] if price_row else 5.0
-            
+
             total_cost = base_price * num_tickets
-            
+
             # Approximate booking time as 1 day before showing or Today if showing is today
-            showing_date_res = cursor.execute("SELECT show_date FROM showings WHERE showing_id = ?", (showing_id,)).fetchone()
+            showing_date_res = cursor.execute(
+                "SELECT show_date FROM showings WHERE showing_id = ?", (showing_id,)).fetchone()
             showing_date = datetime.date.fromisoformat(showing_date_res[0])
             booking_time = (showing_date - datetime.timedelta(days=random.randint(0, 7))).isoformat() + " 12:00:00"
 
             cursor.execute("""
                 INSERT INTO bookings
-                (showing_id, booking_ref, customer_name, total_cost, booking_status, booked_by_agent, staff_id, booking_time)
+                (
+                    showing_id, booking_ref, customer_name, total_cost,
+                    booking_status, booked_by_agent, staff_id, booking_time
+                )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (showing_id, booking_ref, customer_name, total_cost, 'Active', 1, staff_id, booking_time))
-            
+            """, (
+                showing_id, booking_ref, customer_name, total_cost,
+                'Active', 1, staff_id, booking_time
+            ))
+
             booking_id = cursor.lastrowid
-            
+
             # Create tickets
             ticket_types = ['lower_hall'] * max(1, int(num_tickets * 0.6)) + \
-                          ['upper_gallery'] * max(1, int(num_tickets * 0.3)) + \
-                          ['vip'] * max(0, num_tickets - max(1, int(num_tickets * 0.6)) - max(1, int(num_tickets * 0.3)))
-            
+                ['upper_gallery'] * max(1, int(num_tickets * 0.3)) + \
+                ['vip'] * max(0, num_tickets - max(1, int(num_tickets * 0.6)) -
+                              max(1, int(num_tickets * 0.3)))
+
             for idx, ticket_type in enumerate(ticket_types):
                 seat_num = f"{chr(65 + idx // 10)}{idx % 10 + 1}"
                 cursor.execute("""
@@ -372,15 +382,18 @@ def seed_data(conn_or_cursor):
     print("Seeding waitlist...")
     cursor.execute("SELECT showing_id FROM showings WHERE show_date = ? ORDER BY RANDOM() LIMIT 5", (today,))
     today_showings_sample = cursor.fetchall()
-    
+
     for showing_id, in today_showings_sample:
         for i in range(random.randint(1, 3)):
             now = datetime.datetime.now().isoformat()
             cursor.execute("""
-                INSERT INTO waitlist (showing_id, customer_name, customer_email, customer_phone, num_tickets, joined_at, status)
+                INSERT INTO waitlist (
+                    showing_id, customer_name, customer_email, customer_phone,
+                    num_tickets, joined_at, status
+                )
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (showing_id, f"WaitlistCustomer_{random.randint(1000, 9999)}", 
-                  f"email_{random.randint(1, 9999)}@example.com", "12345678", 
+            """, (showing_id, f"WaitlistCustomer_{random.randint(1000, 9999)}",
+                  f"email_{random.randint(1, 9999)}@example.com", "12345678",
                   random.randint(1, 4), now, 'waiting'))
 
     # 11. Add loyalty points
@@ -402,7 +415,6 @@ def seed_data(conn_or_cursor):
     """, ('sess_001', 'check_availability', '{"film":"Inception"}', '{"available": true}'))
 
 
-
 def main():
     print(f"Creating database at {DB_PATH}...")
     conn = sqlite3.connect(DB_PATH)
@@ -417,7 +429,7 @@ def main():
 
     # Print summary
     tables = [
-        'cities', 'cinemas', 'screens', 'films', 'showings', 'prices', 
+        'cities', 'cinemas', 'screens', 'films', 'showings', 'prices',
         'users', 'bookings', 'tickets', 'waitlist', 'loyalty_points', 'agent_logs'
     ]
     print("\n--- Setup Summary ---")
@@ -429,6 +441,7 @@ def main():
 
     conn.close()
     print("\nDatabase setup complete.")
+
 
 if __name__ == "__main__":
     main()

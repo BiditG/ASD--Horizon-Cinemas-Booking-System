@@ -245,18 +245,19 @@ class User:
         return user
 
     @staticmethod
-    def create_user(username: str, password: str, full_name: str, email: str, role: str, cinema_id: Optional[int] = None) -> None:
+    def create_user(username: str, password: str, full_name: str, email: str,
+                    role: str, cinema_id: Optional[int] = None) -> None:
         """Create a new user in the database."""
         if role.lower() not in User.VALID_ROLES:
             raise ValueError(f"Invalid role '{role}'. Must be one of: {', '.join(User.VALID_ROLES)}")
-            
+
         conn = get_connection()
-        
+
         # Check if username exists
         existing = conn.execute("SELECT user_id FROM users WHERE username = ?", (username,)).fetchone()
         if existing:
             raise ValueError(f"Username '{username}' already exists.")
-            
+
         hashed = User.hash_password(password)
         conn.execute(
             """
@@ -271,7 +272,7 @@ class User:
     def get_users_by_role(role: str) -> list:
         """Fetch all users of a specific role."""
         conn = get_connection()
-        
+
         query = """
             SELECT u.user_id, u.username, u.full_name, u.email, u.is_active, c.cinema_name
             FROM users u
@@ -352,11 +353,6 @@ class User:
             False
         """
         self._logged_in = False
-
-    @property
-    def is_admin(self) -> bool:
-        """Returns True if the user is an admin or manager."""
-        return self.role in ("admin", "manager")
 
     # -----------------------------------------------------------------------
     # Dunder Methods

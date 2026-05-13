@@ -8,6 +8,10 @@ Monthly Revenue Report panel for the Horizon Cinemas Booking System (HCBS).
 Can be embedded as a tab frame or launched as a standalone Toplevel.
 """
 
+from src.database.db_connection import get_connection
+import matplotlib.ticker
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import csv
@@ -16,27 +20,23 @@ import calendar
 
 import matplotlib
 matplotlib.use("TkAgg")
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.ticker
 
-from src.database.db_connection import get_connection
 
 # ── Style constants (matches GUI_STYLE_GUIDE.md) ─────────────────────────────
-BG        = "#0b1220"
-BG2       = "#111b2e"
-BG_CARD   = "#162338"
-ACCENT    = "#4f8cff"
-SUCCESS   = "#22c55e"
-WARNING   = "#f59e0b"
-FG        = "#f8fafc"
-FG2       = "#a7b4c8"
-BORDER    = "#26344a"
+BG = "#0b1220"
+BG2 = "#111b2e"
+BG_CARD = "#162338"
+ACCENT = "#4f8cff"
+SUCCESS = "#22c55e"
+WARNING = "#f59e0b"
+FG = "#f8fafc"
+FG2 = "#a7b4c8"
+BORDER = "#26344a"
 
-FF        = "Segoe UI"
-FONT_H2   = (FF, 13, "bold")
+FF = "Segoe UI"
+FONT_H2 = (FF, 13, "bold")
 FONT_BODY = (FF, 10)
-FONT_BTN  = (FF, 10, "bold")
+FONT_BTN = (FF, 10, "bold")
 FONT_MONO = ("Courier New", 10)
 
 # Palette for multi-line chart
@@ -138,11 +138,11 @@ class RevenueReportPanel:
 
         cols = ("cinema", "city", "month", "bookings", "revenue", "avg_ticket")
         headings = {
-            "cinema":     "Cinema",
-            "city":       "City",
-            "month":      "Month/Year",
-            "bookings":   "Bookings",
-            "revenue":    "Revenue (£)",
+            "cinema": "Cinema",
+            "city": "City",
+            "month": "Month/Year",
+            "bookings": "Bookings",
+            "revenue": "Revenue (£)",
             "avg_ticket": "Avg Ticket (£)",
         }
         widths = {"cinema": 140, "city": 90, "month": 90,
@@ -151,13 +151,13 @@ class RevenueReportPanel:
         style = ttk.Style()
         style.theme_use('clam')
         style.configure("Rev.Treeview", background=BG_CARD, foreground=FG,
-                fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=28)
+                        fieldbackground=BG_CARD, borderwidth=0, font=FONT_BODY, rowheight=28)
         style.configure("Rev.Treeview.Heading", background=BG2, foreground=FG, font=FONT_BTN)
         style.map("Rev.Treeview", background=[("selected", ACCENT)], foreground=[("selected", FG)])
         style.configure("TCombobox", fieldbackground=BG2, background=BG2, foreground=FG, arrowcolor=FG)
         style.map("TCombobox",
-              fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
-              foreground=[("readonly", FG), ("disabled", FG), ("focus", FG), ("active", FG)])
+                  fieldbackground=[("readonly", BG2), ("disabled", BG2), ("focus", BG2), ("active", BG2)],
+                  foreground=[("readonly", FG), ("disabled", FG), ("focus", FG), ("active", FG)])
         self.root.option_add('*TCombobox*Listbox.background', BG2, 100)
         self.root.option_add('*TCombobox*Listbox.foreground', FG, 100)
         self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT, 100)
@@ -229,10 +229,10 @@ class RevenueReportPanel:
     # ── Report generation ─────────────────────────────────────────────────────
 
     def _generate(self):
-        city     = self._city_var.get()
-        cinema   = self._cinema_var.get()
-        month_s  = self._month_var.get()
-        year_s   = self._year_var.get()
+        city = self._city_var.get()
+        cinema = self._cinema_var.get()
+        month_s = self._month_var.get()
+        year_s = self._year_var.get()
 
         # Resolve month number
         month_num = None
@@ -268,7 +268,7 @@ class RevenueReportPanel:
         self._draw_chart(rows)
         self._status_lbl.config(
             text=f"Report generated: {len(rows)} row(s)  |  "
-                 f"{datetime.datetime.now().strftime('%H:%M:%S')}"
+            f"{datetime.datetime.now().strftime('%H:%M:%S')}"
         )
 
     def _query_revenue(self, cinema_ids: list, month: int | None, year: int | None) -> list[dict]:
@@ -311,16 +311,16 @@ class RevenueReportPanel:
         for r in raw:
             m = int(r["month_num"])
             y = int(r["year_num"])
-            rev   = float(r["total_revenue"])
-            bk    = int(r["total_bookings"])
-            avg   = rev / bk if bk else 0.0
+            rev = float(r["total_revenue"])
+            bk = int(r["total_bookings"])
+            avg = rev / bk if bk else 0.0
             rows.append({
-                "cinema":     r["cinema_name"],
-                "city":       r["city_name"],
-                "month":      f"{calendar.month_abbr[m]} {y}",
-                "month_key":  (y, m),
-                "bookings":   bk,
-                "revenue":    rev,
+                "cinema": r["cinema_name"],
+                "city": r["city_name"],
+                "month": f"{calendar.month_abbr[m]} {y}",
+                "month_key": (y, m),
+                "bookings": bk,
+                "revenue": rev,
                 "avg_ticket": avg,
             })
         return rows
@@ -331,7 +331,7 @@ class RevenueReportPanel:
         for item in self._tv.get_children():
             self._tv.delete(item)
 
-        total_bk  = 0
+        total_bk = 0
         total_rev = 0.0
 
         for r in rows:
@@ -344,7 +344,7 @@ class RevenueReportPanel:
                 f"£{r['revenue']:,.2f}",
                 f"£{r['avg_ticket']:,.2f}",
             ), tags=(tag,))
-            total_bk  += r["bookings"]
+            total_bk += r["bookings"]
             total_rev += r["revenue"]
 
         # Totals row
@@ -410,7 +410,7 @@ class RevenueReportPanel:
 
         sorted_keys = sorted(all_keys)
         x_labels = [f"{calendar.month_abbr[m]} {y}" for y, m in sorted_keys]
-        x_pos    = list(range(len(sorted_keys)))
+        x_pos = list(range(len(sorted_keys)))
 
         for idx, (cname, monthly) in enumerate(cinemas_data.items()):
             colour = LINE_COLOURS[idx % len(LINE_COLOURS)]
@@ -442,7 +442,7 @@ class RevenueReportPanel:
             messagebox.showwarning("No Data", "Generate a report before exporting.")
             return
 
-        today   = datetime.date.today()
+        today = datetime.date.today()
         default = f"revenue_report_{today.strftime('%Y_%m')}.csv"
 
         filepath = filedialog.asksaveasfilename(
@@ -471,9 +471,9 @@ class RevenueReportPanel:
                     ])
                 # Totals
                 if self._report_rows:
-                    total_bk  = sum(r["bookings"] for r in self._report_rows)
-                    total_rev = sum(r["revenue"]  for r in self._report_rows)
-                    avg_all   = total_rev / total_bk if total_bk else 0
+                    total_bk = sum(r["bookings"] for r in self._report_rows)
+                    total_rev = sum(r["revenue"] for r in self._report_rows)
+                    avg_all = total_rev / total_bk if total_bk else 0
                     writer.writerow(["TOTAL", "", "", total_bk,
                                      f"{total_rev:.2f}", f"{avg_all:.2f}"])
 

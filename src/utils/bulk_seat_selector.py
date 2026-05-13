@@ -62,9 +62,9 @@ def bulk_select_seats(
 
     # Determine zone prefix
     prefix_map = {
-        "lower_hall":    "A",
+        "lower_hall": "A",
         "upper_gallery": "B",
-        "vip":           "V",
+        "vip": "V",
     }
     prefix = prefix_map.get(ticket_type, "A")
 
@@ -80,9 +80,9 @@ def bulk_select_seats(
         return None, 0
 
     capacity_map = {
-        "lower_hall":    ("lower_hall_seats",    "A"),
-        "upper_gallery": ("upper_gallery_seats",  "B"),
-        "vip":           ("vip_seats",            "V"),
+        "lower_hall": ("lower_hall_seats", "A"),
+        "upper_gallery": ("upper_gallery_seats", "B"),
+        "vip": ("vip_seats", "V"),
     }
     col, _ = capacity_map[ticket_type]
     total_in_zone = row[col]

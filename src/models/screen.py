@@ -9,7 +9,6 @@ used by Admin and Booking Staff GUI windows when selecting seats.
 """
 
 import sqlite3
-from typing import Optional
 from src.database.db_connection import get_connection
 
 
@@ -41,13 +40,13 @@ class Screen:
         upper_gallery_seats: int,
         vip_seats: int,
     ) -> None:
-        self.screen_id:           int = screen_id
-        self.cinema_id:           int = cinema_id
-        self.screen_number:       int = screen_number
-        self.total_capacity:      int = total_capacity
-        self.lower_hall_seats:    int = lower_hall_seats
+        self.screen_id: int = screen_id
+        self.cinema_id: int = cinema_id
+        self.screen_number: int = screen_number
+        self.total_capacity: int = total_capacity
+        self.lower_hall_seats: int = lower_hall_seats
         self.upper_gallery_seats: int = upper_gallery_seats
-        self.vip_seats:           int = vip_seats
+        self.vip_seats: int = vip_seats
 
     # ------------------------------------------------------------------
     # Factory helper
@@ -57,13 +56,13 @@ class Screen:
     def _from_row(cls, row: sqlite3.Row) -> "Screen":
         """Construct a Screen from a sqlite3.Row object."""
         return cls(
-            screen_id           = row["screen_id"],
-            cinema_id           = row["cinema_id"],
-            screen_number       = row["screen_number"],
-            total_capacity      = row["total_capacity"],
-            lower_hall_seats    = row["lower_hall_seats"],
-            upper_gallery_seats = row["upper_gallery_seats"],
-            vip_seats           = row["vip_seats"],
+            screen_id=row["screen_id"],
+            cinema_id=row["cinema_id"],
+            screen_number=row["screen_number"],
+            total_capacity=row["total_capacity"],
+            lower_hall_seats=row["lower_hall_seats"],
+            upper_gallery_seats=row["upper_gallery_seats"],
+            vip_seats=row["vip_seats"],
         )
 
     # ------------------------------------------------------------------
@@ -85,7 +84,7 @@ class Screen:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 "SELECT * FROM screens WHERE cinema_id = ? ORDER BY screen_number",
                 (cinema_id,)
@@ -110,7 +109,7 @@ class Screen:
             sqlite3.DatabaseError: On any database-level error.
         """
         try:
-            conn   = get_connection()
+            conn = get_connection()
             cursor = conn.execute(
                 "SELECT * FROM screens WHERE screen_id = ?", (screen_id,)
             )

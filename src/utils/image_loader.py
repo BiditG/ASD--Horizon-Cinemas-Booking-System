@@ -36,8 +36,8 @@ except ImportError:
 
 # ── Module-level constants ────────────────────────────────────────────────────
 
-_PLACEHOLDER_BG   = (30, 41, 59)      # BG2 dark slate blue (matches HCBS theme)
-_PLACEHOLDER_FG   = (148, 163, 184)   # TEXT2 muted slate
+_PLACEHOLDER_BG = (30, 41, 59)      # BG2 dark slate blue (matches HCBS theme)
+_PLACEHOLDER_FG = (148, 163, 184)   # TEXT2 muted slate
 _PLACEHOLDER_BORDER = (51, 65, 85)    # BORDER colour
 
 
@@ -105,7 +105,7 @@ def load_poster(
             # If thumbnail is smaller than the target (aspect ratio), paste
             # it centred on a solid background so the label stays the right size
             canvas = Image.new("RGB", size, _PLACEHOLDER_BG)
-            offset_x = (size[0] - img.width)  // 2
+            offset_x = (size[0] - img.width) // 2
             offset_y = (size[1] - img.height) // 2
             canvas.paste(img, (offset_x, offset_y))
 
@@ -135,18 +135,18 @@ def _make_placeholder(size: tuple[int, int]) -> "ImageTk.PhotoImage":
     ImageTk.PhotoImage
         The rendered placeholder as a Tkinter-compatible image.
     """
-    w, h   = size
-    img    = Image.new("RGB", (w, h), _PLACEHOLDER_BG)
-    draw   = ImageDraw.Draw(img)
+    w, h = size
+    img = Image.new("RGB", (w, h), _PLACEHOLDER_BG)
+    draw = ImageDraw.Draw(img)
 
     # ── Outer border rectangle ────────────────────────────────────────────────
     draw.rectangle([1, 1, w - 2, h - 2], outline=_PLACEHOLDER_BORDER, width=2)
 
     # ── Film-strip side bars (left and right) ─────────────────────────────────
-    bar_w  = max(6, w // 9)
+    bar_w = max(6, w // 9)
     hole_h = max(4, h // 14)
     hole_w = max(4, bar_w - 4)
-    gap    = hole_h + 4
+    gap = hole_h + 4
 
     for x_off in (2, w - bar_w - 2):
         draw.rectangle([x_off, 2, x_off + bar_w, h - 2],
@@ -183,7 +183,7 @@ def _make_placeholder(size: tuple[int, int]) -> "ImageTk.PhotoImage":
             font = None
 
     label_text = "No Poster"
-    text_y     = cy + icon_size // 2 + 6
+    text_y = cy + icon_size // 2 + 6
 
     if font:
         try:

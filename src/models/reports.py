@@ -1,7 +1,7 @@
 # Student: Simona Kattel, 24030159
 import csv
 import os
-import datetime
+
 
 class ReportManager:
     @staticmethod
@@ -11,11 +11,11 @@ class ReportManager:
         by joining bookings, showings, and films tables, filtered by cinema_id, ordered by show_date DESC.
         """
         query = """
-            SELECT 
-                f.title as film_title, 
-                s.show_date, 
-                s.show_time, 
-                COUNT(b.booking_id) as total_bookings, 
+            SELECT
+                f.title as film_title,
+                s.show_date,
+                s.show_time,
+                COUNT(b.booking_id) as total_bookings,
                 SUM(b.total_cost) as total_revenue
             FROM showings s
             JOIN films f ON s.film_id = f.film_id
@@ -40,30 +40,30 @@ class ReportManager:
     @staticmethod
     def monthly_revenue(cinema_id: int, year: int, month: int, db_connection) -> dict:
         """
-        Returns: total_bookings (int), total_revenue (float), revenue_by_show_type (dict), average_occupancy_percent (float).
+        Returns monthly booking, revenue, show-type, and occupancy metrics.
         """
         # Format year and month for LIKE comparison
         month_str = f"{year}-{month:02d}"
-        
+
         query_bookings = """
-            SELECT 
-                COUNT(b.booking_id) as t_bookings, 
+            SELECT
+                COUNT(b.booking_id) as t_bookings,
                 SUM(b.total_cost) as t_revenue,
                 s.show_type,
                 SUM(b.total_cost) as type_revenue
             FROM bookings b
             JOIN showings s ON b.showing_id = s.showing_id
             JOIN screens sc ON s.screen_id = sc.screen_id
-            WHERE sc.cinema_id = ? AND b.booking_status = 'Active' 
+            WHERE sc.cinema_id = ? AND b.booking_status = 'Active'
               AND s.show_date LIKE ?
             GROUP BY s.show_type
         """
         cursor = db_connection.execute(query_bookings, (cinema_id, f"{month_str}%"))
         rows = cursor.fetchall()
-        
+
         total_bookings = sum(r["t_bookings"] for r in rows) if rows else 0
         total_revenue = sum(r["type_revenue"] for r in rows) if rows else 0.0
-        
+
         revenue_by_show_type = {
             "morning": 0.0,
             "afternoon": 0.0,
@@ -74,7 +74,7 @@ class ReportManager:
 
         # Calculate average occupancy
         query_occupancy = """
-            SELECT 
+            SELECT
                 SUM(sc.total_capacity) as total_seats,
                 SUM(sc.total_capacity - s.seats_remaining) as occupied_seats
             FROM showings s
@@ -82,7 +82,7 @@ class ReportManager:
             WHERE sc.cinema_id = ? AND s.show_date LIKE ?
         """
         occ_row = db_connection.execute(query_occupancy, (cinema_id, f"{month_str}%")).fetchone()
-        
+
         average_occupancy_percent = 0.0
         if occ_row and occ_row["total_seats"] and occ_row["total_seats"] > 0:
             occ_seats = occ_row["occupied_seats"] or 0
@@ -101,9 +101,9 @@ class ReportManager:
         Returns rows with: film_title, total_bookings, total_revenue, ordered by total_revenue DESC.
         """
         query = """
-            SELECT 
-                f.title as film_title, 
-                COUNT(b.booking_id) as total_bookings, 
+            SELECT
+                f.title as film_title,
+                COUNT(b.booking_id) as total_bookings,
                 SUM(b.total_cost) as total_revenue
             FROM bookings b
             JOIN showings s ON b.showing_id = s.showing_id
@@ -131,9 +131,9 @@ class ReportManager:
         """
         month_str = f"{year}-{month:02d}"
         query = """
-            SELECT 
-                u.full_name as staff_full_name, 
-                COUNT(b.booking_id) as total_bookings, 
+            SELECT
+                u.full_name as staff_full_name,
+                COUNT(b.booking_id) as total_bookings,
                 IFNULL(SUM(b.total_cost), 0) as total_revenue
             FROM users u
             LEFT JOIN bookings b ON u.user_id = b.staff_id AND b.booking_status = 'Active'
@@ -160,18 +160,18 @@ class ReportManager:
         """
         if not data:
             return ""
-            
+
         export_dir = "exports"
         if not os.path.exists(export_dir):
             os.makedirs(export_dir)
-            
+
         filepath = os.path.join(export_dir, filename)
-        
+
         with open(filepath, "w", newline="", encoding="utf-8") as file:
             keys = list(data[0].keys())
             writer = csv.DictWriter(file, fieldnames=keys)
             writer.writeheader()
             for row in data:
                 writer.writerow(row)
-                
+
         return os.path.abspath(filepath)
